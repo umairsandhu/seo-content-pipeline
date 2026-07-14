@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+.venv/
+
+# Secrets & per-site working files (never commit)
+.env
+.env.*
+config.json
+gsc-service-account.json
+
+# Generated outputs
+corpus.json
+recommendations.md
+content-queue.json
+next-brief.md

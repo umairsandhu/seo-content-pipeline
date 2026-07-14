@@ -1,0 +1,15 @@
+{
+  "site": "https://www.example.com",
+  "sitemap": "https://www.example.com/sitemap.xml",
+  "include": ["/blog/"],
+  "exclude": ["/tag/", "/author/", "/page/"],
+  "max_pages": 400,
+  "pillars": {
+    "/products": "storefront hub",
+    "/pricing": "commercial hub"
+  },
+  "gsc_property": "sc-domain:example.com",
+  "gsc_credentials": "gsc-service-account.json",
+  "dataforseo": { "location_name": "United States", "language_name": "English" },
+  "brand": { "name": "Example", "navy": "#0B0E33", "green": "#02BC87" }
+}
