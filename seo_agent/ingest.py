@@ -14,6 +14,8 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+from . import render
+
 UA = "Mozilla/5.0 (compatible; seo-content-pipeline/1.0; +https://claude.com/claude-code)"
 TAG = re.compile(r"<[^>]+>")
 WS = re.compile(r"\s+")
@@ -116,9 +118,13 @@ def extract(url, doc):
     links = [h for h in HREF.findall(doc)
              if h and not h.startswith(("#", "mailto:", "tel:", "javascript:"))]
     jsonld = bool(re.search(r'<script[^>]+type=["\']application/ld\+json["\']', doc, re.I))
+    words = len(text.split())
+    # CSR heuristic: near-empty raw body + a SPA mount marker → likely client-rendered.
+    csr = words < 50 and bool(re.search(
+        r'id=["\'](root|app|__next|__nuxt)["\']|__NEXT_DATA__|ng-version|data-reactroot', doc, re.I))
     return {"url": url, "title": title, "description": desc,
             "headings": headings, "h1": h1, "canonical": canonical, "robots": robots,
-            "links": links, "words": len(text.split()), "jsonld": jsonld,
+            "links": links, "words": words, "jsonld": jsonld, "csr": csr,
             "text": text[:12000]}
 
 
@@ -139,17 +145,21 @@ def build(cfg, out="corpus.json", delay=0.15):
     urls = urls[: cfg.get("max_pages", 400)]
     print(f"ingesting {len(urls)} pages from {cfg['sitemap']}")
     corpus = []
-    for i, u in enumerate(urls, 1):
-        try:
-            status, final, doc = _fetch(u)
-            rec = extract(u, doc)
-            rec["status"], rec["final_url"] = status, final
-            corpus.append(rec)
-        except Exception as e:
-            print(f"  ! {u}: {e}", file=sys.stderr)
-        if i % 25 == 0:
-            print(f"  …{i}/{len(urls)}")
-        time.sleep(delay)
+    with render.session(cfg) as r:
+        if r:
+            print("  (JavaScript rendering enabled — headless Chromium)")
+        for i, u in enumerate(urls, 1):
+            try:
+                res = (r.render(u) if r else None) or _fetch(u)
+                status, final, doc = res
+                rec = extract(u, doc)
+                rec["status"], rec["final_url"] = status, final
+                corpus.append(rec)
+            except Exception as e:
+                print(f"  ! {u}: {e}", file=sys.stderr)
+            if i % 25 == 0:
+                print(f"  …{i}/{len(urls)}")
+            time.sleep(delay)
     Path(out).write_text(json.dumps(corpus, ensure_ascii=False, indent=1))
     print(f"wrote {out} ({len(corpus)} pages)")
     return corpus

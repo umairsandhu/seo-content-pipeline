@@ -99,6 +99,15 @@ def robots_txt(cfg, F):
     return {"exists": True, "references_sitemap": has_sm}
 
 
+def js_render(corpus, F):
+    csr = [c for c in corpus if c.get("csr")]
+    if csr:
+        F.append({"cat": "crawl", "sev": "high", "url": csr[0]["url"],
+                  "msg": f"{len(csr)} pages look client-rendered (near-empty raw HTML) — enable JS "
+                         f"rendering (render.enabled) for an accurate audit; otherwise Google/AI "
+                         f"crawlers may see them nearly empty too"})
+
+
 def llms_txt(cfg, F):
     site = (cfg.get("site") or "").rstrip("/")
     try:
@@ -245,6 +254,7 @@ def report(cfg, corpus_path="corpus.json"):
     sm = sitemap_health(cfg, corpus, F)
     robots_txt(cfg, F)
     llms_txt(cfg, F)
+    js_render(corpus, F)
     metadata(corpus, F, t)
     headings(corpus, F)
     canonicals(corpus, F)

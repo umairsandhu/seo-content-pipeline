@@ -95,12 +95,13 @@ Ranked by evidence strength + leverage. ✅ have · 🔨 build · 🔬 needs its
    Google + AI crawlers (GPTBot/ClaudeBot/PerplexityBot…), reports crawl waste, crawl
    distribution, and AI-crawler coverage of indexable pages. (Crawl budget matters below
    1M pages too — the "only huge sites" claim was **refuted**.)
-4. 🔨 **JavaScript rendering.** Our crawler reads raw HTML; SPA/CSR pages look empty to it,
-   so the Site Doctor mis-reports them. Headless-Chromium render before auditing
-   meta/H1/content/structured-data. Table-stakes across every top crawler. **← next**
+4. ✅ **JavaScript rendering** — `render.py` (optional Playwright backend, `render.enabled`).
+   Renders SPA/CSR pages in headless Chromium before auditing so they aren't mis-reported.
+   Always-on CSR heuristic (ingest sets `csr`) flags likely client-rendered pages even when
+   rendering is off, so you know to enable it. Table-stakes across every top crawler.
 5. 🔨 **Rank + SERP-feature tracking over time.** We have the history store but don't yet
    snapshot positions/SERP features longitudinally. Add a `rank` snapshot kind (GSC position
-   + SERP features from DataForSEO) → true movement tracking (goals #3/#5).
+   + SERP features from DataForSEO) → true movement tracking (goals #3/#5). **← next**
 
 **Adding any new API is one entry** in `integrations.py` (the registry): tier, env/config,
 what it unlocks, alternatives. Onboarding, `.env.example`, and the capability matrix

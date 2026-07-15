@@ -9,6 +9,9 @@ google-auth
 # Optional — semantic embeddings backend (set SEO_EMBEDDINGS=1 to use instead of TF-IDF)
 # fastembed
 
+# Optional — JavaScript rendering for SPA/CSR sites (set render.enabled=true in config)
+# playwright        # then: playwright install chromium
+
 # No package needed for: DataForSEO (volumes/SERP/backlinks/trends), the optional
 # headless content model, the CMS connectors, or the MCP server — all urllib/stdlib.
 # Content drafting needs NO key when the skill is driven by an agent (Claude/OpenAI
