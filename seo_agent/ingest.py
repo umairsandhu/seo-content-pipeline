@@ -196,8 +196,9 @@ def build(cfg, out="corpus.json", delay=0.15):
                 corpus.append(rec)
             except Exception as e:
                 print(f"  ! {u}: {e}", file=sys.stderr)
-            if i % 25 == 0:
-                print(f"  …{i}/{len(urls)}")
+            if i % 50 == 0:                         # checkpoint so long crawls are interrupt-safe
+                Path(out).write_text(json.dumps(corpus, ensure_ascii=False, indent=1))
+                print(f"  …{i}/{len(urls)} (checkpointed)")
             time.sleep(delay)
     Path(out).write_text(json.dumps(corpus, ensure_ascii=False, indent=1))
     print(f"wrote {out} ({len(corpus)} pages)")
