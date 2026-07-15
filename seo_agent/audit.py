@@ -248,8 +248,10 @@ def internal_links(corpus, cfg, F, t):
                     depth[m] = depth[n] + 1
                     q.append(m)
     orphans = [u for u, n in inbound.items() if n == 0 and u != root and _indexable(ids[u])]
-    for u in orphans[:30]:
-        F.append({"cat": "links", "sev": "high", "url": u, "msg": "orphan — no internal links point to it"})
+    if orphans:
+        F.append({"cat": "links", "sev": "high", "url": orphans[0],
+                  "msg": f"{len(orphans)} orphan pages (no internal links point to them), e.g. "
+                         + ", ".join(u.rsplit('/', 1)[-1] or u for u in orphans[:3])})
     under = [u for u, n in inbound.items() if 0 < n < t["min_inbound"] and _indexable(ids[u])]
     if under:
         F.append({"cat": "links", "sev": "low", "url": under[0], "msg": f"{len(under)} pages have <{t['min_inbound']} inbound internal links"})
