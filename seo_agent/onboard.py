@@ -11,10 +11,38 @@ the AGENT's job (see ONBOARDING.md); this wires the deterministic stages:
 
 Run: `python -m seo_agent onboard`. Stops with the fork-safety verdict if unsafe."""
 import datetime
+import json
 from pathlib import Path
 
 from . import analyze, audit, integrations, logs, safety, speed
 from .index import Index, load_corpus
+
+
+def init(root=".", site=None):
+    """Bootstrap a fresh, site-agnostic workspace so anyone can start from 0 in any
+    directory/terminal: scaffold config.json, run fork-safety (.env.example +
+    .gitignore + .env), and print next steps. Refuses to run inside the skill's own
+    install directory so it never pollutes the shared code. One directory = one site."""
+    root = Path(root).resolve()
+    if (root / "seo_agent" / "__main__.py").exists():
+        return {"error": "Run `init` from YOUR site's workspace directory, not the skill's install dir."}
+    cfgp = root / "config.json"
+    created_cfg = False
+    if not cfgp.exists():
+        s = (site or "https://www.example.com").rstrip("/")
+        cfg = {"site": s, "sitemap": s + "/sitemap.xml", "include": [], "competitors": [],
+               "dataforseo": {"location_name": "United States", "language_name": "English"},
+               "cms": {"type": "file", "dir": "content"}, "brand": {"name": "Site"}}
+        cfgp.write_text(json.dumps(cfg, indent=2) + "\n")
+        created_cfg = True
+    saf = safety.check(root=str(root), apply=True)  # .env.example + hardened .gitignore
+    envp, exp = root / ".env", root / ".env.example"
+    created_env = False
+    if exp.exists() and not envp.exists():
+        envp.write_text(exp.read_text())
+        created_env = True
+    return {"site": site or "https://www.example.com", "config": str(cfgp),
+            "created_config": created_cfg, "created_env": created_env, "fork_safe": saf["fork_safe"]}
 
 
 def run(cfg, keywords=None, root=".", do_ingest=True, out="BASELINE.md"):

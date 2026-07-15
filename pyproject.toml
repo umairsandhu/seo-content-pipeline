@@ -4,16 +4,19 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "seo-content-pipeline"
-version = "1.0.0"
-description = "Site-agnostic SEO content pipeline: ingest any site + Google Search Console + DataForSEO into a prioritized content plan (cannibalization, gaps, striking-distance, low-CTR)."
+version = "2.0.0"
+description = "Site-agnostic, end-to-end SEO operating system: fork-safe onboarding, a technical Site Doctor, rank/CTR/backlink/trend tracking, AI-Overview-aware opportunity ranking, log-file + AI-crawler analysis, content drafting, multi-CMS publishing, an MCP server, and a prioritized action plan — 0 to 100 for any site."
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
-keywords = ["seo", "content", "dataforseo", "search-console", "cannibalization"]
+keywords = ["seo", "technical-seo", "content", "dataforseo", "search-console",
+            "core-web-vitals", "ai-search", "aeo", "geo", "cannibalization", "mcp"]
 dependencies = ["numpy", "scikit-learn"]
 
 [project.optional-dependencies]
 gsc = ["google-api-python-client", "google-auth"]
+render = ["playwright"]
+embeddings = ["fastembed"]
 
 [project.scripts]
 seo-content-pipeline = "seo_agent.__main__:main"

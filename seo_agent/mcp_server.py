@@ -86,6 +86,10 @@ def _safety(a):
     return json.dumps(safety.check(_cfg()), ensure_ascii=False, indent=1)
 
 
+def _init(a):
+    return json.dumps(onboard.init(site=a.get("site")), ensure_ascii=False, indent=1)
+
+
 def _onboard(a):
     _, md = onboard.run(_cfg(), a.get("keywords", []))
     return md
@@ -197,6 +201,8 @@ TOOLS = [
      {"type": "object", "properties": {"post": {"type": "object"}}, "required": ["post"]}, _publish),
     ("safety", "Fork-safety check: write .env.example, harden .gitignore, leak-scan the repo.",
      {"type": "object", "properties": {}}, _safety),
+    ("init", "Bootstrap a fresh site-agnostic workspace (config.json + .env + fork-safety).",
+     {"type": "object", "properties": {"site": {"type": "string"}}}, _init),
     ("onboard", "Run the first-time onboarding (fork-safety → audit → speed → gaps) → BASELINE.md.",
      {"type": "object", "properties": {"keywords": {"type": "array", "items": {"type": "string"}}}}, _onboard),
     ("audit", "Site Doctor: sitemap/robots/llms.txt, metadata, H1, canonical, dedup, content depth, internal links.",

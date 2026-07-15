@@ -1,75 +1,123 @@
 # seo-content-pipeline
 
-A **site-agnostic**, lightweight SEO automation engine across five layers. Point it
-at any domain — no CMS coupling, no database, no server. Everything is file-based and
-degrades gracefully; each layer activates as you add credentials.
+**A site-agnostic, end-to-end SEO operating system.** Point it at any domain and it takes
+you from 0 to 100 — fork-safe onboarding, a technical Site Doctor, rank/CTR/backlink/trend
+tracking, AI-Overview-aware opportunity ranking, log-file + AI-crawler analysis, content
+drafting, multi-CMS publishing, and a single prioritized **action plan** of what to do next.
 
-1. **Observe** — ingest the site (sitemap) and track GSC rank/CTR, backlinks, and
-   trends *over time* in `history/` (the longitudinal signal everything else builds on).
-2. **Decide** — cannibalization clusters, content gaps, striking-distance (pos 5–15),
-   low-CTR pages, **content decay** (posts slipping run-over-run), and **algorithm-update
-   attribution** (traffic shifts mapped to Google updates).
-3. **Produce** — SERP + People-Also-Ask-grounded **briefs**, article **writing packets**, and
-   title/meta rewrite **tasks**. Run inside Claude/an agent, the agent writes the content
-   (no key); a headless `llm.provider` (Anthropic/OpenAI) fills it for unattended cron runs.
-4. **Publish** — one interface over **WordPress / Webflow / Ghost / git-PR** connectors,
-   and an **MCP server** exposing the whole pipeline to any MCP client.
-5. **Orchestrate** — scheduled weekly/monthly **`run`** → `digest.md`: what changed, what
-   to do, what to approve.
+![license](https://img.shields.io/badge/license-MIT-green)
+![python](https://img.shields.io/badge/python-%E2%89%A53.9-blue)
+![deps](https://img.shields.io/badge/core%20deps-numpy%20%2B%20scikit--learn-orange)
+![storage](https://img.shields.io/badge/storage-file--based%20(no%20DB)-lightgrey)
+![mcp](https://img.shields.io/badge/MCP-ready%20(30%20tools)-purple)
 
-Outputs: `recommendations.md` (`analyze`), `digest.md` (`run`), `history/` snapshots.
+No database. No server. Stdlib + `numpy`/`scikit-learn` at the core; every API is optional
+and the whole thing **degrades gracefully** — the technical audit and content work run with
+zero credentials. Drive it from the CLI, from any MCP client, or hand it to an AI agent that
+writes the content itself.
 
-## Quick start
 ```bash
-cp config.example.json config.json     # edit: site, sitemap, include, competitors, cms
-export DATAFORSEO_LOGIN=…  DATAFORSEO_PASSWORD=…      # optional (volumes/SERP/backlinks/trends)
-pip install numpy scikit-learn                       # + google libs for GSC
-# Content drafting needs NO key when driven by an agent (Claude/OpenAI writes it);
-# set llm.provider + ANTHROPIC_API_KEY|OPENAI_API_KEY only for unattended cron runs.
-
-python -m seo_agent ingest                           # sitemap → corpus.json
-python -m seo_agent gsc                              # opportunities + start building history
-python -m seo_agent analyze --keywords-file seeds.txt   # → recommendations.md
-python -m seo_agent run --monthly                    # full pipeline → digest.md
+pip install -e .                 # or: pipx install seo-content-pipeline
+seo-content-pipeline init --site https://www.example.com   # bootstrap a workspace (any dir)
+seo-content-pipeline onboard     # fork-safety → Site Doctor → baseline → BASELINE.md
+seo-content-pipeline plan        # the co-pilot: ranked "what to do next"
 ```
 
-## Config (`config.json`)
-| key | meaning |
-|---|---|
-| `site` / `sitemap` | domain + sitemap URL (sitemap defaults to `<site>/sitemap.xml`) |
-| `include` / `exclude` | path prefixes to ingest / substrings to skip |
-| `max_pages` | ingest cap (ingest is ~1s/page) |
-| `pillars` | hub URLs to prefer as internal-link targets |
-| `gsc_property` | `sc-domain:example.com` or the URL-prefix property |
-| `gsc_credentials` | path to a Google service-account JSON (property shared to it, read-only) |
-| `dataforseo` | `{location_name, language_name}` for volume/SERP/backlinks/trends |
-| `competitors` | domains for backlink link-gap + content-gap analysis |
-| `history_dir` | where dated snapshots live (default `history/`) |
-| `llm` | `{model, max_tokens}` for drafting (Layer 3) |
-| `cms` | publish target: `{type: "file"｜"wordpress"｜"webflow"｜"ghost", …}` |
+> **One directory = one site.** `init` scaffolds a clean, site-agnostic workspace
+> (`config.json` + `.env` + a hardened `.gitignore`) so anyone can start from scratch in a
+> new terminal or session. It refuses to run inside the tool's own install directory.
 
-Secrets never go in the config — via env: `DATAFORSEO_LOGIN/PASSWORD`, `ANTHROPIC_API_KEY`,
-`WP_USER/WP_APP_PASSWORD`, `WEBFLOW_TOKEN`, `GHOST_ADMIN_KEY`; GSC via the service-account file.
+---
 
-## First run (onboarding)
-`python -m seo_agent onboard` runs **fork-safety first** (writes `.env.example`,
-hardens `.gitignore`, leak-scans so the operator's keys can't leak from a fork),
-then the **Site Doctor** (sitemap·robots·llms.txt·metadata·H1·canonical·dedup·
-content-depth·internal-links·speed), competitor gap, and GSC → `BASELINE.md`. See
-`ONBOARDING.md` for the staged agent flow.
+## Why this exists
 
-## Commands
-Plan: `plan` (ranked next-actions) — Onboard: `safety` · `integrations` · `onboard`
-Doctor: `audit` · `sitemap` · `speed` · `logs` · `schema` · `eeat` · `authority` · `llmstxt`
-Optimize: `aio` · `rank` · `score` · `gap` · `consolidate` · `inlinks` · `toxicity` · `decay` · `radar`
-Pipeline: `ingest` · `gsc` · `decay` · `algo` · `radar` · `backlinks` · `trends <seed…>` ·
-`research <kw…>` · `discover <seed>` · `analyze` · `brief <kw>` · `draft <kw>` ·
-`retitle <url>` · `publish <post.json>` · `run [--monthly]` · `mcp`  (see `SKILL.md`).
+Best-in-class SEO in 2026 is (a) technical hygiene, (b) content that earns and defends
+rankings, and (c) staying visible as search shifts to AI answers. Most tools do slices of
+this behind a subscription. This one does the whole loop, file-based and self-hostable, and
+turns every signal into **one prioritized action list** — then keeps itself current with a
+built-in build loop. It's designed to be driven by an AI agent end-to-end, but works
+perfectly as a plain CLI.
 
-## Design
-File-based; TF-IDF cosine for similarity (`index.build_vectorizer` / `_embed_backend`
-is the swap-point for semantic embeddings — `SEO_EMBEDDINGS=1` + `fastembed`). `history.py`
-adds the time-series store that makes decay/algo/emerging work. Providers degrade
-gracefully — the core (ingest + dedup + gaps) runs with zero credentials; GSC, DataForSEO,
-the content model, and the CMS connectors each layer in when configured. The MCP server
-(`seo_agent/mcp_server.py`) exposes the whole pipeline over stdio JSON-RPC with no deps.
+## What you get (the command map)
+
+| Group | Commands | Does |
+|---|---|---|
+| **Onboard** | `init` · `safety` · `integrations` · `onboard` | Bootstrap a workspace, guarantee no secret leaks, see the API matrix, build a baseline |
+| **Plan** | **`plan`** | Fuse every signal into one ranked, deduped action list (`plan.md`) — the co-pilot |
+| **Site Doctor** | `audit` · `sitemap` · `speed` · `logs` · `schema` · `eeat` · `authority` · `llmstxt` | Technical + on-page + Core Web Vitals + log-file + E-E-A-T + topical-authority audit |
+| **Observe** | `ingest` · `gsc` · `rank` · `trends` · `backlinks` · `toxicity` | Crawl the site; track rank/CTR/SERP-features/backlinks/emerging keywords over time |
+| **Decide** | `research` · `discover` · `gap` · `aio` · `consolidate` · `inlinks` · `decay` · `algo` · `radar` | Find gaps, AI-Overview-adjust opportunities, plan consolidations, detect decay, attribute algo updates |
+| **Produce** | `analyze` · `brief` · `draft` · `score` · `retitle` | SERP-grounded briefs, drafts (agent-written), comprehensiveness scoring, title/meta rewrites |
+| **Publish** | `publish` · `mcp` | WordPress / Webflow / Ghost / git-PR connectors; a stdio MCP server (30 tools) |
+| **Run** | `run [--monthly]` | Scheduled weekly/monthly digest → `digest.md` |
+
+Full reference: **[docs/Commands.md](docs/Commands.md)**.
+
+## The 0 → 100 path
+
+`init` → wire GSC + DataForSEO (`integrations` shows what's missing) → `onboard` → fix the
+Site Doctor's HIGH items → build content from `gap`/`discover` → track with `rank`/`gsc` →
+refresh with `decay`/`aio` → stay AI-visible with `logs`/`llmstxt`. The full phased manual is
+**[PLAYBOOK.md](PLAYBOOK.md)**; at any point, `plan` tells you the next best moves.
+
+## How it works
+
+Five layers, file-based, each degrading gracefully:
+
+1. **Observe** — ingest the site (sitemap, auto-discovered from robots.txt), and track
+   GSC/backlinks/rank/trends over time in `history/`.
+2. **Decide** — cannibalization, gaps, striking-distance, content decay, algorithm-update
+   attribution, AI-Overview-adjusted CTR.
+3. **Produce** — SERP + People-Also-Ask-grounded briefs and drafts (**the agent writes them —
+   no API key needed**; an optional headless model backs unattended runs).
+4. **Publish** — one interface over WordPress/Webflow/Ghost/git-PR, plus an MCP server.
+5. **Orchestrate** — scheduled `run` → digest, diffed against history and a **build loop**
+   (`radar` watches Google's Search Status Dashboard).
+
+Design + module map: **[docs/Architecture.md](docs/Architecture.md)**.
+
+## Integrations
+
+| Tier | Integration | Unlocks | Alternatives |
+|---|---|---|---|
+| must | **Google Search Console** | rank, CTR, decay, algo attribution | Bing Webmaster |
+| must | **DataForSEO** | volume, SERP/PAA, backlinks, trends, competitor gap | Semrush · Ahrefs · SerpApi |
+| recommended | PageSpeed / CrUX | Core Web Vitals | WebPageTest |
+| recommended | Server logs | crawl budget + AI-crawler coverage | Cloudflare/Fastly export |
+| recommended | JS rendering (Playwright) | accurate audit of SPA sites | DataForSEO on-page |
+| optional | Anthropic / OpenAI | headless drafting (not needed with an agent) | agent-written (default) |
+| optional | WordPress / Webflow / Ghost | publishing | git-PR file (default) |
+
+`integrations` prints a live matrix of what's active, what's missing, and what each gap
+costs. **Adding any new API is one entry** in `seo_agent/integrations.py`. Details:
+**[docs/Integrations.md](docs/Integrations.md)**.
+
+## Secrets & fork-safety
+
+The repo is public, so `safety` (run first, and inside `init`) writes a committed
+`.env.example`, hardens `.gitignore` to exclude every secret/working file, and **leak-scans
+tracked files and the working tree** — `.gitignore` alone only protects untracked files. A
+`--precommit` mode plugs into a git hook. Your keys can never leak from a fork.
+
+## Documentation
+
+- **[Getting Started](docs/Getting-Started.md)** — install → init → first run
+- **[Command Reference](docs/Commands.md)** — every command, grouped
+- **[Architecture](docs/Architecture.md)** — the five layers, design, module map
+- **[Integrations](docs/Integrations.md)** — APIs, alternatives, adding your own
+- **[Site Doctor](docs/Site-Doctor.md)** — every technical/on-page check
+- **[AI Search (AEO/GEO)](docs/AI-Search.md)** — getting cited by ChatGPT/Perplexity/AI Overviews
+- **[SEO Knowledge Base](docs/SEO-Knowledge-Base.md)** — glossary + 2026 best-practice map
+- **[FAQ / Troubleshooting](docs/FAQ.md)** · **[Contributing / Extending](docs/Contributing.md)**
+- Operating manuals: **[PLAYBOOK.md](PLAYBOOK.md)** (0→100) · **[BUILDLOOP.md](BUILDLOOP.md)**
+  (staying current) · **[ONBOARDING.md](ONBOARDING.md)** (agent onboarding script)
+
+## Contributing / extending
+
+Add a Site-Doctor check, an API, or a CMS connector in one place each — see
+[docs/Contributing.md](docs/Contributing.md). Everything is stdlib-first, deterministic, and
+must degrade gracefully.
+
+## License
+
+MIT.

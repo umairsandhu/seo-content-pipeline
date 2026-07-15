@@ -40,13 +40,16 @@ AI-search). At any point, **`python -m seo_agent plan`** fuses every signal into
 | 4 · Publish | one interface → WordPress / Webflow / Ghost / git-PR; MCP server | `publish` `mcp` |
 | 5 · Orchestrate | weekly/monthly run → `digest.md` (what changed, what to do) | `run [--monthly]` |
 
+Full docs/wiki: `README.md` + `docs/` (Getting-Started, Commands, Architecture,
+Integrations, Site-Doctor, AI-Search, SEO-Knowledge-Base, FAQ, Contributing).
+
 ## Setup (once per site)
-0. **`python -m seo_agent safety`** — writes `.env.example`, hardens `.gitignore`,
-   leak-scans the repo. Run this first; nothing else commits until it's fork-safe.
-1. `cp config.example.json config.json` and fill in `site`, `sitemap`, `include`,
-   and optionally `pillars`, `competitors`, `gsc_property`, `gsc_credentials`,
-   `dataforseo`, `llm`, `cms`. `cp .env.example .env` and fill in the creds you have
-   (auto-loaded; no key needed for content — the agent writes it).
+0. **`python -m seo_agent init --site https://…`** — bootstrap a site-agnostic
+   workspace: scaffolds `config.json` + `.env` + a hardened `.gitignore` and runs
+   fork-safety. One directory = one site; it refuses to run in the install dir.
+1. Edit `config.json` (`site`, `include`, `competitors`, `gsc_property`,
+   `gsc_credentials`, `dataforseo`, `cms`) and add any creds to `.env` (auto-loaded;
+   no key needed for content — the agent writes it). `integrations` shows what's missing.
 2. Secrets via env, never in config:
    - DataForSEO (volumes/SERP/backlinks/trends): `DATAFORSEO_LOGIN`, `DATAFORSEO_PASSWORD`
    - GSC: a service-account JSON at `gsc_credentials`, property shared read-only

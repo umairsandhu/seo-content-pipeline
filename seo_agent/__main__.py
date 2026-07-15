@@ -1,6 +1,6 @@
 """CLI: python -m seo_agent <cmd> --config config.json
 
-Onboard   safety · onboard · integrations     fork-safety, baseline, API matrix
+Onboard   init · safety · integrations · onboard   bootstrap → fork-safe → baseline
 Doctor    audit · sitemap · speed · logs · schema · eeat · authority · llmstxt
 Observe   ingest · gsc · rank · trends · backlinks · toxicity
 Decide    research · discover · gap · aio · consolidate · inlinks · decay · algo · radar
@@ -51,6 +51,7 @@ def main():
     psc = sub.add_parser("schema"); psc.add_argument("url", nargs="?")
     pcs = sub.add_parser("score"); pcs.add_argument("keyword"); pcs.add_argument("url")
     sf = sub.add_parser("safety"); sf.add_argument("--precommit", action="store_true")
+    pin2 = sub.add_parser("init"); pin2.add_argument("--site")
     po = sub.add_parser("onboard"); po.add_argument("--keywords-file")
     sub.add_parser("brief").add_argument("keyword")
     sub.add_parser("draft").add_argument("keyword")
@@ -97,6 +98,15 @@ def main():
                 sys.exit(1)
             sys.exit(0)
         dump(safety.check(cfg))
+    elif a.cmd == "init":
+        r = onboard.init(site=a.site)
+        if r.get("error"):
+            print(r["error"]); return
+        print(f"✓ workspace ready for {r['site']}  ·  fork-safe: {r['fork_safe']}")
+        print(f"  config.json ({'created' if r['created_config'] else 'exists'}), "
+              f".env ({'created' if r['created_env'] else 'exists'}), .gitignore hardened")
+        print("Next: edit config.json (site · competitors), add any keys to .env, then "
+              "`python -m seo_agent onboard`. See PLAYBOOK.md for the 0→100 path.")
     elif a.cmd == "onboard":
         _, md = onboard.run(cfg, kw_file(a.keywords_file))
         print(md)
