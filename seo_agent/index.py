@@ -5,6 +5,7 @@ query-cannibalization. build_vectorizer() is the swap-point for real embeddings.
 Reusable across sites: it reads the generic {url, title, description, headings,
 text} shape produced by ingest.py."""
 import json
+import os
 import re
 from pathlib import Path
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -15,7 +16,34 @@ def load_corpus(path="corpus.json"):
     return json.load(open(path))
 
 
+class _Embed:
+    """Adapter so a semantic-embedding backend is drop-in for the sklearn API
+    used below (.transform(list) → matrix; cosine_similarity works on ndarrays)."""
+    def __init__(self, model):
+        self.model = model
+
+    def transform(self, texts):
+        import numpy as np
+        return np.asarray(list(self.model.embed(list(texts))))
+
+
+def _embed_backend():
+    """Opt-in semantic backend (Layer 2 upgrade). Enable with SEO_EMBEDDINGS=1 and
+    `pip install fastembed`; otherwise returns None and we stay on TF-IDF. Swap in
+    OpenAI/Cloudflare here the same way — the rest of the index is unchanged."""
+    if os.environ.get("SEO_EMBEDDINGS", "").lower() not in ("1", "true", "fastembed"):
+        return None
+    try:
+        from fastembed import TextEmbedding
+    except Exception:
+        return None
+    return _Embed(TextEmbedding())
+
+
 def build_vectorizer(texts):
+    emb = _embed_backend()
+    if emb is not None:
+        return emb, emb.transform(texts)
     vec = TfidfVectorizer(stop_words="english", ngram_range=(1, 2),
                           sublinear_tf=True, min_df=1, max_df=0.6, max_features=40000)
     return vec, vec.fit_transform(texts)

@@ -33,13 +33,40 @@ def content_gaps(idx, keywords, cfg):
     return gaps
 
 
+def _host(url):
+    return (url or "").replace("https://", "").replace("http://", "").rstrip("/").split("/")[0]
+
+
+def competitor_gap(cfg, idx, limit=40):
+    """Keywords 2–3 competitors rank for that we don't cover (dedup gate drops
+    topics we already own). Ranked by competitor consensus, then volume."""
+    dfs = cfg.get("dataforseo", {})
+    loc, lang = dfs.get("location_name"), dfs.get("language_name")
+    ours = {r["keyword"].lower() for r in providers.ranked_keywords(_host(cfg.get("site")), loc, lang)}
+    gap = {}
+    for comp in cfg.get("competitors", []):
+        for r in providers.ranked_keywords(_host(comp), loc, lang):
+            low = r["keyword"].lower()
+            if low in ours:
+                continue
+            verdict, _ = idx.check_topic(r["keyword"])
+            if verdict == "EXTEND":
+                continue  # we already cover this topic
+            g = gap.setdefault(low, {"keyword": r["keyword"], "volume": r.get("volume"),
+                                     "competitors": [], "verdict": verdict})
+            g["competitors"].append(_host(comp))
+    out = sorted(gap.values(), key=lambda g: (-len(g["competitors"]), -(g.get("volume") or 0)))
+    return out[:limit]
+
+
 def discover(seed, cfg, limit=40):
     """DataForSEO keyword suggestions for a seed → candidate keywords (trend/gap pull)."""
     dfs = cfg.get("dataforseo", {})
     return providers.suggestions(seed, dfs.get("location_name"), dfs.get("language_name"), limit)
 
 
-def gsc_opportunities(cfg, months=3):
+def gsc_raw(cfg, months=3):
+    """Raw GSC query + page rows (the longitudinal signal history.py snapshots)."""
     prop, cred = cfg.get("gsc_property"), cfg.get("gsc_credentials")
     if not (prop and cred):
         return None
@@ -48,10 +75,19 @@ def gsc_opportunities(cfg, months=3):
         return None
     end = datetime.date.today()
     start = end - datetime.timedelta(days=30 * months)
-    q = providers.gsc_query(svc, prop, str(start), str(end), ("query",))
-    pages = providers.gsc_query(svc, prop, str(start), str(end), ("page",))
-    return {"striking": providers.striking_distance(q)[:40],
-            "low_ctr": providers.low_ctr(pages)[:40]}
+    return {"queries": providers.gsc_query(svc, prop, str(start), str(end), ("query",)),
+            "pages": providers.gsc_query(svc, prop, str(start), str(end), ("page",))}
+
+
+def opportunities_from(raw):
+    if not raw:
+        return None
+    return {"striking": providers.striking_distance(raw["queries"])[:40],
+            "low_ctr": providers.low_ctr(raw["pages"])[:40]}
+
+
+def gsc_opportunities(cfg, months=3):
+    return opportunities_from(gsc_raw(cfg, months))
 
 
 def report(cfg, keywords=None, corpus_path="corpus.json"):

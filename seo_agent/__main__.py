@@ -1,17 +1,21 @@
 """CLI: python -m seo_agent <cmd> --config config.json
 
-  ingest                  crawl the site's sitemap → corpus.json
-  discover <seed>         DataForSEO keyword ideas for a seed (trend/gap pull)
-  research <kw> [kw…]     enrich keywords + dedup gate + link targets
-  gsc                     GSC striking-distance + low-CTR opportunities
-  analyze [--keywords-file f]   full report → recommendations.md
-  brief <keyword>         live SERP for a keyword (outline input)
+Onboard   safety · onboard · integrations     fork-safety, baseline, API matrix
+Doctor    audit · sitemap · speed · logs · llmstxt   technical/on-page + log-file
+Observe   ingest · gsc · trends · backlinks
+Decide    research · discover · gap · aio · decay · algo · radar
+Produce   analyze · brief · draft · retitle
+Publish   publish · mcp
+Run       run [--monthly]              full orchestration → digest.md
 """
 import argparse
 import json
+import sys
 from pathlib import Path
 
-from . import analyze, ingest, providers
+from . import (aio, algo, analyze, audit, backlinks, decay, history, ingest,
+               integrations, logs, mcp_server, onboard, orchestrate, produce,
+               publish, radar, safety, speed, trends)
 from . import config as cfgmod
 from .index import Index, load_corpus
 
@@ -22,39 +26,128 @@ def main():
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("ingest")
     sub.add_parser("gsc")
-    pr = sub.add_parser("research"); pr.add_argument("keywords", nargs="+")
-    pd = sub.add_parser("discover"); pd.add_argument("seed")
+    sub.add_parser("decay")
+    sub.add_parser("algo")
+    sub.add_parser("radar")
+    sub.add_parser("backlinks")
+    sub.add_parser("audit")
+    sub.add_parser("speed")
+    sub.add_parser("sitemap")
+    sub.add_parser("gap")
+    sub.add_parser("aio")
+    sub.add_parser("llmstxt")
+    sub.add_parser("integrations")
+    sub.add_parser("mcp")
+    pl = sub.add_parser("logs"); pl.add_argument("path", nargs="?"); pl.add_argument("--verify", action="store_true")
+    sf = sub.add_parser("safety"); sf.add_argument("--precommit", action="store_true")
+    po = sub.add_parser("onboard"); po.add_argument("--keywords-file")
+    sub.add_parser("brief").add_argument("keyword")
+    sub.add_parser("draft").add_argument("keyword")
+    sub.add_parser("discover").add_argument("seed")
+    sub.add_parser("research").add_argument("keywords", nargs="+")
+    sub.add_parser("trends").add_argument("seeds", nargs="+")
     pa = sub.add_parser("analyze"); pa.add_argument("--keywords-file")
-    pb = sub.add_parser("brief"); pb.add_argument("keyword")
+    pr = sub.add_parser("run"); pr.add_argument("--monthly", action="store_true")
+    pr.add_argument("--keywords-file")
+    pp = sub.add_parser("publish"); pp.add_argument("post_json", help="path to a post JSON file")
+    pt = sub.add_parser("retitle"); pt.add_argument("page"); pt.add_argument("--keyword", default="")
     a = ap.parse_args()
     cfg = cfgmod.load(a.config)
-    dfs = cfg.get("dataforseo", {})
+    dump = lambda o: print(json.dumps(o, indent=1, ensure_ascii=False))
+    kw_file = lambda f: [l.strip() for l in open(f) if l.strip()] if f else []
 
     if a.cmd == "ingest":
         ingest.build(cfg)
+    elif a.cmd == "gsc":
+        raw = analyze.gsc_raw(cfg)
+        if not raw:
+            print("GSC not configured — set gsc_property + gsc_credentials."); return
+        history.snapshot(cfg, "gsc_queries", raw["queries"])
+        history.snapshot(cfg, "gsc_pages", raw["pages"])
+        dump(analyze.opportunities_from(raw))
+    elif a.cmd == "decay":
+        dump(decay.detect(cfg))
+    elif a.cmd == "algo":
+        dump(algo.attribution(cfg) or "need >=2 GSC snapshots (run `gsc` on a cadence)")
+    elif a.cmd == "radar":
+        dump(radar.check())
+    elif a.cmd == "backlinks":
+        dump(backlinks.link_gap(cfg) if cfg.get("competitors")
+             else backlinks.profile(cfg))
+    elif a.cmd == "safety":
+        if a.precommit:                       # git pre-commit hook entrypoint
+            leaks = safety.scan_tree("."); tracked = safety.tracked_secrets(".")
+            if leaks or tracked:
+                print("✋ commit blocked — possible secrets:", file=sys.stderr)
+                for f, k, _ in leaks:
+                    print(f"  {f}: {k}", file=sys.stderr)
+                for f in tracked:
+                    print(f"  tracked secret/config file: {f}", file=sys.stderr)
+                sys.exit(1)
+            sys.exit(0)
+        dump(safety.check(cfg))
+    elif a.cmd == "onboard":
+        _, md = onboard.run(cfg, kw_file(a.keywords_file))
+        print(md)
+    elif a.cmd == "audit":
+        rep = audit.report(cfg)
+        Path("audit.md").write_text(audit.render_md(cfg, rep))
+        print(audit.render_md(cfg, rep))
+    elif a.cmd == "sitemap":
+        f = []; info = audit.sitemap_health(cfg, load_corpus(), f)
+        dump({"summary": info, "findings": f})
+    elif a.cmd == "speed":
+        corpus = load_corpus()
+        urls = [c.get("final_url") or c["url"] for c in corpus][:8] or [cfg.get("site")]
+        dump(speed.check(cfg, urls))
+    elif a.cmd == "gap":
+        dump(analyze.competitor_gap(cfg, Index(load_corpus())))
+    elif a.cmd == "aio":
+        opp = analyze.gsc_opportunities(cfg)
+        if not opp:
+            print("GSC not configured — AIO model re-ranks striking-distance queries."); return
+        print(aio.render_md(cfg, aio.annotate(cfg, opp["striking"])))
+    elif a.cmd == "logs":
+        path = a.path or cfg.get("logs", {}).get("path")
+        if not path:
+            print("usage: logs <access.log[.gz]>  (or set logs.path in config)"); return
+        print(logs.render_md(cfg, logs.analyze(cfg, path, verify=a.verify)))
+    elif a.cmd == "integrations":
+        print(integrations.render_md(cfg))
+    elif a.cmd == "llmstxt":
+        print(audit.llms_txt_template(cfg))
     elif a.cmd == "research":
-        g = analyze.content_gaps(Index(load_corpus()), a.keywords, cfg)
-        print(json.dumps(g, indent=1, ensure_ascii=False))
+        dump(analyze.content_gaps(Index(load_corpus()), a.keywords, cfg))
     elif a.cmd == "discover":
         rows = analyze.discover(a.seed, cfg)
         if not rows:
             print("no results (need DataForSEO creds)")
         for r in rows:
             print(f"{(r['volume'] if r['volume'] is not None else '—'):>7}  {r['keyword']}")
-    elif a.cmd == "gsc":
-        opp = analyze.gsc_opportunities(cfg)
-        print(json.dumps(opp, indent=1, ensure_ascii=False) if opp
-              else "GSC not configured — set gsc_property + gsc_credentials.")
+    elif a.cmd == "trends":
+        dump(trends.scan(cfg, a.seeds))
+    elif a.cmd == "brief":
+        dump(produce.brief(cfg, a.keyword))
+    elif a.cmd == "draft":
+        d = produce.draft(cfg, a.keyword)
+        # mode "agent" prints the writing packet for the agent to author from;
+        # mode "generated" (headless llm.provider set) prints the finished draft.
+        print(d["markdown"] if d["mode"] == "generated" else d["assignment"])
+    elif a.cmd == "retitle":
+        r = produce.retitle(cfg, a.page, keyword=a.keyword)
+        print(r["suggestions"] if r["mode"] == "generated" else r["task"])
     elif a.cmd == "analyze":
-        kws = [l.strip() for l in open(a.keywords_file)] if a.keywords_file else []
-        kws = [k for k in kws if k]
-        _, rep = analyze.report(cfg, kws)
+        _, rep = analyze.report(cfg, kw_file(a.keywords_file))
         md = analyze.render_md(cfg, rep)
         Path("recommendations.md").write_text(md)
         print(md)
-    elif a.cmd == "brief":
-        print(json.dumps(providers.serp(a.keyword, dfs.get("location_name"),
-                                        dfs.get("language_name")), indent=1, ensure_ascii=False))
+    elif a.cmd == "run":
+        _, md = orchestrate.run(cfg, kw_file(a.keywords_file), monthly=a.monthly)
+        print(md)
+    elif a.cmd == "publish":
+        dump(publish.publish(cfg, json.load(open(a.post_json))))
+    elif a.cmd == "mcp":
+        mcp_server.serve()
 
 
 if __name__ == "__main__":

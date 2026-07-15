@@ -1,60 +1,148 @@
 ---
 name: seo-content-pipeline
 description: >-
-  Turn any website into a prioritized SEO content plan. Ingests the site's own
-  pages (via sitemap), finds internal cannibalization + linking opportunities,
-  pulls Google Search Console performance (striking-distance queries, low-CTR
-  pages) and DataForSEO keyword volume/SERP/suggestions, and outputs content
-  recommendations + a deduped queue. Use when the user asks to audit a site's
-  SEO, find content gaps, plan/prioritize blog content, spot cannibalization,
-  or set up an automated content pipeline for a domain.
+  End-to-end SEO automation for any website. Ingests the site (sitemap), tracks
+  rank/CTR/backlinks/trends over time, finds cannibalization + linking + content
+  gaps, detects decaying content, attributes traffic shifts to Google algorithm
+  updates, drafts SERP-grounded articles and rewrites titles/metas, publishes to
+  WordPress/Webflow/Ghost/git-PR, exposes everything over MCP, and runs scheduled
+  weekly/monthly digests. Includes a guided first-run onboarding with fork-safe secret
+  setup (.env.example + .gitignore + leak-scan so keys never leak) and a technical Site
+  Doctor (sitemap health, robots.txt, llms.txt, metadata/titles, H1, canonical, dedup,
+  content depth, internal-linking/orphans/click-depth, Core Web Vitals, structured data).
+  Use to onboard a site, audit SEO, plan/write/refresh blog content, spot cannibalization,
+  build backlinks, track SERPs, or stand up an automated pipeline.
 ---
 
 # SEO content pipeline
 
-A site-agnostic engine. Point it at a domain; it never assumes a particular CMS.
-Everything is file-based and lightweight (numpy + scikit-learn core; Google libs
-only for the optional GSC step).
+A site-agnostic SEO engine across five layers. Point it at a domain; it never
+assumes a CMS. File-based and lightweight (numpy + scikit-learn core; Google libs
+only for GSC; everything else is stdlib/urllib). Everything **degrades
+gracefully** — the core runs with zero credentials, and each capability layers in
+as you add creds.
+
+**First run on a new site → follow `ONBOARDING.md`** (or `python -m seo_agent onboard`).
+It runs **fork-safety first** (so the operator's keys can never leak from a fork),
+then the Site Doctor, speed, and gap analysis into `BASELINE.md`.
+
+| Layer | What it does | Commands |
+|---|---|---|
+| 0 · Onboard | fork-safety (secrets never leak) + first-run baseline | `safety` `onboard` |
+| 0 · Doctor | technical/on-page audit: sitemap·robots·llms.txt·meta·H1·canonical·dedup·links·speed | `audit` `sitemap` `speed` `llmstxt` |
+| 1 · Observe | ingest site; track GSC/backlinks/trends over time (`history/`) | `ingest` `gsc` `backlinks` `trends` |
+| 2 · Decide | cannibalization, gaps, striking-distance, decay, algo attribution | `research` `discover` `decay` `algo` |
+| 3 · Produce | SERP-grounded briefs, full drafts, title/meta rewrites | `analyze` `brief` `draft` `retitle` |
+| 4 · Publish | one interface → WordPress / Webflow / Ghost / git-PR; MCP server | `publish` `mcp` |
+| 5 · Orchestrate | weekly/monthly run → `digest.md` (what changed, what to do) | `run [--monthly]` |
 
 ## Setup (once per site)
-1. Copy `config.example.json` → `config.json` in the working dir and fill in
-   `site`, `sitemap`, `include` (path prefixes to ingest, e.g. `["/blog/"]`),
-   and optionally `pillars`, `gsc_property`, `gsc_credentials`, `dataforseo`.
+0. **`python -m seo_agent safety`** — writes `.env.example`, hardens `.gitignore`,
+   leak-scans the repo. Run this first; nothing else commits until it's fork-safe.
+1. `cp config.example.json config.json` and fill in `site`, `sitemap`, `include`,
+   and optionally `pillars`, `competitors`, `gsc_property`, `gsc_credentials`,
+   `dataforseo`, `llm`, `cms`. `cp .env.example .env` and fill in the creds you have
+   (auto-loaded; no key needed for content — the agent writes it).
 2. Secrets via env, never in config:
-   - DataForSEO: `export DATAFORSEO_LOGIN=… DATAFORSEO_PASSWORD=…`
-   - GSC: a service-account JSON at `gsc_credentials`, with the property shared
-     to that service account (read-only).
+   - DataForSEO (volumes/SERP/backlinks/trends): `DATAFORSEO_LOGIN`, `DATAFORSEO_PASSWORD`
+   - GSC: a service-account JSON at `gsc_credentials`, property shared read-only
+   - Publishing: `WP_USER`+`WP_APP_PASSWORD` / `WEBFLOW_TOKEN` / `GHOST_ADMIN_KEY`
+   - Content drafting needs **no key when run inside Claude/an agent** — you write it
+     (see below). A key (`ANTHROPIC_API_KEY` / `OPENAI_API_KEY`, with `llm.provider`)
+     is only for headless/cron runs with no agent in the loop.
 3. `pip install numpy scikit-learn` (+ `google-api-python-client google-auth` for GSC).
 
 ## Run
 ```bash
-python -m seo_agent ingest                 # crawl sitemap → corpus.json
-python -m seo_agent analyze \              # the main output → recommendations.md
-        --keywords-file seeds.txt
-python -m seo_agent discover "your seed"   # DataForSEO keyword ideas (trend/gap pull)
-python -m seo_agent research kw1 kw2 …      # dedup gate + link targets per keyword
-python -m seo_agent gsc                     # striking-distance + low-CTR (needs GSC)
-python -m seo_agent brief "a keyword"       # live SERP → outline input
+# Onboarding / Site Doctor (first run)
+python -m seo_agent safety                  # fork-safety: .env.example, .gitignore, leak-scan
+python -m seo_agent integrations            # API capability matrix (what's active/missing/unlocked)
+python -m seo_agent onboard                 # full first-run baseline → BASELINE.md
+python -m seo_agent audit                   # Site Doctor → audit.md
+python -m seo_agent sitemap                 # sitemap doctor only
+python -m seo_agent speed                   # Core Web Vitals (PageSpeed lab + CrUX field)
+python -m seo_agent logs access.log[.gz]    # log-file analysis: crawl waste + AI-crawler coverage
+python -m seo_agent aio                      # re-rank striking-distance by AI-Overview-adjusted CTR
+python -m seo_agent llmstxt                  # generate an llms.txt from the corpus
+python -m seo_agent gap                      # competitor content gap
+
+# Observe / Decide
+python -m seo_agent ingest                 # sitemap → corpus.json
+python -m seo_agent gsc                     # striking-distance + low-CTR; snapshots history
+python -m seo_agent decay                   # queries losing rank + pages losing clicks (needs ≥2 gsc runs)
+python -m seo_agent trends "your seed"      # emerging / rising keywords
+python -m seo_agent backlinks               # backlink profile / competitor link-gap
+python -m seo_agent algo                    # attribute traffic shifts to Google updates
+python -m seo_agent radar                    # watch Google Search Status; flag stale update knowledge
+
+# Decide / Produce
+python -m seo_agent analyze --keywords-file seeds.txt   # → recommendations.md
+python -m seo_agent research kw1 kw2 …      # dedup verdict + internal-link targets
+python -m seo_agent brief  "a keyword"      # live SERP + PAA outline
+python -m seo_agent draft  "a keyword"      # writing packet → the agent writes the article
+python -m seo_agent retitle https://…/page --keyword "…"   # task → the agent writes 3 titles + meta
+
+# Publish / Orchestrate
+python -m seo_agent publish post.json       # publish via the configured CMS connector
+python -m seo_agent run --monthly           # full run → digest.md
+python -m seo_agent mcp                      # start the MCP server (stdio)
 ```
 
-## What `analyze` returns (recommendations.md)
-1. **Consolidate** — query-cannibalization clusters in the site's own content.
-2. **Content gaps** — keywords with demand the site doesn't cover (the dedup gate
-   drops anything already covered; ranks by volume + NOVEL/RELATED).
-3. **Striking distance** — GSC queries at position 5–15 (one push from page 1).
-4. **Low-CTR pages** — GSC pages with impressions but weak CTR (retitle targets).
-
-Steps 3–4 appear only when GSC is configured; the rest work with just an ingest.
+## What each output is
+- **recommendations.md** (`analyze`): consolidate (cannibalization) · content gaps ·
+  striking-distance · low-CTR pages.
+- **digest.md** (`run`): decaying queries/pages · striking-distance · low-CTR ·
+  cannibalization · (monthly) rising keywords · content gaps · backlink gap · algo impact.
+- **history/** — dated JSON snapshots (`gsc_queries`, `gsc_pages`, `trends`). This is
+  what makes decay/algo/emerging work; run `gsc` (and `trends`) on a cadence to build it.
 
 ## How to drive it (agent)
-- Confirm the target domain + which sections to ingest (the `include` prefixes).
-- Run `ingest`, then `analyze` with a seed keyword list (or `discover` to build
-  one from DataForSEO).
-- Read `recommendations.md` and turn the top gaps into briefs (`brief <kw>`),
-  then draft the posts. Keep to a drip cadence; never mass-publish.
-- Degrade gracefully: no GSC → skip 3&4; no DataForSEO → gaps still rank by
-  intent + the dedup verdict.
+**You (the agent running this skill) are the writer and the decision-maker.** The Python
+surfaces data and does the deterministic work; you write the prose and make the editorial
+and strategic calls. `draft`/`retitle` return a writing packet (`mode: "agent"`) — author
+the article/titles directly in your output, don't shell out to an API.
+1. Confirm the domain + `include` prefixes; run `ingest`, then `gsc` (start building history).
+2. For content: `discover`/`trends` → **you decide** which gap to pursue → `brief`/`draft`
+   for the packet → **you write it** → `publish` (default `file` connector writes a Markdown
+   file for a git PR — "auto-publish = an automated PR"; never mass-publish, keep a drip cadence).
+3. For maintenance: `decay` to find posts slipping → `retitle` low-CTR pages (you write the
+   options) → add internal links from `research` link-targets.
+4. Monthly: `run --monthly` for the digest; then **update `seo_agent/algo.py` UPDATES**
+   with any new confirmed Google updates (that IS the monthly algo-tracking task).
+5. Degrade gracefully: no DataForSEO → gaps rank by intent + verdict; no GSC → skip
+   decay/striking/low-CTR. Content generation never needs a key when an agent drives the
+   skill; set `llm.provider` to `anthropic`/`openai` only for unattended cron runs.
 
-Notes: ingest is ~1s/page (network-bound); cap with `max_pages`. The similarity
-backend is TF-IDF (strong on lexical cannibalization) — `index.build_vectorizer`
-is the single swap-point for semantic embeddings.
+## Integrations (self-configuring)
+`seo_agent/integrations.py` is the registry of every API the skill can use — GSC and
+DataForSEO (must-have), PageSpeed/CrUX and server logs (recommended), Anthropic/OpenAI and
+the CMS connectors (optional), each with its tier, env/config, what it unlocks, and
+**alternative providers** (Semrush/Ahrefs/SerpApi for DataForSEO, etc.). `.env.example`,
+onboarding, and the `integrations` capability matrix are all generated from it — so
+**adding any new API is one entry here** plus a small provider fn using
+`providers.http_json`. Run `integrations` to see what's active, what's missing, and what
+each gap costs you.
+
+## Staying #1 (the build loop)
+`BUILDLOOP.md` defines how the tool keeps up with Google + AI search: canonical sources to
+monitor, a weekly/monthly/quarterly cadence, and a prioritized capability roadmap. The
+sensor is `radar` (watches Google's Search Status Dashboard, flags when `algo.py` UPDATES
+is stale). Monthly: run `radar`, append confirmed updates to `algo.py`, re-run `audit`.
+
+## Scheduling (Layer 5)
+`run` is one invocation; schedule it with cron or the `/schedule` skill — weekly
+(`run`) for decay + linking + striking-distance, monthly (`run --monthly`) for
+trends + backlinks + algo + gaps. Persisted history makes each run a diff vs the last.
+
+## MCP (Layer 4, goal: use any CMS / any client)
+`python -m seo_agent mcp` is a stdio MCP server exposing `ingest, analyze, discover,
+research, brief, draft, gsc, decay, trends, backlinks, run, publish` as tools. Register
+it in any MCP client as command `python -m seo_agent mcp` (config via `SEO_CONFIG`).
+
+## Notes
+- Ingest is ~1s/page (network-bound); cap with `max_pages`.
+- Similarity backend is TF-IDF (strong on lexical cannibalization). Set `SEO_EMBEDDINGS=1`
+  + `pip install fastembed` to swap the body-space to semantic embeddings
+  (`index.build_vectorizer` / `index._embed_backend` are the swap points).
+- Providers are real but were smoke-tested offline — the DataForSEO field-parsing and
+  GSC service-account path may need a small tweak on first live run.

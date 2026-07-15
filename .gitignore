@@ -6,14 +6,26 @@ build/
 dist/
 .venv/
 
-# Secrets & per-site working files (never commit)
+# Secrets — NEVER commit (public repo)
 .env
 .env.*
+*.env
+!.env.example
 config.json
+*service-account*.json
+*-credentials.json
 gsc-service-account.json
 
-# Generated outputs
+# Per-site working data + generated outputs
 corpus.json
+history/
+content/
 recommendations.md
+digest.md
+audit.md
+BASELINE.md
 content-queue.json
 next-brief.md
+
+# OS
+.DS_Store

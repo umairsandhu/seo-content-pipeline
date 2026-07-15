@@ -2,6 +2,18 @@
 numpy
 scikit-learn
 
-# Optional — only for the GSC step (python -m seo_agent gsc / analyze with GSC)
+# Optional — only for the GSC step (python -m seo_agent gsc / decay / algo / run)
 google-api-python-client
 google-auth
+
+# Optional — semantic embeddings backend (set SEO_EMBEDDINGS=1 to use instead of TF-IDF)
+# fastembed
+
+# No package needed for: DataForSEO (volumes/SERP/backlinks/trends), the optional
+# headless content model, the CMS connectors, or the MCP server — all urllib/stdlib.
+# Content drafting needs NO key when the skill is driven by an agent (Claude/OpenAI
+# writes it). Secrets via env (auto-loaded from .env; see .env.example) only where
+# used: DATAFORSEO_LOGIN/PASSWORD, PAGESPEED_API_KEY (Core Web Vitals),
+# WP_USER/WP_APP_PASSWORD, WEBFLOW_TOKEN, GHOST_ADMIN_KEY, and — for headless cron
+# drafting only — ANTHROPIC_API_KEY or OPENAI_API_KEY (with llm.provider set).
+# Run `python -m seo_agent safety` first: it writes .env.example + hardens .gitignore.

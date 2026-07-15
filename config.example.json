@@ -8,8 +8,12 @@
     "/products": "storefront hub",
     "/pricing": "commercial hub"
   },
+  "competitors": ["competitor-a.com", "competitor-b.com"],
   "gsc_property": "sc-domain:example.com",
   "gsc_credentials": "gsc-service-account.json",
   "dataforseo": { "location_name": "United States", "language_name": "English" },
+  "history_dir": "history",
+  "llm": { "model": "claude-opus-4-8", "max_tokens": 8000 },
+  "cms": { "type": "file", "dir": "content" },
   "brand": { "name": "Example", "navy": "#0B0E33", "green": "#02BC87" }
 }
