@@ -104,11 +104,24 @@ Ranked by evidence strength + leverage. ✅ have · 🔨 build · 🔬 needs its
    run-over-run (moved up/down, features gained/lost).
 
 All five verified must-haves shipped. Beyond the roadmap, now also built: the **action
-engine** (`plan` — fuses every signal into ranked next-actions), **schema** generation +
-validation, **content-comprehensiveness** scoring (`score`, Surfer-lite), deeper audits
-(redirects, broken links, hreflang), and the **0→100 PLAYBOOK.md**. Next research passes:
-topical-authority/E-E-A-T scoring, backlink toxicity, accessibility (all flagged 🔬 — need
-their own evidence pass before building).
+engine** (`plan`), **schema** generation + validation, **content-comprehensiveness**
+scoring (`score`), deeper audits (redirects, broken links, hreflang), and the **0→100
+PLAYBOOK.md**.
+
+The 🔬 frontier is now built too, each grounded in a 2026 research pass:
+- **E-E-A-T** (`eeat`) — author bylines, dates, outbound citations, trust pages, HTTPS
+  (the measurable signals AI Overviews cite; not a direct score).
+- **Topical authority** (`authority`) — topic clusters + pillar/internal-link density.
+- **Accessibility** (audit `a11y` + PSI a11y score) — alt text, `lang`, heading order
+  (not a direct ranking factor, but the structure Google rewards).
+- **Backlink toxicity** (`toxicity`) — deliberately conservative: 2026 reality is that
+  disavow is rarely needed (SpamBrain auto-ignores spam; low authority ≠ toxic).
+- **Recommenders** — `consolidate` (cannibalization → keep/redirect) and `inlinks`
+  (reverse internal-link suggestions).
+
+Still open (blocked / needs more evidence): AI-search visibility ingestion (waiting on a
+GSC Generative-AI API), and a rigorous topical-authority/E-E-A-T *scoring model* beyond the
+structural heuristics here.
 
 **Adding any new API is one entry** in `integrations.py` (the registry): tier, env/config,
 what it unlocks, alternatives. Onboarding, `.env.example`, and the capability matrix

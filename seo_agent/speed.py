@@ -23,10 +23,10 @@ def _verdict(metric, v):
 
 
 def psi(url, key=None, strategy="mobile", timeout=60):
-    """Lighthouse lab data via PageSpeed Insights."""
-    q = {"url": url, "strategy": strategy, "category": "performance"}
+    """Lighthouse lab data via PageSpeed Insights (performance + accessibility)."""
+    q = [("url", url), ("strategy", strategy), ("category", "performance"), ("category", "accessibility")]
     if key:
-        q["key"] = key
+        q.append(("key", key))
     api = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed?" + urllib.parse.urlencode(q)
     try:
         with urllib.request.urlopen(api, timeout=timeout) as r:
@@ -35,8 +35,10 @@ def psi(url, key=None, strategy="mobile", timeout=60):
         return {"error": str(e)}
     lh = d.get("lighthouseResult", {})
     au = lh.get("audits", {})
+    cat = lh.get("categories", {})
     num = lambda k: au.get(k, {}).get("numericValue")
-    return {"perf_score": round((lh.get("categories", {}).get("performance", {}).get("score") or 0) * 100),
+    pct = lambda c: round((cat.get(c, {}).get("score") or 0) * 100)
+    return {"perf_score": pct("performance"), "a11y_score": pct("accessibility"),
             "lab_lcp_ms": num("largest-contentful-paint"),
             "lab_cls": num("cumulative-layout-shift"),
             "lab_tbt_ms": num("total-blocking-time")}

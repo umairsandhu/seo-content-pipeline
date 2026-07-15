@@ -11,9 +11,9 @@ import json
 import os
 import sys
 
-from . import (aio, analyze, audit, backlinks, content_score, decay, ingest,
-               integrations, logs, onboard, orchestrate, plan, produce, publish,
-               rank, safety, schema, speed, trends)
+from . import (aio, analyze, audit, authority, backlinks, content_score, decay, eeat,
+               ingest, integrations, internal, logs, onboard, orchestrate, plan,
+               produce, publish, rank, safety, schema, speed, trends)
 from . import config as cfgmod
 from .index import Index, load_corpus
 
@@ -147,6 +147,29 @@ def _score(a):
     return content_score.render_md(content_score.score(_cfg(), a["keyword"], a["url"]))
 
 
+def _eeat(a):
+    cfg = _cfg()
+    return eeat.render_md(cfg, eeat.report(cfg))
+
+
+def _authority(a):
+    cfg = _cfg()
+    return authority.render_md(cfg, authority.clusters(cfg))
+
+
+def _consolidate(a):
+    cfg = _cfg()
+    return internal.render_md(cfg, internal.consolidation(cfg))
+
+
+def _toxicity(a):
+    return json.dumps(backlinks.toxicity(_cfg()), ensure_ascii=False, indent=1)
+
+
+def _inlinks(a):
+    return json.dumps(internal.inbound_suggestions(_cfg(), a["url"]), ensure_ascii=False, indent=1)
+
+
 TOOLS = [
     ("ingest", "Crawl the configured site's sitemap into corpus.json.",
      {"type": "object", "properties": {}}, _ingest),
@@ -197,6 +220,16 @@ TOOLS = [
     ("score", "Content comprehensiveness: score a page vs SERP competitors; surface missing subtopics.",
      {"type": "object", "properties": {"keyword": {"type": "string"}, "url": {"type": "string"}},
       "required": ["keyword", "url"]}, _score),
+    ("eeat", "E-E-A-T signal audit: author bylines, dates, citations, trust pages, HTTPS.",
+     {"type": "object", "properties": {}}, _eeat),
+    ("authority", "Topical-authority structure: topic clusters, pillar presence, internal-link density.",
+     {"type": "object", "properties": {}}, _authority),
+    ("consolidate", "Consolidation plan: which cannibalizing page to keep, which to 301-redirect.",
+     {"type": "object", "properties": {}}, _consolidate),
+    ("toxicity", "Backlink toxicity review (conservative — disavow is rarely needed in 2026).",
+     {"type": "object", "properties": {}}, _toxicity),
+    ("inlinks", "Reverse internal-link recommender: existing pages that should link to a target URL.",
+     {"type": "object", "properties": {"url": {"type": "string"}}, "required": ["url"]}, _inlinks),
 ]
 _DISPATCH = {name: fn for name, _, _, fn in TOOLS}
 

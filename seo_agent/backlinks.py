@@ -15,6 +15,27 @@ def profile(cfg):
             "referring_domains": providers.referring_domains(site)}
 
 
+SPAM_TLDS = (".xyz", ".top", ".loan", ".work", ".click", ".gq", ".tk", ".ml", ".cf",
+             ".ga", ".buzz", ".bid", ".stream", ".download", ".racing", ".party", ".review")
+
+
+def toxicity(cfg, limit=30):
+    """Conservative flag of suspicious referring domains (spammy TLDs).
+
+    IMPORTANT (2026 reality): disavow is rarely necessary — Google's SpamBrain
+    ignores spam links automatically, and low authority is NOT toxicity. Only
+    disavow after a manual action in Search Console or a documented negative-SEO
+    event. This surfaces candidates for review, not a disavow-everything list."""
+    site = _host(cfg.get("site"))
+    domains = providers.referring_domains(site, limit=500)
+    suspect = [d for d in domains if any((d.get("domain") or "").endswith(t) for t in SPAM_TLDS)]
+    suspect.sort(key=lambda d: (d.get("rank") or 0))
+    return {"note": "Disavow is rarely needed in 2026 (SpamBrain auto-ignores spam; low authority ≠ "
+                    "toxic). Only act on a manual action or documented negative SEO.",
+            "referring_domains": len(domains), "suspect_count": len(suspect),
+            "suspect": suspect[:limit]}
+
+
 def link_gap(cfg, limit=50):
     """Domains linking to competitors but not to us, ranked by how many
     competitors they link (consensus) then domain authority. Outreach targets."""

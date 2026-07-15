@@ -60,7 +60,8 @@ content-depth·internal-links·speed), competitor gap, and GSC → `BASELINE.md`
 
 ## Commands
 Plan: `plan` (ranked next-actions) — Onboard: `safety` · `integrations` · `onboard`
-Doctor: `audit` · `sitemap` · `speed` · `logs` · `schema` · `llmstxt` · `aio` · `rank` · `score` · `gap`
+Doctor: `audit` · `sitemap` · `speed` · `logs` · `schema` · `eeat` · `authority` · `llmstxt`
+Optimize: `aio` · `rank` · `score` · `gap` · `consolidate` · `inlinks` · `toxicity` · `decay` · `radar`
 Pipeline: `ingest` · `gsc` · `decay` · `algo` · `radar` · `backlinks` · `trends <seed…>` ·
 `research <kw…>` · `discover <seed>` · `analyze` · `brief <kw>` · `draft <kw>` ·
 `retitle <url>` · `publish <post.json>` · `run [--monthly]` · `mcp`  (see `SKILL.md`).

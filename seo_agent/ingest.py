@@ -13,6 +13,7 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
+from urllib.parse import urlparse
 
 from . import render
 
@@ -124,6 +125,19 @@ def extract(url, doc):
         if la and hr:
             hreflang.append({"lang": la.group(1).lower(), "href": hr.group(1)})
     jsonld = bool(re.search(r'<script[^>]+type=["\']application/ld\+json["\']', doc, re.I))
+    # E-E-A-T / accessibility signals
+    host = urlparse(url).netloc.lower()
+    ext_links = sum(1 for h in links if h.startswith("http")
+                    and urlparse(h).netloc.lower() not in ("", host))
+    lang_m = re.search(r'<html[^>]+lang=["\']([a-zA-Z-]+)["\']', doc, re.I)
+    lang = lang_m.group(1).lower() if lang_m else ""
+    imgs = re.findall(r'<img\b[^>]*>', doc, re.I)
+    img_alt = sum(1 for tg in imgs if re.search(r'\balt=["\'][^"\']+["\']', tg, re.I))
+    au = re.search(r'<meta[^>]+(?:name|property)=["\'](?:author|article:author)["\'][^>]+content=["\'](.*?)["\']', doc, re.I)
+    author = html.unescape(au.group(1)).strip() if au else ""
+    _mt = lambda p: (re.search(r'<meta[^>]+property=["\']' + p + r'["\'][^>]+content=["\'](.*?)["\']', doc, re.I) or [None, ""])[1]
+    published, modified = _mt("article:published_time"), _mt("article:modified_time")
+    heading_levels = [int(x) for x in re.findall(r'<h([1-6])[^>]*>', body, re.I)]
     words = len(text.split())
     # CSR heuristic: near-empty raw body + a SPA mount marker → likely client-rendered.
     csr = words < 50 and bool(re.search(
@@ -131,7 +145,9 @@ def extract(url, doc):
     return {"url": url, "title": title, "description": desc,
             "headings": headings, "h1": h1, "canonical": canonical, "robots": robots,
             "links": links, "hreflang": hreflang, "words": words, "jsonld": jsonld,
-            "csr": csr, "text": text[:12000]}
+            "csr": csr, "lang": lang, "img_total": len(imgs), "img_alt": img_alt,
+            "ext_links": ext_links, "author": author, "published": published,
+            "modified": modified, "heading_levels": heading_levels, "text": text[:12000]}
 
 
 def robots_sitemaps(site):

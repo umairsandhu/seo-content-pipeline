@@ -7,7 +7,7 @@ each with the command to run.
 This is the 0→100 co-pilot — run `plan` at any point to get the next best moves.
 Every source degrades: with no creds you still get the technical-fix plan from
 the Site Doctor."""
-from . import analyze, audit, decay
+from . import analyze, audit, authority, decay, eeat, internal
 from .index import Index, load_corpus
 
 EFFORT_W = {"S": 1.0, "M": 0.8, "L": 0.6}
@@ -67,6 +67,31 @@ def build(cfg):
                        f'draft "{g["keyword"]}"'))
         except Exception:
             pass
+
+    # 5. E-E-A-T + topical structure + consolidation (offline, cheap)
+    try:
+        e = eeat.report(cfg)
+        if e["pages"] and len(e["no_author"]) > e["pages"] * 0.5:
+            add(_a(50, "M", "eeat", cfg.get("site", ""),
+                   f"{len(e['no_author'])}/{e['pages']} pages have no author byline", "eeat"))
+        for tp in e["missing_trust"][:1]:
+            add(_a(55, "S", "eeat", "/" + tp, f"no {tp} page (trust signal)", "eeat"))
+    except Exception:
+        pass
+    try:
+        for c in authority.clusters(cfg):
+            if not c["healthy"] and c["size"] >= 3:
+                add(_a(55, "M", "cluster", c["pillar"],
+                       f"weak topic cluster (size {c['size']}, density {c['link_density']}) — pillar + internal links",
+                       "authority"))
+    except Exception:
+        pass
+    try:
+        for cn in internal.consolidation(cfg)[:5]:
+            add(_a(60, "M", "consolidate", cn["keep"],
+                   f"cannibalization — redirect {len(cn['merge_redirect'])} page(s) into this", "consolidate"))
+    except Exception:
+        pass
 
     actions.sort(key=lambda x: -x["score"])
     return actions

@@ -1,9 +1,9 @@
 """CLI: python -m seo_agent <cmd> --config config.json
 
 Onboard   safety · onboard · integrations     fork-safety, baseline, API matrix
-Doctor    audit · sitemap · speed · logs · schema · llmstxt   technical/on-page
-Observe   ingest · gsc · rank · trends · backlinks
-Decide    research · discover · gap · aio · decay · algo · radar
+Doctor    audit · sitemap · speed · logs · schema · eeat · authority · llmstxt
+Observe   ingest · gsc · rank · trends · backlinks · toxicity
+Decide    research · discover · gap · aio · consolidate · inlinks · decay · algo · radar
 Produce   analyze · brief · draft · score · retitle
 Plan      plan                          ranked "what to do next" (the co-pilot)
 Publish   publish · mcp
@@ -14,9 +14,10 @@ import json
 import sys
 from pathlib import Path
 
-from . import (aio, algo, analyze, audit, backlinks, content_score, decay, history,
-               ingest, integrations, logs, mcp_server, onboard, orchestrate, plan,
-               produce, publish, radar, rank, safety, schema, speed, trends)
+from . import (aio, algo, analyze, audit, authority, backlinks, content_score, decay,
+               eeat, history, ingest, integrations, internal, logs, mcp_server, onboard,
+               orchestrate, plan, produce, publish, radar, rank, safety, schema, speed,
+               trends)
 from . import config as cfgmod
 from .index import Index, load_corpus
 
@@ -38,6 +39,11 @@ def main():
     sub.add_parser("aio")
     sub.add_parser("rank")
     sub.add_parser("plan")
+    sub.add_parser("eeat")
+    sub.add_parser("authority")
+    sub.add_parser("consolidate")
+    sub.add_parser("toxicity")
+    pin = sub.add_parser("inlinks"); pin.add_argument("url")
     sub.add_parser("llmstxt")
     sub.add_parser("integrations")
     sub.add_parser("mcp")
@@ -130,6 +136,16 @@ def main():
                 print(" ", u)
     elif a.cmd == "score":
         dump(content_score.score(cfg, a.keyword, a.url))
+    elif a.cmd == "eeat":
+        print(eeat.render_md(cfg, eeat.report(cfg)))
+    elif a.cmd == "authority":
+        print(authority.render_md(cfg, authority.clusters(cfg)))
+    elif a.cmd == "consolidate":
+        print(internal.render_md(cfg, internal.consolidation(cfg)))
+    elif a.cmd == "toxicity":
+        dump(backlinks.toxicity(cfg))
+    elif a.cmd == "inlinks":
+        dump(internal.inbound_suggestions(cfg, a.url))
     elif a.cmd == "logs":
         path = a.path or cfg.get("logs", {}).get("path")
         if not path:

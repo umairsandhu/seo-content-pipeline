@@ -78,6 +78,11 @@ python -m seo_agent ingest                 # sitemap → corpus.json
 python -m seo_agent rank                     # track positions + SERP features over time
 python -m seo_agent schema <url>             # generate JSON-LD structured data
 python -m seo_agent score "<kw>" <url>       # content comprehensiveness vs SERP competitors
+python -m seo_agent eeat                     # E-E-A-T signals (author/dates/citations/trust pages)
+python -m seo_agent authority                # topical-authority clusters (pillar + link density)
+python -m seo_agent consolidate              # cannibalization → keep-one / 301-redirect plan
+python -m seo_agent inlinks <url>            # existing pages that should link to a target
+python -m seo_agent toxicity                 # backlink toxicity review (conservative — see note)
 python -m seo_agent gsc                     # striking-distance + low-CTR; snapshots history
 python -m seo_agent decay                   # queries losing rank + pages losing clicks (needs ≥2 gsc runs)
 python -m seo_agent trends "your seed"      # emerging / rising keywords

@@ -23,7 +23,7 @@ DEF = {"title_min": 30, "title_max": 60, "meta_min": 70, "meta_max": 160,
        "thin_words": 300, "min_inbound": 3, "max_depth": 4}
 ISO = re.compile(r"^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}.*)?$")
 CATS = ["sitemap", "crawl", "index", "meta", "headings", "canonical",
-        "duplicate", "content", "links", "structured"]
+        "duplicate", "content", "links", "structured", "a11y"]
 
 
 def _norm(base, href=""):
@@ -306,6 +306,34 @@ def structured(corpus, F):
                   "msg": f"{len(no)}/{len(idx)} indexable pages have no JSON-LD structured data"})
 
 
+def _heading_skip(levels):
+    prev = 0
+    for lv in levels:
+        if prev and lv > prev + 1:
+            return True
+        prev = lv
+    return False
+
+
+def accessibility(corpus, F):
+    """WCAG-adjacent checks Google's parser also values (alt text, lang, heading order).
+    Not a direct ranking factor, but the structure it rewards — and image SEO."""
+    idx = [c for c in corpus if _indexable(c)]
+    alt = [c for c in idx if c.get("img_total", 0) and c.get("img_alt", 0) < c["img_total"]]
+    if alt:
+        missing = sum(c["img_total"] - c.get("img_alt", 0) for c in alt)
+        F.append({"cat": "a11y", "sev": "low", "url": alt[0]["url"],
+                  "msg": f"{missing} images across {len(alt)} pages missing alt text (WCAG A + image SEO)"})
+    no_lang = [c for c in idx if not c.get("lang")]
+    if no_lang:
+        F.append({"cat": "a11y", "sev": "low", "url": no_lang[0]["url"],
+                  "msg": f"{len(no_lang)} pages missing <html lang> (accessibility + Google language processing)"})
+    skips = [c for c in idx if _heading_skip(c.get("heading_levels", []))]
+    if skips:
+        F.append({"cat": "a11y", "sev": "low", "url": skips[0]["url"],
+                  "msg": f"{len(skips)} pages skip heading levels (e.g. H2→H4) — confuses screen readers + parsers"})
+
+
 # ── driver + render ─────────────────────────────────────────────────────────
 def report(cfg, corpus_path="corpus.json"):
     t = {**DEF, **cfg.get("audit", {})}
@@ -324,6 +352,7 @@ def report(cfg, corpus_path="corpus.json"):
     cannibalization(F, corpus_path)
     link_stats = internal_links(corpus, cfg, F, t)
     structured(corpus, F)
+    accessibility(corpus, F)
     counts = {s: sum(1 for f in F if f["sev"] == s) for s in ("high", "med", "low")}
     return {"pages": len(corpus), "sitemap": sm, "links": link_stats,
             "findings": F, "counts": counts}
