@@ -117,6 +117,12 @@ def extract(url, doc):
         robots = html.unescape(m.group(1)).strip().lower()
     links = [h for h in HREF.findall(doc)
              if h and not h.startswith(("#", "mailto:", "tel:", "javascript:"))]
+    hreflang = []
+    for tag in re.findall(r'<link[^>]+rel=["\']alternate["\'][^>]*>', doc, re.I):
+        la = re.search(r'hreflang=["\'](.*?)["\']', tag, re.I)
+        hr = re.search(r'href=["\'](.*?)["\']', tag, re.I)
+        if la and hr:
+            hreflang.append({"lang": la.group(1).lower(), "href": hr.group(1)})
     jsonld = bool(re.search(r'<script[^>]+type=["\']application/ld\+json["\']', doc, re.I))
     words = len(text.split())
     # CSR heuristic: near-empty raw body + a SPA mount marker → likely client-rendered.
@@ -124,8 +130,8 @@ def extract(url, doc):
         r'id=["\'](root|app|__next|__nuxt)["\']|__NEXT_DATA__|ng-version|data-reactroot', doc, re.I))
     return {"url": url, "title": title, "description": desc,
             "headings": headings, "h1": h1, "canonical": canonical, "robots": robots,
-            "links": links, "words": words, "jsonld": jsonld, "csr": csr,
-            "text": text[:12000]}
+            "links": links, "hreflang": hreflang, "words": words, "jsonld": jsonld,
+            "csr": csr, "text": text[:12000]}
 
 
 def robots_sitemaps(site):

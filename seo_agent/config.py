@@ -27,6 +27,7 @@ DEFAULTS = {
     "logs": {"path": None},                                     # server access-log file (#2)
     "aio": {"target_pos": 3, "max_detect": 20},                # AI-Overview CTR model (#1)
     "render": {"enabled": False, "wait": "networkidle", "timeout": 15},   # JS rendering (#4)
+    "rank": {"keywords": [], "max": 50},                       # rank + SERP-feature tracking (#5)
 }
 
 

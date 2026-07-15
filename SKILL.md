@@ -26,6 +26,10 @@ as you add creds.
 It runs **fork-safety first** (so the operator's keys can never leak from a fork),
 then the Site Doctor, speed, and gap analysis into `BASELINE.md`.
 
+**The 0→100 path is `PLAYBOOK.md`** (setup → technical → baseline → content → optimize →
+AI-search). At any point, **`python -m seo_agent plan`** fuses every signal into the ranked
+"what to do next" — the co-pilot for the whole journey.
+
 | Layer | What it does | Commands |
 |---|---|---|
 | 0 · Onboard | fork-safety (secrets never leak) + first-run baseline | `safety` `onboard` |
@@ -66,8 +70,14 @@ python -m seo_agent aio                      # re-rank striking-distance by AI-O
 python -m seo_agent llmstxt                  # generate an llms.txt from the corpus
 python -m seo_agent gap                      # competitor content gap
 
+# Plan (the co-pilot — run any time)
+python -m seo_agent plan                     # ranked "what to do next" → plan.md
+
 # Observe / Decide
 python -m seo_agent ingest                 # sitemap → corpus.json
+python -m seo_agent rank                     # track positions + SERP features over time
+python -m seo_agent schema <url>             # generate JSON-LD structured data
+python -m seo_agent score "<kw>" <url>       # content comprehensiveness vs SERP competitors
 python -m seo_agent gsc                     # striking-distance + low-CTR; snapshots history
 python -m seo_agent decay                   # queries losing rank + pages losing clicks (needs ≥2 gsc runs)
 python -m seo_agent trends "your seed"      # emerging / rising keywords

@@ -136,7 +136,9 @@ def _render(cfg, s, blocked):
         L += [f"| {r['query']} | {r['position']:.1f} | {r['impressions']} |" for r in gsc["striking"][:10]]
         L.append("")
 
-    L += ["## Next", "- Fix Site Doctor **high** items first (crawl/index), then content, then links.",
+    L += ["## Next",
+          "- Run **`plan`** for the ranked next-actions; follow **PLAYBOOK.md** for the 0→100 path.",
+          "- Fix Site Doctor **high** items first (crawl/index), then content, then links.",
           "- Turn top gaps into briefs → drafts → PRs (human merge gate).",
           "- Schedule `run` weekly / `run --monthly` monthly to track vs this baseline."]
     return "\n".join(L)

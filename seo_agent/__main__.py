@@ -1,10 +1,11 @@
 """CLI: python -m seo_agent <cmd> --config config.json
 
 Onboard   safety · onboard · integrations     fork-safety, baseline, API matrix
-Doctor    audit · sitemap · speed · logs · llmstxt   technical/on-page + log-file
-Observe   ingest · gsc · trends · backlinks
+Doctor    audit · sitemap · speed · logs · schema · llmstxt   technical/on-page
+Observe   ingest · gsc · rank · trends · backlinks
 Decide    research · discover · gap · aio · decay · algo · radar
-Produce   analyze · brief · draft · retitle
+Produce   analyze · brief · draft · score · retitle
+Plan      plan                          ranked "what to do next" (the co-pilot)
 Publish   publish · mcp
 Run       run [--monthly]              full orchestration → digest.md
 """
@@ -13,9 +14,9 @@ import json
 import sys
 from pathlib import Path
 
-from . import (aio, algo, analyze, audit, backlinks, decay, history, ingest,
-               integrations, logs, mcp_server, onboard, orchestrate, produce,
-               publish, radar, safety, speed, trends)
+from . import (aio, algo, analyze, audit, backlinks, content_score, decay, history,
+               ingest, integrations, logs, mcp_server, onboard, orchestrate, plan,
+               produce, publish, radar, rank, safety, schema, speed, trends)
 from . import config as cfgmod
 from .index import Index, load_corpus
 
@@ -35,10 +36,14 @@ def main():
     sub.add_parser("sitemap")
     sub.add_parser("gap")
     sub.add_parser("aio")
+    sub.add_parser("rank")
+    sub.add_parser("plan")
     sub.add_parser("llmstxt")
     sub.add_parser("integrations")
     sub.add_parser("mcp")
     pl = sub.add_parser("logs"); pl.add_argument("path", nargs="?"); pl.add_argument("--verify", action="store_true")
+    psc = sub.add_parser("schema"); psc.add_argument("url", nargs="?")
+    pcs = sub.add_parser("score"); pcs.add_argument("keyword"); pcs.add_argument("url")
     sf = sub.add_parser("safety"); sf.add_argument("--precommit", action="store_true")
     po = sub.add_parser("onboard"); po.add_argument("--keywords-file")
     sub.add_parser("brief").add_argument("keyword")
@@ -107,6 +112,24 @@ def main():
         if not opp:
             print("GSC not configured — AIO model re-ranks striking-distance queries."); return
         print(aio.render_md(cfg, aio.annotate(cfg, opp["striking"])))
+    elif a.cmd == "rank":
+        rows = rank.track(cfg)
+        print(rank.render_md(cfg, rows, rank.movement(cfg)))
+    elif a.cmd == "plan":
+        actions = plan.build(cfg)
+        md = plan.render_md(cfg, actions)
+        Path("plan.md").write_text(md)
+        print(md)
+    elif a.cmd == "schema":
+        if a.url:
+            print(schema.generate(cfg, a.url))
+        else:
+            m = schema.missing(cfg)
+            print(f"{len(m)} indexable pages missing JSON-LD (pass a URL to generate):")
+            for u in m[:30]:
+                print(" ", u)
+    elif a.cmd == "score":
+        dump(content_score.score(cfg, a.keyword, a.url))
     elif a.cmd == "logs":
         path = a.path or cfg.get("logs", {}).get("path")
         if not path:

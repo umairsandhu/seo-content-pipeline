@@ -69,20 +69,35 @@ def serp(keyword, loc="United States", lang="English", depth=10):
         return {"error": "no DataForSEO creds / call failed"}
     result = (res.get("tasks") or [{}])[0].get("result") or []
     items = result[0].get("items", []) if result else []
-    organic, paa, related, ai_overview = [], [], [], False
+    organic, paa, related = [], [], []
+    feat = dict.fromkeys(["ai_overview", "featured_snippet", "people_also_ask", "video",
+                          "images", "shopping", "local_pack", "knowledge_graph"], False)
     for it in items:
         t = it.get("type") or ""
         if t == "organic" and len(organic) < depth:
             organic.append({"title": it.get("title"), "url": it.get("url")})
         elif t == "people_also_ask":
             paa += [q.get("title") for q in it.get("items", []) or [] if isinstance(q, dict) and q.get("title")]
+            feat["people_also_ask"] = True
         elif t == "related_searches":
             for kw in it.get("items", []) or []:
                 related.append(kw if isinstance(kw, str) else kw.get("keyword"))
-        elif "ai_overview" in t:      # AI Overview present in this SERP
-            ai_overview = True
-    return {"organic": organic, "paa": [q for q in paa if q],
-            "related": [r for r in related if r], "ai_overview": ai_overview}
+        if "ai_overview" in t:
+            feat["ai_overview"] = True
+        elif t == "featured_snippet":
+            feat["featured_snippet"] = True
+        elif t in ("video", "youtube"):
+            feat["video"] = True
+        elif t in ("images", "image"):
+            feat["images"] = True
+        elif "shopping" in t or t == "popular_products":
+            feat["shopping"] = True
+        elif t == "local_pack":
+            feat["local_pack"] = True
+        elif t == "knowledge_graph":
+            feat["knowledge_graph"] = True
+    return {"organic": organic, "paa": [q for q in paa if q], "related": [r for r in related if r],
+            "ai_overview": feat["ai_overview"], "features": feat}
 
 
 def suggestions(seed, loc="United States", lang="English", limit=50):

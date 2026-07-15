@@ -99,9 +99,16 @@ Ranked by evidence strength + leverage. ✅ have · 🔨 build · 🔬 needs its
    Renders SPA/CSR pages in headless Chromium before auditing so they aren't mis-reported.
    Always-on CSR heuristic (ingest sets `csr`) flags likely client-rendered pages even when
    rendering is off, so you know to enable it. Table-stakes across every top crawler.
-5. 🔨 **Rank + SERP-feature tracking over time.** We have the history store but don't yet
-   snapshot positions/SERP features longitudinally. Add a `rank` snapshot kind (GSC position
-   + SERP features from DataForSEO) → true movement tracking (goals #3/#5). **← next**
+5. ✅ **Rank + SERP-feature tracking over time** — `rank.py` / `rank`. Snapshots position +
+   SERP features (AIO/snippet/PAA/video/shopping/local/knowledge-graph) per keyword and diffs
+   run-over-run (moved up/down, features gained/lost).
+
+All five verified must-haves shipped. Beyond the roadmap, now also built: the **action
+engine** (`plan` — fuses every signal into ranked next-actions), **schema** generation +
+validation, **content-comprehensiveness** scoring (`score`, Surfer-lite), deeper audits
+(redirects, broken links, hreflang), and the **0→100 PLAYBOOK.md**. Next research passes:
+topical-authority/E-E-A-T scoring, backlink toxicity, accessibility (all flagged 🔬 — need
+their own evidence pass before building).
 
 **Adding any new API is one entry** in `integrations.py` (the registry): tier, env/config,
 what it unlocks, alternatives. Onboarding, `.env.example`, and the capability matrix

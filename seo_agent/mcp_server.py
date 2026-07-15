@@ -11,8 +11,9 @@ import json
 import os
 import sys
 
-from . import (aio, analyze, audit, backlinks, decay, ingest, integrations, logs,
-               onboard, orchestrate, produce, publish, safety, speed, trends)
+from . import (aio, analyze, audit, backlinks, content_score, decay, ingest,
+               integrations, logs, onboard, orchestrate, plan, produce, publish,
+               rank, safety, schema, speed, trends)
 from . import config as cfgmod
 from .index import Index, load_corpus
 
@@ -126,6 +127,26 @@ def _integrations(a):
     return integrations.render_md(_cfg())
 
 
+def _rank(a):
+    cfg = _cfg()
+    rows = rank.track(cfg, a.get("keywords"))
+    return rank.render_md(cfg, rows, rank.movement(cfg))
+
+
+def _plan(a):
+    cfg = _cfg()
+    return plan.render_md(cfg, plan.build(cfg))
+
+
+def _schema(a):
+    cfg = _cfg()
+    return schema.generate(cfg, a["url"]) if a.get("url") else "\n".join(schema.missing(cfg)[:30])
+
+
+def _score(a):
+    return content_score.render_md(content_score.score(_cfg(), a["keyword"], a["url"]))
+
+
 TOOLS = [
     ("ingest", "Crawl the configured site's sitemap into corpus.json.",
      {"type": "object", "properties": {}}, _ingest),
@@ -167,6 +188,15 @@ TOOLS = [
      {"type": "object", "properties": {"path": {"type": "string"}, "verify": {"type": "boolean"}}}, _logs),
     ("integrations", "API capability matrix: what's active/missing, what each unlocks, alternatives.",
      {"type": "object", "properties": {}}, _integrations),
+    ("rank", "Track positions + SERP features (AIO/snippet/PAA/video/shopping) over time + movement.",
+     {"type": "object", "properties": {"keywords": {"type": "array", "items": {"type": "string"}}}}, _rank),
+    ("plan", "The co-pilot: fuse every signal into one ranked 'what to do next' action plan.",
+     {"type": "object", "properties": {}}, _plan),
+    ("schema", "Generate JSON-LD (BlogPosting/Organization/Breadcrumb) for a URL, or list pages missing it.",
+     {"type": "object", "properties": {"url": {"type": "string"}}}, _schema),
+    ("score", "Content comprehensiveness: score a page vs SERP competitors; surface missing subtopics.",
+     {"type": "object", "properties": {"keyword": {"type": "string"}, "url": {"type": "string"}},
+      "required": ["keyword", "url"]}, _score),
 ]
 _DISPATCH = {name: fn for name, _, _, fn in TOOLS}
 

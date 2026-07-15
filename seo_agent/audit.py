@@ -260,6 +260,34 @@ def internal_links(corpus, cfg, F, t):
             "unreachable": sum(1 for u in ids if u not in depth)}
 
 
+def redirects_broken(corpus, F):
+    by = {_norm(c.get("final_url") or c["url"]): c for c in corpus}
+    redirs = [c for c in corpus if c.get("final_url")
+              and _norm(c["url"]) != _norm(c.get("final_url")) and c.get("status") == 200]
+    if redirs:
+        F.append({"cat": "crawl", "sev": "med", "url": redirs[0]["url"],
+                  "msg": f"{len(redirs)} sitemap/crawled URLs redirect — point internal links + the "
+                         f"sitemap at the final URL to save crawl budget and link equity"})
+    broken = []
+    for c in corpus:
+        for href in c.get("links", []):
+            tgt = _norm(c["url"], href)
+            tc = by.get(tgt)
+            if tc and tc.get("status", 200) >= 400:
+                broken.append((c["url"], tgt))
+    if broken:
+        F.append({"cat": "links", "sev": "high", "url": broken[0][0],
+                  "msg": f"{len(broken)} internal links point to broken (4xx/5xx) pages"})
+
+
+def hreflang_audit(corpus, F):
+    withhl = [c for c in corpus if c.get("hreflang")]
+    no_default = [c for c in withhl if "x-default" not in [h["lang"] for h in c["hreflang"]]]
+    if no_default:
+        F.append({"cat": "index", "sev": "low", "url": no_default[0]["url"],
+                  "msg": f"{len(no_default)} pages set hreflang without an x-default (add one for unmatched locales)"})
+
+
 def cannibalization(F, corpus_path):
     try:
         idx = Index(load_corpus(corpus_path))
@@ -291,6 +319,8 @@ def report(cfg, corpus_path="corpus.json"):
     headings(corpus, F)
     canonicals(corpus, F)
     content_depth(corpus, F, t)
+    redirects_broken(corpus, F)
+    hreflang_audit(corpus, F)
     cannibalization(F, corpus_path)
     link_stats = internal_links(corpus, cfg, F, t)
     structured(corpus, F)
