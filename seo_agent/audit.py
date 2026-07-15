@@ -81,6 +81,32 @@ def sitemap_health(cfg, corpus, F):
     return info
 
 
+AI_BOTS = ("gptbot", "oai-searchbot", "chatgpt-user", "claudebot", "anthropic-ai",
+           "perplexitybot", "ccbot", "google-extended", "bytespider", "amazonbot",
+           "applebot-extended", "meta-externalagent")
+
+
+def _root_disallowers(txt):
+    """User-agents (lowercased) that have `Disallow: /` — grouped correctly so a
+    `Disallow: /` under `User-agent: GPTBot` isn't mistaken for a site-wide block."""
+    here, blocked, saw_directive = [], set(), False
+    for raw in txt.splitlines():
+        l = raw.split("#")[0].strip()
+        if not l or ":" not in l:
+            continue
+        k, v = [x.strip() for x in l.split(":", 1)]
+        kl = k.lower()
+        if kl == "user-agent":
+            if saw_directive:            # a rule line closed the previous group
+                here, saw_directive = [], False
+            here.append(v.lower())
+        elif kl in ("allow", "disallow"):   # BOTH close the group (Allow: / on * is not a block)
+            saw_directive = True
+            if kl == "disallow" and v == "/":
+                blocked.update(here)
+    return blocked
+
+
 def robots_txt(cfg, F):
     site = (cfg.get("site") or "").rstrip("/")
     try:
@@ -93,10 +119,16 @@ def robots_txt(cfg, F):
     if not has_sm:
         F.append({"cat": "crawl", "sev": "med", "url": site + "/robots.txt",
                   "msg": "robots.txt does not reference a Sitemap:"})
-    if re.search(r"(?im)^\s*disallow:\s*/\s*$", txt):
+    blocked = _root_disallowers(txt)
+    if "*" in blocked:
         F.append({"cat": "crawl", "sev": "high", "url": site + "/robots.txt",
-                  "msg": "robots.txt has 'Disallow: /' — the whole site is blocked from crawling"})
-    return {"exists": True, "references_sitemap": has_sm}
+                  "msg": "'Disallow: /' under User-agent: * — the whole site is blocked from crawling"})
+    ai_blocked = sorted({b for b in blocked for a in AI_BOTS if a in b})
+    if ai_blocked:
+        F.append({"cat": "crawl", "sev": "low", "url": site + "/robots.txt",
+                  "msg": f"robots.txt blocks AI crawlers ({', '.join(ai_blocked)}) via Disallow: / — "
+                         f"intentional? this removes you from those AI answers (ChatGPT/Perplexity/…)"})
+    return {"exists": True, "references_sitemap": has_sm, "ai_blocked": ai_blocked}
 
 
 def js_render(corpus, F):

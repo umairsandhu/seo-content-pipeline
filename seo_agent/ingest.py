@@ -128,6 +128,17 @@ def extract(url, doc):
             "text": text[:12000]}
 
 
+def robots_sitemaps(site):
+    """Sitemap: URLs declared in robots.txt — the canonical discovery path when
+    the default /sitemap.xml 404s (common)."""
+    try:
+        txt = _get(site.rstrip("/") + "/robots.txt")
+    except Exception:
+        return []
+    return [l.split(":", 1)[1].strip() for l in txt.splitlines()
+            if l.strip().lower().startswith("sitemap:")]
+
+
 def _match(url, include, exclude, site):
     path = url[len(site):] if site and url.startswith(site) else url
     if exclude and any(x in url for x in exclude):
@@ -139,7 +150,13 @@ def _match(url, include, exclude, site):
 
 def build(cfg, out="corpus.json", delay=0.15):
     site = (cfg.get("site") or "").rstrip("/")
-    urls = sitemap_urls(cfg["sitemap"])
+    urls = sitemap_urls(cfg["sitemap"]) if cfg.get("sitemap") else []
+    if not urls and site:                      # configured sitemap missing/404 → discover from robots.txt
+        for sm in robots_sitemaps(site):
+            urls = sitemap_urls(sm)
+            if urls:
+                print(f"  (sitemap auto-discovered from robots.txt: {sm})")
+                break
     urls = [u for u in dict.fromkeys(urls) if _match(u, cfg.get("include", []),
                                                      cfg.get("exclude", []), site)]
     urls = urls[: cfg.get("max_pages", 400)]
