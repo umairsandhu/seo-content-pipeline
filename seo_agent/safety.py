@@ -23,8 +23,8 @@ GITIGNORE = [
     "# Secrets — NEVER commit (public repo)", ".env", ".env.*", "*.env", "!.env.example",
     "config.json", "*service-account*.json", "*-credentials.json", "gsc-service-account.json", "",
     "# Per-site working data + generated outputs", "corpus.json", "history/", "content/",
-    "recommendations.md", "digest.md", "audit.md", "BASELINE.md", "content-queue.json",
-    "next-brief.md", "", "# OS", ".DS_Store",
+    "recommendations.md", "digest.md", "audit.md", "plan.md", "report.html", "BASELINE.md",
+    "content-queue.json", "next-brief.md", "", "# OS", ".DS_Store",
 ]
 
 # Real-secret patterns (not placeholders). Ordered high-signal first.

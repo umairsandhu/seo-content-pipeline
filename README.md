@@ -27,6 +27,13 @@ seo-content-pipeline plan        # the co-pilot: ranked "what to do next"
 > (`config.json` + `.env` + a hardened `.gitignore`) so anyone can start from scratch in a
 > new terminal or session. It refuses to run inside the tool's own install directory.
 
+**Or install as a Claude skill** (Claude then runs it and writes the content itself, no key):
+```
+/plugin marketplace add umairsandhu/seo-content-pipeline
+/plugin install seo-content-pipeline@seo-content-pipeline
+```
+Three ways to run it — Python CLI, Claude plugin, or MCP server — see [PUBLISHING.md](PUBLISHING.md).
+
 ---
 
 ## Why this exists
@@ -44,9 +51,9 @@ perfectly as a plain CLI.
 |---|---|---|
 | **Onboard** | `init` · `safety` · `integrations` · `onboard` | Bootstrap a workspace, guarantee no secret leaks, see the API matrix, build a baseline |
 | **Plan** | **`plan`** | Fuse every signal into one ranked, deduped action list (`plan.md`) — the co-pilot |
-| **Site Doctor** | `audit` · `sitemap` · `speed` · `logs` · `schema` · `eeat` · `authority` · `llmstxt` | Technical + on-page + Core Web Vitals + log-file + E-E-A-T + topical-authority audit |
-| **Observe** | `ingest` · `gsc` · `rank` · `trends` · `backlinks` · `toxicity` | Crawl the site; track rank/CTR/SERP-features/backlinks/emerging keywords over time |
-| **Decide** | `research` · `discover` · `gap` · `aio` · `consolidate` · `inlinks` · `decay` · `algo` · `radar` | Find gaps, AI-Overview-adjust opportunities, plan consolidations, detect decay, attribute algo updates |
+| **Site Doctor** | `audit` · `geo` · `sitemap` · `speed` · `logs` · `schema` · `eeat` · `authority` · `report` · `llmstxt` | Technical + on-page + Core Web Vitals + log-file + E-E-A-T + topical-authority + **GEO/AEO readiness**; `report` = shareable HTML dashboard |
+| **Observe** | `ingest` · `gsc` · `rank` · `trends` · `backlinks` · `toxicity` | Crawl the site (parallel); track rank/CTR/SERP-features/backlinks/emerging keywords over time |
+| **Decide** | `research` · `discover` · `gap` · `aio` · `consolidate` · `inlinks` · `autolink` · `decay` · `algo` · `radar` | Find gaps, AI-Overview-adjust opportunities, plan consolidations + internal-link fixes, detect decay, attribute algo updates |
 | **Produce** | `analyze` · `brief` · `draft` · `score` · `retitle` | SERP-grounded briefs, drafts (agent-written), comprehensiveness scoring, title/meta rewrites |
 | **Publish** | `publish` · `mcp` | WordPress / Webflow / Ghost / git-PR connectors; a stdio MCP server (30 tools) |
 | **Run** | `run [--monthly]` | Scheduled weekly/monthly digest → `digest.md` |

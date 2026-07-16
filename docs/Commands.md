@@ -29,6 +29,8 @@ none.
 | `schema [<url>]` | none | Generate JSON-LD for a URL (BlogPosting + Breadcrumb + Organization), or list pages missing structured data. |
 | `eeat` | none | E-E-A-T signals: author, dates, citations, trust pages, HTTPS. |
 | `authority` | none | Topical-authority clusters: pillar presence + internal-link density. |
+| `geo` | none | GEO/AEO readiness score — extractability, schema, AI-crawler access, E-E-A-T per page. |
+| `report` | none+ | Self-contained HTML dashboard (`report.html`) fusing audit + plan + GEO + E-E-A-T + GSC. |
 | `llmstxt` | none | Generate an `llms.txt` from the corpus. |
 
 ## Observe (track over time)
@@ -49,6 +51,7 @@ none.
 | `aio` | GSC+DFS | Re-rank striking-distance by **AI-Overview-adjusted** CTR (don't chase queries an AIO caps). |
 | `consolidate` | none | Cannibalization → keep-one / 301-redirect plan. |
 | `inlinks <url>` | none | Reverse internal-link recommender: existing pages that should link to a target. |
+| `autolink` | none | Batch internal-link plan: for every under-linked page, which pages should link to it + anchor. |
 | `decay` | GSC | Queries losing rank + pages losing clicks (needs ≥2 `gsc` snapshots). |
 | `algo` | GSC | Attribute traffic shifts to known Google updates. |
 | `radar` | none | Watch Google's Search Status Dashboard; flag when `algo.py` update knowledge is stale. |

@@ -1,0 +1,10 @@
+{
+  "name": "seo-content-pipeline",
+  "description": "Site-agnostic, end-to-end SEO operating system: fork-safe onboarding, a technical Site Doctor, rank/CTR/backlink/trend tracking, AI-Overview-aware opportunity ranking, log-file + AI-crawler analysis, GEO/AEO readiness, content drafting, multi-CMS publishing, an MCP server, and a prioritized action plan — 0 to 100 for any site.",
+  "version": "2.0.0",
+  "author": { "name": "umairsandhu" },
+  "homepage": "https://github.com/umairsandhu/seo-content-pipeline",
+  "license": "MIT",
+  "keywords": ["seo", "technical-seo", "ai-search", "aeo", "geo", "core-web-vitals", "content", "mcp"],
+  "skills": ["./"]
+}

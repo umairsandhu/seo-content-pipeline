@@ -7,7 +7,7 @@ each with the command to run.
 This is the 0→100 co-pilot — run `plan` at any point to get the next best moves.
 Every source degrades: with no creds you still get the technical-fix plan from
 the Site Doctor."""
-from . import analyze, audit, authority, decay, eeat, internal
+from . import analyze, audit, authority, decay, eeat, geo, internal
 from .index import Index, load_corpus
 
 EFFORT_W = {"S": 1.0, "M": 0.8, "L": 0.6}
@@ -90,6 +90,15 @@ def build(cfg):
         for cn in internal.consolidation(cfg)[:5]:
             add(_a(60, "M", "consolidate", cn["keep"],
                    f"cannibalization — redirect {len(cn['merge_redirect'])} page(s) into this", "consolidate"))
+    except Exception:
+        pass
+    try:
+        g = geo.report(cfg)
+        for k, n in g["missing"].items():
+            if k in ("schema", "qa_headings", "citations") and g["pages"] and n > g["pages"] * 0.5:
+                add(_a(48, "M", "geo", cfg.get("site", ""),
+                       f"{n}/{g['pages']} pages missing {k} — AI-citation readiness", "geo"))
+                break
     except Exception:
         pass
 

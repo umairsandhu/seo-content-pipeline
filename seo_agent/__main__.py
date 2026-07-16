@@ -1,9 +1,9 @@
 """CLI: python -m seo_agent <cmd> --config config.json
 
 Onboard   init · safety · integrations · onboard   bootstrap → fork-safe → baseline
-Doctor    audit · sitemap · speed · logs · schema · eeat · authority · llmstxt
+Doctor    audit · geo · sitemap · speed · logs · schema · eeat · authority · report · llmstxt
 Observe   ingest · gsc · rank · trends · backlinks · toxicity
-Decide    research · discover · gap · aio · consolidate · inlinks · decay · algo · radar
+Decide    research · discover · gap · aio · consolidate · inlinks · autolink · decay · algo · radar
 Produce   analyze · brief · draft · score · retitle
 Plan      plan                          ranked "what to do next" (the co-pilot)
 Publish   publish · mcp
@@ -15,9 +15,9 @@ import sys
 from pathlib import Path
 
 from . import (aio, algo, analyze, audit, authority, backlinks, content_score, decay,
-               eeat, history, ingest, integrations, internal, logs, mcp_server, onboard,
-               orchestrate, plan, produce, publish, radar, rank, safety, schema, speed,
-               trends)
+               eeat, geo, history, ingest, integrations, internal, logs, mcp_server, onboard,
+               orchestrate, plan, produce, publish, radar, rank, report, safety, schema,
+               speed, trends)
 from . import config as cfgmod
 from .index import Index, load_corpus
 
@@ -41,6 +41,9 @@ def main():
     sub.add_parser("plan")
     sub.add_parser("eeat")
     sub.add_parser("authority")
+    sub.add_parser("geo")
+    sub.add_parser("autolink")
+    sub.add_parser("report")
     sub.add_parser("consolidate")
     sub.add_parser("toxicity")
     pin = sub.add_parser("inlinks"); pin.add_argument("url")
@@ -150,6 +153,12 @@ def main():
         print(eeat.render_md(cfg, eeat.report(cfg)))
     elif a.cmd == "authority":
         print(authority.render_md(cfg, authority.clusters(cfg)))
+    elif a.cmd == "geo":
+        print(geo.render_md(cfg, geo.report(cfg)))
+    elif a.cmd == "autolink":
+        print(internal.render_link_plan(cfg, internal.link_plan(cfg)))
+    elif a.cmd == "report":
+        print("wrote " + report.build(cfg) + " — open it in a browser")
     elif a.cmd == "consolidate":
         print(internal.render_md(cfg, internal.consolidation(cfg)))
     elif a.cmd == "toxicity":

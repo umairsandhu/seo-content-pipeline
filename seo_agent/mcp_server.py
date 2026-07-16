@@ -12,8 +12,8 @@ import os
 import sys
 
 from . import (aio, analyze, audit, authority, backlinks, content_score, decay, eeat,
-               ingest, integrations, internal, logs, onboard, orchestrate, plan,
-               produce, publish, rank, safety, schema, speed, trends)
+               geo, ingest, integrations, internal, logs, onboard, orchestrate, plan,
+               produce, publish, rank, report, safety, schema, speed, trends)
 from . import config as cfgmod
 from .index import Index, load_corpus
 
@@ -174,6 +174,20 @@ def _inlinks(a):
     return json.dumps(internal.inbound_suggestions(_cfg(), a["url"]), ensure_ascii=False, indent=1)
 
 
+def _geo(a):
+    cfg = _cfg()
+    return geo.render_md(cfg, geo.report(cfg))
+
+
+def _autolink(a):
+    cfg = _cfg()
+    return internal.render_link_plan(cfg, internal.link_plan(cfg))
+
+
+def _report(a):
+    return "wrote " + report.build(_cfg())
+
+
 TOOLS = [
     ("ingest", "Crawl the configured site's sitemap into corpus.json.",
      {"type": "object", "properties": {}}, _ingest),
@@ -236,6 +250,12 @@ TOOLS = [
      {"type": "object", "properties": {}}, _toxicity),
     ("inlinks", "Reverse internal-link recommender: existing pages that should link to a target URL.",
      {"type": "object", "properties": {"url": {"type": "string"}}, "required": ["url"]}, _inlinks),
+    ("geo", "GEO/AEO readiness score: extractability, schema, AI-crawler access, E-E-A-T per page.",
+     {"type": "object", "properties": {}}, _geo),
+    ("autolink", "Batch internal-link plan: for under-linked pages, which pages should link to them.",
+     {"type": "object", "properties": {}}, _autolink),
+    ("report", "Generate a shareable self-contained HTML dashboard (report.html).",
+     {"type": "object", "properties": {}}, _report),
 ]
 _DISPATCH = {name: fn for name, _, _, fn in TOOLS}
 

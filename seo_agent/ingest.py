@@ -12,6 +12,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -138,6 +139,8 @@ def extract(url, doc):
     _mt = lambda p: (re.search(r'<meta[^>]+property=["\']' + p + r'["\'][^>]+content=["\'](.*?)["\']', doc, re.I) or [None, ""])[1]
     published, modified = _mt("article:published_time"), _mt("article:modified_time")
     heading_levels = [int(x) for x in re.findall(r'<h([1-6])[^>]*>', body, re.I)]
+    lists = len(re.findall(r'<(?:ul|ol)\b', body, re.I))
+    tables = len(re.findall(r'<table\b', body, re.I))
     words = len(text.split())
     # CSR heuristic: near-empty raw body + a SPA mount marker → likely client-rendered.
     csr = words < 50 and bool(re.search(
@@ -147,7 +150,8 @@ def extract(url, doc):
             "links": links, "hreflang": hreflang, "words": words, "jsonld": jsonld,
             "csr": csr, "lang": lang, "img_total": len(imgs), "img_alt": img_alt,
             "ext_links": ext_links, "author": author, "published": published,
-            "modified": modified, "heading_levels": heading_levels, "text": text[:12000]}
+            "modified": modified, "heading_levels": heading_levels,
+            "lists": lists, "tables": tables, "text": text[:12000]}
 
 
 def robots_sitemaps(site):
@@ -182,24 +186,45 @@ def build(cfg, out="corpus.json", delay=0.15):
     urls = [u for u in dict.fromkeys(urls) if _match(u, cfg.get("include", []),
                                                      cfg.get("exclude", []), site)]
     urls = urls[: cfg.get("max_pages", 400)]
-    print(f"ingesting {len(urls)} pages from {cfg['sitemap']}")
+    workers = int(cfg.get("ingest", {}).get("workers", 8))
+    print(f"ingesting {len(urls)} pages from {cfg.get('sitemap')}")
     corpus = []
+
+    def record(u, status, final, doc):
+        rec = extract(u, doc)
+        rec["status"], rec["final_url"] = status, final
+        return rec
+
+    def checkpoint(n):                          # interrupt-safe: partial crawls stay usable
+        Path(out).write_text(json.dumps(corpus, ensure_ascii=False, indent=1))
+        print(f"  …{n}/{len(urls)} (checkpointed)")
+
     with render.session(cfg) as r:
-        if r:
-            print("  (JavaScript rendering enabled — headless Chromium)")
-        for i, u in enumerate(urls, 1):
-            try:
-                res = (r.render(u) if r else None) or _fetch(u)
-                status, final, doc = res
-                rec = extract(u, doc)
-                rec["status"], rec["final_url"] = status, final
-                corpus.append(rec)
-            except Exception as e:
-                print(f"  ! {u}: {e}", file=sys.stderr)
-            if i % 50 == 0:                         # checkpoint so long crawls are interrupt-safe
-                Path(out).write_text(json.dumps(corpus, ensure_ascii=False, indent=1))
-                print(f"  …{i}/{len(urls)} (checkpointed)")
-            time.sleep(delay)
+        if r:  # rendering reuses one browser → serial
+            print("  (JavaScript rendering enabled — headless Chromium; serial)")
+            for i, u in enumerate(urls, 1):
+                try:
+                    corpus.append(record(u, *(r.render(u) or _fetch(u))))
+                except Exception as e:
+                    print(f"  ! {u}: {e}", file=sys.stderr)
+                if i % 50 == 0:
+                    checkpoint(i)
+                time.sleep(delay)
+        else:  # raw fetch → parallel (5–10× faster; the crawl bottleneck)
+            print(f"  (parallel fetch — {workers} workers)")
+
+            def fetch_one(u):
+                return record(u, *_fetch(u))
+
+            with ThreadPoolExecutor(max_workers=workers) as ex:
+                futs = {ex.submit(fetch_one, u): u for u in urls}
+                for i, fu in enumerate(as_completed(futs), 1):
+                    try:
+                        corpus.append(fu.result())
+                    except Exception as e:
+                        print(f"  ! {futs[fu]}: {e}", file=sys.stderr)
+                    if i % 50 == 0:
+                        checkpoint(i)
     Path(out).write_text(json.dumps(corpus, ensure_ascii=False, indent=1))
     print(f"wrote {out} ({len(corpus)} pages)")
     return corpus

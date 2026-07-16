@@ -81,6 +81,9 @@ python -m seo_agent ingest                 # sitemap → corpus.json
 python -m seo_agent rank                     # track positions + SERP features over time
 python -m seo_agent schema <url>             # generate JSON-LD structured data
 python -m seo_agent score "<kw>" <url>       # content comprehensiveness vs SERP competitors
+python -m seo_agent geo                      # GEO/AEO readiness — how citable by AI answer engines
+python -m seo_agent report                   # shareable self-contained HTML dashboard → report.html
+python -m seo_agent autolink                 # batch internal-link plan for under-linked pages
 python -m seo_agent eeat                     # E-E-A-T signals (author/dates/citations/trust pages)
 python -m seo_agent authority                # topical-authority clusters (pillar + link density)
 python -m seo_agent consolidate              # cannibalization → keep-one / 301-redirect plan
