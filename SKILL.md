@@ -32,7 +32,7 @@ AI-search). At any point, **`python -m seo_agent plan`** fuses every signal into
 
 | Layer | What it does | Commands |
 |---|---|---|
-| 0 · Onboard | fork-safety (secrets never leak) + first-run baseline | `safety` `onboard` |
+| 0 · Onboard | fork-safety + **gated readiness journey** (blocks until the right accesses are wired in) → first-run baseline | `safety` `preflight` `onboard` |
 | 0 · Doctor | technical/on-page audit: sitemap·robots·llms.txt·meta·H1·canonical·dedup·links·speed | `audit` `sitemap` `speed` `llmstxt` |
 | 1 · Observe | ingest site; track GSC/backlinks/trends over time (`history/`) | `ingest` `gsc` `backlinks` `trends` |
 | 2 · Decide | cannibalization, gaps, striking-distance, decay, algo attribution | `research` `discover` `decay` `algo` |
@@ -64,7 +64,8 @@ Integrations, Site-Doctor, AI-Search, SEO-Knowledge-Base, FAQ, Contributing).
 # Onboarding / Site Doctor (first run)
 python -m seo_agent safety                  # fork-safety: .env.example, .gitignore, leak-scan
 python -m seo_agent integrations            # API capability matrix (what's active/missing/unlocked)
-python -m seo_agent onboard                 # full first-run baseline → BASELINE.md
+python -m seo_agent preflight               # onboarding readiness gate: staged checklist + 0–100 score
+python -m seo_agent onboard                 # gated first-run baseline → BASELINE.md (--degraded to skip the gate)
 python -m seo_agent audit                   # Site Doctor → audit.md
 python -m seo_agent sitemap                 # sitemap doctor only
 python -m seo_agent speed                   # Core Web Vitals (PageSpeed lab + CrUX field)
@@ -82,7 +83,7 @@ python -m seo_agent rank                     # track positions + SERP features o
 python -m seo_agent schema <url>             # generate JSON-LD structured data
 python -m seo_agent score "<kw>" <url>       # content comprehensiveness vs SERP competitors
 python -m seo_agent geo                      # GEO/AEO readiness — how citable by AI answer engines
-python -m seo_agent report                   # shareable self-contained HTML dashboard → report.html
+python -m seo_agent report [--pdf]           # shareable self-contained HTML dashboard → report.html (+ report.pdf via headless browser)
 python -m seo_agent autolink                 # batch internal-link plan for under-linked pages
 python -m seo_agent eeat                     # E-E-A-T signals (author/dates/citations/trust pages)
 python -m seo_agent authority                # topical-authority clusters (pillar + link density)
@@ -90,11 +91,44 @@ python -m seo_agent consolidate              # cannibalization → keep-one / 30
 python -m seo_agent inlinks <url>            # existing pages that should link to a target
 python -m seo_agent toxicity                 # backlink toxicity review (conservative — see note)
 python -m seo_agent gsc                     # striking-distance + low-CTR; snapshots history
+python -m seo_agent gsc --csv <path|dir|zip> # import a GSC CSV / Sheet export when API access isn't possible
 python -m seo_agent decay                   # queries losing rank + pages losing clicks (needs ≥2 gsc runs)
 python -m seo_agent trends "your seed"      # emerging / rising keywords
 python -m seo_agent backlinks               # backlink profile / competitor link-gap
 python -m seo_agent algo                    # attribute traffic shifts to Google updates
 python -m seo_agent radar                    # watch Google Search Status; flag stale update knowledge
+
+# AI search / GEO (2026) & advanced
+python -m seo_agent aivis                     # AI-visibility: mentions + citations across ChatGPT/Perplexity/Gemini/AIO (agent-mode w/o keys)
+python -m seo_agent entity                    # entity graph: Wikidata QID + sameAs + Organization JSON-LD + brand salience
+python -m seo_agent citability                # passage-citability: how extractable each page is for AI answers
+python -m seo_agent ctr                       # first-party position→CTR curve from your own GSC
+python -m seo_agent pagerank                  # internal PageRank / authority-flow — starved pillars + hoarders
+python -m seo_agent intl                      # hreflang / international validation
+python -m seo_agent local                     # local SEO — NAP consistency + LocalBusiness schema
+python -m seo_agent refresh <url>             # content-refresh packet (diagnose staleness → rewrite → verify)
+python -m seo_agent prospect                  # link-acquisition prospects from the competitor backlink gap
+python -m seo_agent renderdiff <url>          # rendered-vs-raw DOM diff (what a raw crawl misses on JS sites)
+python -m seo_agent remediate                 # ordered, human-gated remediation plan from the audit
+python -m seo_agent gate <post.json>          # programmatic safety gate (thin/near-dup/boilerplate/schema) — also enforced on publish
+python -m seo_agent jobs                       # durable job queue (SQLite)
+python -m seo_agent projects [add <name> <dir>] # multi-site portfolio + readiness roll-up (agency)
+
+# Expert brain, full control & delivery
+python -m seo_agent consult                    # McKinsey/Google-level growth strategy from every signal
+python -m seo_agent crew article "<kw>"        # multi-agent: research→strategy→write→edit→tech-SEO→publish (gated)
+python -m seo_agent crew change "<goal>"       # multi-agent: diagnose→plan→apply a site change (gated)
+python -m seo_agent wizard [--interactive]     # guided, hand-holding onboarding (next best step)
+python -m seo_agent autonomy                    # show mode (manual/approve/auto) + pending approvals
+python -m seo_agent control <change.json>      # full site control: create/update/delete/redirect (autonomy-gated)
+python -m seo_agent apply --approved           # execute the approval queue
+python -m seo_agent webtask <task.json>        # physical web control via Playwright / computer-use MCP
+python -m seo_agent email [--pdf <path>]       # email the PDF report to report.email_to
+python -m seo_agent run --daily|--monthly [--email]  # scheduled digest at 3 cadences; --email auto-sends the PDF
+
+# Autonomous loop + local dashboard
+python -m seo_agent autopilot --daily          # 4-agent cycle: Audit→Plan(dated)→Execute(gated)→Report → state/
+python -m seo_agent serve [--port 8787]        # live local dashboard (situation/plan/execution/review/ledger) + inline approvals
 
 # Decide / Produce
 python -m seo_agent analyze --keywords-file seeds.txt   # → recommendations.md

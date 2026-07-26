@@ -11,12 +11,10 @@ API key, no round-trip. Only for headless/cron runs (no agent in the loop) does
 "anthropic" or "openai" with the matching key. `draft`/`retitle` therefore
 return `mode: "agent"` by default (write it yourself) or `mode: "generated"`."""
 from . import index as idxmod
-from . import providers
+from . import personas, providers
 
-_SYSTEM = ("You are an expert SEO content writer. Write original, accurate, genuinely "
-           "helpful long-form content that matches search intent. Cover the "
-           "People-Also-Ask questions, use clear H2/H3 structure, front-load the answer, "
-           "and avoid fluff and keyword stuffing. Output GitHub-flavored Markdown only.")
+# The content writer operates at the top of the field — see personas.WRITER.
+_SYSTEM = personas.WRITER
 
 
 def brief(cfg, keyword):

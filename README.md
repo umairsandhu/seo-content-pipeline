@@ -1,130 +1,134 @@
 # seo-content-pipeline
 
-**A site-agnostic, end-to-end SEO operating system.** Point it at any domain and it takes
-you from 0 to 100 — fork-safe onboarding, a technical Site Doctor, rank/CTR/backlink/trend
-tracking, AI-Overview-aware opportunity ranking, log-file + AI-crawler analysis, content
-drafting, multi-CMS publishing, and a single prioritized **action plan** of what to do next.
+**The autonomous, closed-loop SEO operating system — runs entirely on your machine.** Point
+it at any domain and it takes you 0→100: fork-safe onboarding, a technical Site Doctor,
+rank/CTR/backlink/AI-search tracking, an expert strategy, content the agent writes, and — the
+part no dashboard does — it **ships the fix (repo PR / CMS / browser), measures the impact
+against a holdout, and learns**. Human-gated at every step.
 
-![license](https://img.shields.io/badge/license-MIT-green)
+![license](https://img.shields.io/badge/license-open--core-green)
 ![python](https://img.shields.io/badge/python-%E2%89%A53.9-blue)
 ![deps](https://img.shields.io/badge/core%20deps-numpy%20%2B%20scikit--learn-orange)
-![storage](https://img.shields.io/badge/storage-file--based%20(no%20DB)-lightgrey)
-![mcp](https://img.shields.io/badge/MCP-ready%20(30%20tools)-purple)
+![storage](https://img.shields.io/badge/storage-file--based%20(no%20DB%2C%20no%20server)-lightgrey)
+![mcp](https://img.shields.io/badge/MCP-52%20tools-purple)
 
-No database. No server. Stdlib + `numpy`/`scikit-learn` at the core; every API is optional
-and the whole thing **degrades gracefully** — the technical audit and content work run with
-zero credentials. Drive it from the CLI, from any MCP client, or hand it to an AI agent that
-writes the content itself.
+**No hosting, no SaaS, no database.** Stdlib + `numpy`/`scikit-learn` at the core; every API is
+optional and the whole thing **degrades gracefully** — the audit, strategy, drafts, AI-search
+and plan run with zero credentials. Drive it from the **Claude Code skill**, the **CLI**, or any
+**MCP client**.
 
-```bash
-pip install -e .                 # or: pipx install seo-content-pipeline
-seo-content-pipeline init --site https://www.example.com   # bootstrap a workspace (any dir)
-seo-content-pipeline onboard     # fork-safety → Site Doctor → baseline → BASELINE.md
-seo-content-pipeline plan        # the co-pilot: ranked "what to do next"
-```
+## Install & run
 
-> **One directory = one site.** `init` scaffolds a clean, site-agnostic workspace
-> (`config.json` + `.env` + a hardened `.gitignore`) so anyone can start from scratch in a
-> new terminal or session. It refuses to run inside the tool's own install directory.
-
-**Or install as a Claude skill** (Claude then runs it and writes the content itself, no key):
+**As a Claude Code skill** (Claude runs it and writes the content itself — no API key):
 ```
 /plugin marketplace add umairsandhu/seo-content-pipeline
 /plugin install seo-content-pipeline@seo-content-pipeline
 ```
-Three ways to run it — Python CLI, Claude plugin, or MCP server — see [PUBLISHING.md](PUBLISHING.md).
+Then just ask: *"onboard www.example.com"* → Claude runs the guided setup and takes it from there.
 
----
+**As a standalone CLI:**
+```bash
+pip install numpy scikit-learn          # core; other APIs optional
+python -m seo_agent init --site https://www.example.com   # bootstrap a workspace (any empty dir)
+python -m seo_agent wizard              # guided, hand-holding setup (add keys to .env)
+python -m seo_agent onboard             # fork-safety → Site Doctor → baseline → BASELINE.md
+python -m seo_agent plan                # the co-pilot: ranked "what to do next"
+python -m seo_agent serve               # live local dashboard at http://127.0.0.1:8787
+```
 
-## Why this exists
+**As an MCP server:** `python -m seo_agent mcp` → 52 tools in any MCP client.
 
-Best-in-class SEO in 2026 is (a) technical hygiene, (b) content that earns and defends
-rankings, and (c) staying visible as search shifts to AI answers. Most tools do slices of
-this behind a subscription. This one does the whole loop, file-based and self-hostable, and
-turns every signal into **one prioritized action list** — then keeps itself current with a
-built-in build loop. It's designed to be driven by an AI agent end-to-end, but works
-perfectly as a plain CLI.
+> **One directory = one site.** `init` scaffolds a clean workspace (`config.json` + `.env` +
+> hardened `.gitignore`) and runs fork-safety so keys can never leak. Everything — data, keys,
+> reports, the change ledger — stays on your machine.
 
-## What you get (the command map)
+## The onboarding journey (gated, hand-held)
+
+`init` → **`wizard`** (numbered, ✅/▶/○ status, the exact next step) → **`preflight`** (a 0–100
+readiness gate that blocks the baseline until the required accesses are wired in) → **`onboard`**
+(baseline) → **`plan`** / **`consult`**. Full script: **[ONBOARDING.md](ONBOARDING.md)**.
+
+The gate asks for two things (both optional to *start*, required for depth):
+- **Search performance** — a GSC service account, or import an export: `gsc --csv export.zip`.
+- **Market data** — `DATAFORSEO_LOGIN`/`DATAFORSEO_PASSWORD` (or Semrush/Ahrefs).
+
+## What you get — the command map
 
 | Group | Commands | Does |
 |---|---|---|
-| **Onboard** | `init` · `safety` · `integrations` · `onboard` | Bootstrap a workspace, guarantee no secret leaks, see the API matrix, build a baseline |
-| **Plan** | **`plan`** | Fuse every signal into one ranked, deduped action list (`plan.md`) — the co-pilot |
-| **Site Doctor** | `audit` · `geo` · `sitemap` · `speed` · `logs` · `schema` · `eeat` · `authority` · `report` · `llmstxt` | Technical + on-page + Core Web Vitals + log-file + E-E-A-T + topical-authority + **GEO/AEO readiness**; `report` = shareable HTML dashboard |
-| **Observe** | `ingest` · `gsc` · `rank` · `trends` · `backlinks` · `toxicity` | Crawl the site (parallel); track rank/CTR/SERP-features/backlinks/emerging keywords over time |
-| **Decide** | `research` · `discover` · `gap` · `aio` · `consolidate` · `inlinks` · `autolink` · `decay` · `algo` · `radar` | Find gaps, AI-Overview-adjust opportunities, plan consolidations + internal-link fixes, detect decay, attribute algo updates |
-| **Produce** | `analyze` · `brief` · `draft` · `score` · `retitle` | SERP-grounded briefs, drafts (agent-written), comprehensiveness scoring, title/meta rewrites |
-| **Publish** | `publish` · `mcp` | WordPress / Webflow / Ghost / git-PR connectors; a stdio MCP server (30 tools) |
-| **Run** | `run [--monthly]` | Scheduled weekly/monthly digest → `digest.md` |
+| **Onboard & Doctor** | `init` `wizard` `preflight` `onboard` `safety` `integrations` `audit` `sitemap` `speed` `logs` `schema` `renderdiff` `llmstxt` | Guided setup + fork-safety + the full technical/on-page/CWV/log/structured-data audit |
+| **Observe** | `ingest` `gsc` `gsc --csv` `rank` `trends` `backlinks` `ctr` `ga4` | Crawl + track rank/CTR/SERP-features/backlinks; first-party CTR curve; GA4 organic revenue |
+| **Decide** | **`plan`** **`consult`** `consolidate` `gap` `competitors` `aio` `pagerank` `decay` `algo` `authority` `eeat` `radar` | One ranked action list · McKinsey-level strategy · cannibalization/301 · competitor sitemap-delta · internal PageRank |
+| **Produce** | `brief` `draft` `crew` `refresh` `retitle` `citability` `score` | SERP-grounded briefs & drafts by a multi-agent expert crew; decaying-page refreshes |
+| **AI-search / GEO** | `aivis` `entity` `geo` `citability` | Citation share across ChatGPT/Perplexity/Gemini/AI Overviews · entity graph + Wikidata · passage-citability |
+| **Control & review** | `control` `pr` `webtask` `autonomy` `review` `approve` `changes` `apply --approved` | Ship fixes via repo PRs / CMS / headless browser — autonomy-gated, human-approved on CLI/email/Slack/Mattermost/WhatsApp |
+| **Measure & deliver** | `ledger` `explain` `anomaly` `report --pdf --email` `run --daily\|--monthly` `email` | Causal change ledger + holdout attribution · "why did /x drop?" · anomaly alerts · PDF reports |
+| **Autonomy loop** | **`autopilot --daily\|--weekly\|--monthly`** **`serve`** | The 4-agent loop (Audit→Plan→Execute→Report) + the live local dashboard |
+| **Scale & packaging** | `projects` `jobs` `edition` `mcp` | Multi-site (agency) portfolio · job queue · edition/entitlements · MCP server |
 
-Full reference: **[docs/Commands.md](docs/Commands.md)**.
+Full reference: **[docs/Capabilities.md](docs/Capabilities.md)** and **[docs/Commands.md](docs/Commands.md)**.
 
-## The 0 → 100 path
+## The closed loop (why it's different)
 
-`init` → wire GSC + DataForSEO (`integrations` shows what's missing) → `onboard` → fix the
-Site Doctor's HIGH items → build content from `gap`/`discover` → track with `rank`/`gsc` →
-refresh with `decay`/`aio` → stay AI-visible with `logs`/`llmstxt`. The full phased manual is
-**[PLAYBOOK.md](PLAYBOOK.md)**; at any point, `plan` tells you the next best moves.
+Most tools stop at diagnosis. This one runs the whole loop, locally:
 
-## How it works
+```
+Diagnose → Decide → Produce → Ship → Measure → Learn ↻
+ audit      plan      crew     pr/     ledger    plan (repeats
+ anomaly    consult   draft    control  explain   proven wins)
+```
 
-Five layers, file-based, each degrading gracefully:
+- **It ships the fix, not a description** — a git PR that edits meta/schema/redirects, a CMS
+  update, or a browser action — through a **human review gate** and your chosen **autonomy mode**
+  (`manual` / `approve` / `auto`).
+- **It proves what worked** — the causal **ledger** logs every change and attributes the outcome
+  vs a **holdout of untouched pages**. `explain <url>` answers "why did this move?" with evidence.
+- **Expert-grade** — outputs are written as named personas: a McKinsey-caliber strategist, a top
+  technical SEO, an E-E-A-T writer.
+- **AI-search native** — measures and optimizes your visibility in AI answers, not just blue links.
 
-1. **Observe** — ingest the site (sitemap, auto-discovered from robots.txt), and track
-   GSC/backlinks/rank/trends over time in `history/`.
-2. **Decide** — cannibalization, gaps, striking-distance, content decay, algorithm-update
-   attribution, AI-Overview-adjusted CTR.
-3. **Produce** — SERP + People-Also-Ask-grounded briefs and drafts (**the agent writes them —
-   no API key needed**; an optional headless model backs unattended runs).
-4. **Publish** — one interface over WordPress/Webflow/Ghost/git-PR, plus an MCP server.
-5. **Orchestrate** — scheduled `run` → digest, diffed against history and a **build loop**
-   (`radar` watches Google's Search Status Dashboard).
+## The autonomous daily loop
 
-Design + module map: **[docs/Architecture.md](docs/Architecture.md)**.
+`autopilot` runs four agent roles over a shared local blackboard (`state/`): **Audit** (situation)
+→ **Planner** (a dated backlog with per-item cadence) → **Executor** (ships what's due, drip-capped,
+through the safety + review gate) → **Analyst** (attribution + report). `serve` opens a live
+dashboard to watch it and approve changes inline. Schedule it with cron / CI / the `/schedule`
+skill — on *your* machine. See **[docs/AGENT-LOOP-PLAN.md](docs/AGENT-LOOP-PLAN.md)**.
 
-## Integrations
+## Safety & guardrails
 
-| Tier | Integration | Unlocks | Alternatives |
-|---|---|---|---|
-| must | **Google Search Console** | rank, CTR, decay, algo attribution | Bing Webmaster |
-| must | **DataForSEO** | volume, SERP/PAA, backlinks, trends, competitor gap | Semrush · Ahrefs · SerpApi |
-| recommended | PageSpeed / CrUX | Core Web Vitals | WebPageTest |
-| recommended | Server logs | crawl budget + AI-crawler coverage | Cloudflare/Fastly export |
-| recommended | JS rendering (Playwright) | accurate audit of SPA sites | DataForSEO on-page |
-| optional | Anthropic / OpenAI | headless drafting (not needed with an agent) | agent-written (default) |
-| optional | WordPress / Webflow / Ghost | publishing | git-PR file (default) |
+- **Fork-safe secrets** — `safety` (run first, and inside `init`) writes `.env.example`, hardens
+  `.gitignore`, and leak-scans the tree. Keys never leak.
+- **Programmatic-content safety gate** — hard-blocks thin / near-duplicate / boilerplate pages
+  before publish (Google's 2026 scaled-content enforcement).
+- **Human-in-the-loop** — every content/fix output is proposed and applied as a reviewed PR;
+  nothing structural ships without approval.
+- **Local & private** — no server, no hosting; your data and keys stay on your machine.
 
-`integrations` prints a live matrix of what's active, what's missing, and what each gap
-costs. **Adding any new API is one entry** in `seo_agent/integrations.py`. Details:
-**[docs/Integrations.md](docs/Integrations.md)**.
+## Integrations (all bring-your-own, all optional)
 
-## Secrets & fork-safety
+| Tier | Integration | Unlocks |
+|---|---|---|
+| must | **Google Search Console** (or a CSV export) | rank, CTR, decay, algo, striking-distance |
+| must | **DataForSEO** (or Semrush/Ahrefs) | volume, SERP/PAA, backlinks, trends, gaps |
+| recommended | PageSpeed/CrUX · GA4 · server logs · Playwright | CWV · organic revenue · crawl budget · JS rendering |
+| recommended | Slack / Mattermost / WhatsApp / email · Resend/SendGrid/SMTP | review + digest + alert delivery |
+| optional | OpenAI / Perplexity / Gemini / Anthropic | live AI-visibility tracking (`aivis`); headless drafting |
+| optional | WordPress / Webflow / Ghost · GitHub (`gh`) | publishing / repo PRs (git-PR file is the default) |
 
-The repo is public, so `safety` (run first, and inside `init`) writes a committed
-`.env.example`, hardens `.gitignore` to exclude every secret/working file, and **leak-scans
-tracked files and the working tree** — `.gitignore` alone only protects untracked files. A
-`--precommit` mode plugs into a git hook. Your keys can never leak from a fork.
+`integrations` prints a live matrix of what's active/missing and what each unlocks.
 
 ## Documentation
 
-- **[Getting Started](docs/Getting-Started.md)** — install → init → first run
-- **[Command Reference](docs/Commands.md)** — every command, grouped
-- **[Architecture](docs/Architecture.md)** — the five layers, design, module map
-- **[Integrations](docs/Integrations.md)** — APIs, alternatives, adding your own
-- **[Site Doctor](docs/Site-Doctor.md)** — every technical/on-page check
-- **[AI Search (AEO/GEO)](docs/AI-Search.md)** — getting cited by ChatGPT/Perplexity/AI Overviews
-- **[SEO Knowledge Base](docs/SEO-Knowledge-Base.md)** — glossary + 2026 best-practice map
-- **[FAQ / Troubleshooting](docs/FAQ.md)** · **[Contributing / Extending](docs/Contributing.md)**
-- Operating manuals: **[PLAYBOOK.md](PLAYBOOK.md)** (0→100) · **[BUILDLOOP.md](BUILDLOOP.md)**
-  (staying current) · **[ONBOARDING.md](ONBOARDING.md)** (agent onboarding script)
-
-## Contributing / extending
-
-Add a Site-Doctor check, an API, or a CMS connector in one place each — see
-[docs/Contributing.md](docs/Contributing.md). Everything is stdlib-first, deterministic, and
-must degrade gracefully.
+- **[Capabilities](docs/Capabilities.md)** — ⭐ the complete step-by-step reference (every command, degradation matrix)
+- **[Getting Started](docs/Getting-Started.md)** · **[Command Reference](docs/Commands.md)** · **[Onboarding](ONBOARDING.md)**
+- **[Architecture](docs/Architecture.md)** · **[Integrations](docs/Integrations.md)** · **[Site Doctor](docs/Site-Doctor.md)** · **[AI Search](docs/AI-Search.md)**
+- **[Agent Loop](docs/AGENT-LOOP-PLAN.md)** · **[Distribution & Runtimes](docs/APP-PLAN.md)** (local-only)
+- Commercial: **[Pricing](docs/PRICING.md)** · **[Commercial license](COMMERCIAL.md)** · **[Product strategy](docs/PRODUCT-STRATEGY.md)**
+- For the operator: **[Learnings](docs/LEARNINGS.md)** · **[Roadmap](docs/ROADMAP.md)** · **[Playbook](PLAYBOOK.md)** · **[Build loop](BUILDLOOP.md)**
 
 ## License
 
-MIT.
+Open-core — the engine is free and open-source (see `LICENSE`). Commercial editions (Pro /
+Agency / Enterprise) are **local licenses** for white-label + multi-site/commercial use +
+support; see [COMMERCIAL.md](COMMERCIAL.md). No hosting, ever.

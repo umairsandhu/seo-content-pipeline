@@ -18,7 +18,17 @@ def _indexable(c):
 def report(cfg, corpus_path="corpus.json"):
     corpus = load_corpus(corpus_path)
     https = (cfg.get("site") or "").startswith("https")
-    allpaths = " ".join(urlparse(c.get("url", "")).path.lower() for c in corpus)
+    # Trust pages usually live at the site root (/about-us, /security), which the
+    # content corpus (include-prefixed) excludes — so scan the whole sitemap too.
+    paths = [urlparse(c.get("url", "")).path.lower() for c in corpus]
+    try:
+        from . import ingest
+        sm = cfg.get("sitemap")
+        if sm:
+            paths += [urlparse(u).path.lower() for u in ingest.sitemap_urls(sm)]
+    except Exception:
+        pass
+    allpaths = " ".join(paths)
     trust = {p: (("/" + p) in allpaths) for p in TRUST_PAGES}
     pages = []
     for c in corpus:

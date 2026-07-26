@@ -66,17 +66,22 @@ def discover(seed, cfg, limit=40):
 
 
 def gsc_raw(cfg, months=3):
-    """Raw GSC query + page rows (the longitudinal signal history.py snapshots)."""
+    """Raw GSC query + page rows (the longitudinal signal history.py snapshots).
+    Prefers the live API; falls back to the latest imported CSV snapshot in
+    history/ (for sites that can't grant service-account access — see gsc_csv)."""
     prop, cred = cfg.get("gsc_property"), cfg.get("gsc_credentials")
-    if not (prop and cred):
-        return None
-    svc = providers.gsc_service(cred)
-    if not svc:
-        return None
-    end = datetime.date.today()
-    start = end - datetime.timedelta(days=30 * months)
-    return {"queries": providers.gsc_query(svc, prop, str(start), str(end), ("query",)),
-            "pages": providers.gsc_query(svc, prop, str(start), str(end), ("page",))}
+    if prop and cred:
+        svc = providers.gsc_service(cred)
+        if svc:
+            end = datetime.date.today()
+            start = end - datetime.timedelta(days=30 * months)
+            return {"queries": providers.gsc_query(svc, prop, str(start), str(end), ("query",)),
+                    "pages": providers.gsc_query(svc, prop, str(start), str(end), ("page",))}
+    from . import history
+    q, p = history.latest(cfg, "gsc_queries"), history.latest(cfg, "gsc_pages")
+    if q and p:
+        return {"queries": q["data"], "pages": p["data"]}
+    return None
 
 
 def opportunities_from(raw):

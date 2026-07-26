@@ -65,13 +65,19 @@ exactly what's active, missing, and what each gap unlocks.
 ## 4. First run
 
 ```bash
-seo-content-pipeline onboard     # fork-safety → Site Doctor → speed → gaps → BASELINE.md
+seo-content-pipeline preflight   # readiness gate: staged checklist + 0–100 score (wire the required accesses)
+seo-content-pipeline onboard     # gated baseline: fork-safety → Site Doctor → speed → gaps → AI-search readiness → BASELINE.md
 seo-content-pipeline audit       # the full technical Site Doctor → audit.md
 seo-content-pipeline plan        # the co-pilot: ranked "what to do next" → plan.md
 ```
 
+`preflight` blocks the baseline until the required accesses are wired in (search performance via
+**GSC or a CSV import**, and market data via **DataForSEO or an alternative**) — it prints exactly
+what to set and what each unlocks. To baseline anyway with partial data, use `onboard --degraded`.
+
 Read `BASELINE.md` (your snapshot), `audit.md` (technical findings, fix crawl/index → content
-→ links), and `plan.md` (do the top items, as PRs).
+→ links), and `plan.md` (do the top items, as PRs). Then optimize for AI search — `entity`,
+`citability`, and `aivis` — and publish through the safety-gated `publish`.
 
 ## 5. The ongoing rhythm
 

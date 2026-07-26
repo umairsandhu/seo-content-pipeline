@@ -94,13 +94,75 @@ def _first(pattern, text, flags=re.S | re.I):
     return html.unescape(TAG.sub("", m.group(1))).strip() if m else ""
 
 
+def _meta_content(doc, *keys, attrs=("name", "property")):
+    """Extract a <meta> tag's `content` by its name/property key, regardless of
+    attribute order. Naive `name=...content=...` regexes miss CMSs (Webflow, Ghost,
+    many Wix/Squarespace themes) that emit `content=...` BEFORE `name=...`."""
+    want = {k.lower() for k in keys}
+    for tag in re.findall(r'<meta\b[^>]*>', doc, re.I):
+        kv = {m.group(1).lower(): m.group(2)
+              for m in re.finditer(r'([A-Za-z][\w:-]*)\s*=\s*["\'](.*?)["\']', tag)}
+        key = next((kv[a] for a in attrs if a in kv), None)
+        if key and key.lower() in want and kv.get("content"):
+            return html.unescape(kv["content"]).strip()
+    return ""
+
+
+def _jsonld_nodes(doc):
+    """Yield every JSON-LD object in the page, flattening @graph and arrays."""
+    for m in re.finditer(r'<script[^>]+application/ld\+json[^>]*>(.*?)</script>', doc, re.I | re.S):
+        raw = m.group(1).strip()
+        if not raw:
+            continue
+        try:
+            data = json.loads(raw)
+        except Exception:
+            continue
+        stack = [data]
+        while stack:
+            n = stack.pop()
+            if isinstance(n, list):
+                stack.extend(n)
+            elif isinstance(n, dict):
+                if isinstance(n.get("@graph"), list):
+                    stack.extend(n["@graph"])
+                yield n
+
+
+_ARTICLE_TYPES = {"article", "blogposting", "newsarticle", "techarticle", "liveblogposting"}
+
+
+def _jsonld_meta(doc):
+    """Dates + author from Article/BlogPosting JSON-LD — where Webflow, Ghost and many
+    CMSs put them instead of OG meta. Without this the E-E-A-T / GEO checks under-count
+    dated + authored pages. Returns {published, modified, author} (blank if absent)."""
+    out = {"published": "", "modified": "", "author": ""}
+    for n in _jsonld_nodes(doc):
+        t = n.get("@type", "")
+        types = {x.lower() for x in (t if isinstance(t, list) else [t]) if isinstance(x, str)}
+        if not types & _ARTICLE_TYPES:
+            continue
+        au = n.get("author")
+        name = ""
+        if isinstance(au, dict):
+            name = au.get("name") or ""
+        elif isinstance(au, list) and au:
+            name = (au[0].get("name") if isinstance(au[0], dict) else str(au[0])) or ""
+        elif isinstance(au, str):
+            name = au
+        pub, mod = n.get("datePublished") or n.get("dateCreated") or "", n.get("dateModified") or ""
+        out["published"] = out["published"] or (pub if isinstance(pub, str) else "")
+        out["modified"] = out["modified"] or (mod if isinstance(mod, str) else "")
+        out["author"] = out["author"] or (name.strip() if isinstance(name, str) else "")
+        if out["published"] and out["author"]:
+            break
+    return out
+
+
 def extract(url, doc):
     body = SCRIPT.sub(" ", doc)
     title = _first(r"<title[^>]*>(.*?)</title>", doc)
-    desc = ""
-    m = re.search(r'<meta[^>]+name=["\']description["\'][^>]+content=["\'](.*?)["\']', doc, re.I | re.S)
-    if m:
-        desc = html.unescape(m.group(1)).strip()
+    desc = _meta_content(doc, "description")
     headings = [html.unescape(TAG.sub("", h)).strip()
                 for h in re.findall(r"<h[12][^>]*>(.*?)</h[12]>", body, re.S | re.I)]
     headings = [h for h in headings if h][:20]
@@ -113,10 +175,7 @@ def extract(url, doc):
     if m:
         hm = re.search(r'href=["\'](.*?)["\']', m.group(0), re.I)
         canonical = html.unescape(hm.group(1)).strip() if hm else ""
-    robots = ""
-    m = re.search(r'<meta[^>]+name=["\']robots["\'][^>]+content=["\'](.*?)["\']', doc, re.I | re.S)
-    if m:
-        robots = html.unescape(m.group(1)).strip().lower()
+    robots = _meta_content(doc, "robots").lower()
     links = [h for h in HREF.findall(doc)
              if h and not h.startswith(("#", "mailto:", "tel:", "javascript:"))]
     hreflang = []
@@ -134,10 +193,14 @@ def extract(url, doc):
     lang = lang_m.group(1).lower() if lang_m else ""
     imgs = re.findall(r'<img\b[^>]*>', doc, re.I)
     img_alt = sum(1 for tg in imgs if re.search(r'\balt=["\'][^"\']+["\']', tg, re.I))
-    au = re.search(r'<meta[^>]+(?:name|property)=["\'](?:author|article:author)["\'][^>]+content=["\'](.*?)["\']', doc, re.I)
-    author = html.unescape(au.group(1)).strip() if au else ""
-    _mt = lambda p: (re.search(r'<meta[^>]+property=["\']' + p + r'["\'][^>]+content=["\'](.*?)["\']', doc, re.I) or [None, ""])[1]
-    published, modified = _mt("article:published_time"), _mt("article:modified_time")
+    author = _meta_content(doc, "author", "article:author")
+    published = _meta_content(doc, "article:published_time")
+    modified = _meta_content(doc, "article:modified_time")
+    if not (author and published and modified):  # fall back to Article/BlogPosting JSON-LD
+        _ld = _jsonld_meta(doc)
+        published = published or _ld["published"]
+        modified = modified or _ld["modified"]
+        author = author or _ld["author"]
     heading_levels = [int(x) for x in re.findall(r'<h([1-6])[^>]*>', body, re.I)]
     lists = len(re.findall(r'<(?:ul|ol)\b', body, re.I))
     tables = len(re.findall(r'<table\b', body, re.I))

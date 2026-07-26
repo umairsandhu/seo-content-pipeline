@@ -21,8 +21,15 @@ import urllib.request
 from pathlib import Path
 
 
-def publish(cfg, post):
+def publish(cfg, post, skip_gate=False):
     cms = cfg.get("cms", {})
+    # Pre-publish gate — the programmatic-content guardrail + schema validation.
+    # Google's 2026 scaled-content enforcement makes this a hard stop, not advice.
+    if not skip_gate and not (cfg.get("publish", {}) or {}).get("skip_gate"):
+        gate = _gate(cfg, post)
+        if not gate["ok"]:
+            return {"ok": False, "blocked": True, "gate": gate,
+                    "error": "publish gate blocked: " + "; ".join(gate["reasons"])}
     fn = {"file": _file, "wordpress": _wordpress, "webflow": _webflow,
           "ghost": _ghost}.get(cms.get("type", "file"))
     if not fn:
@@ -31,6 +38,20 @@ def publish(cfg, post):
         return fn(cfg, cms, post)
     except Exception as e:  # network / auth / shape — surface, don't crash the run
         return {"ok": False, "connector": cms.get("type"), "error": str(e)}
+
+
+def _gate(cfg, post):
+    """Near-duplicate / thin / boilerplate check + JSON-LD validation before publish."""
+    from . import safetygate
+    body = post.get("body") or post.get("markdown") or post.get("content") or ""
+    v = safetygate.check({"title": post.get("title", ""), "text": body})
+    reasons = list(v["reasons"])
+    ld = post.get("jsonld") or post.get("schema")
+    if ld:
+        from . import schema
+        for issue in schema.validate(ld if isinstance(ld, str) else __import__("json").dumps(ld)):
+            reasons.append(f"schema: {issue}")
+    return {"ok": not reasons, "reasons": reasons, "safety": v}
 
 
 def _slug(post):

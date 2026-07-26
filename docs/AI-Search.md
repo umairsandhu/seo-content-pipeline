@@ -49,8 +49,19 @@ relevance, and freshness still matter; you additionally make each passage liftab
 Perplexity indexes fastest, so first citations show there; ChatGPT and AI Overviews follow.
 Citation rate typically stabilizes after 3–6 months for the queries you target.
 
+## The tool's AI-search toolkit (2026)
+- **`aivis`** — measure it: brand mentions + citations + sentiment + competitor share-of-voice
+  across ChatGPT / Perplexity / Gemini / Claude / Google AI Overviews. Runs live with any engine
+  key (or DataForSEO for AI Overviews); with **no keys it returns an agent-mode packet** so the
+  agent runs the prompts. Snapshot weekly to trend citation share.
+- **`entity`** — be resolvable: get a Wikidata QID (free), triangulate `sameAs` profiles, and
+  generate a complete Organization JSON-LD block. A missing entity is the #1 GEO fix.
+- **`citability`** — be extractable: score each page 0–100 on answer-first passages (40–170
+  words), question headings, and fact density — the shape AI answers actually quote.
+
 ## Bottom line
 Get the technical foundation clean (`audit`), unblock and confirm AI-crawler access (`audit` +
-`logs`), write extractable + authoritative content (`draft` + `score` + `eeat`), mark it up
-(`schema`), and interlink it into topics (`authority`). AEO/GEO is SEO done well, plus
-extractability — the tool covers all of it except the (blocked) first-party AI-visibility feed.
+`logs`), be resolvable as an entity (`entity`), write extractable + authoritative content
+(`draft` + `citability` + `score` + `eeat`), mark it up (`schema`), interlink it into topics
+(`authority` + `pagerank`), and **measure your citation share (`aivis`)**. AEO/GEO is SEO done
+well, plus extractability — and the tool now covers the full loop, measurement included.

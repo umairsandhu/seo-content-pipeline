@@ -1,0 +1,76 @@
+<title>SEO Content Pipeline — Pricing</title>
+<style>
+  :root{ --ink:#0d1321;--em:#0e9f6e;--em-d:#0b7a54;--tx:#151b28;--mut:#5a6474;--line:#e3e7ee;--wash:#f7f9fb;--amber:#b45309; }
+  *{ box-sizing:border-box; } body{ margin:0; background:#eef1f5; color:var(--tx);
+    font:14.5px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+  title{ display:none; }
+  .doc{ max-width:920px; margin:0 auto; background:#fff; }
+  .cover{ background:radial-gradient(120% 120% at 85% 0%, #1b2540 0%, var(--ink) 55%); color:#fff; padding:48px 52px 40px; }
+  .cover .k{ font:12.5px ui-monospace,Menlo,monospace; color:var(--em); letter-spacing:1px; }
+  .cover h1{ font-size:40px; letter-spacing:-.02em; margin:10px 0 6px; }
+  .cover p{ color:#c7d0e0; font-size:17px; max-width:38em; margin:0; }
+  .pad{ padding:34px 52px; }
+  h2{ font-size:13px; letter-spacing:2.5px; text-transform:uppercase; color:var(--em-d); margin:0 0 4px; }
+  .tiers{ display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin:14px 0 6px; }
+  .tier{ border:1px solid var(--line); border-radius:12px; padding:16px 15px; display:flex; flex-direction:column; }
+  .tier.hi{ border-color:var(--em); box-shadow:0 8px 30px rgba(14,159,110,.12); position:relative; }
+  .tier.hi::before{ content:"AGENCY BEACHHEAD"; position:absolute; top:-9px; left:15px; background:var(--em); color:#fff;
+    font-size:9px; font-weight:800; letter-spacing:.06em; padding:2px 8px; border-radius:6px; }
+  .tier .name{ font-weight:800; color:var(--ink); font-size:15px; }
+  .tier .price{ font-size:26px; font-weight:800; color:var(--ink); letter-spacing:-.02em; margin:6px 0 0; }
+  .tier .unit{ font-size:12px; color:var(--mut); min-height:30px; }
+  .tier ul{ list-style:none; margin:12px 0 0; padding:0; font-size:12.5px; }
+  .tier li{ padding:4px 0; border-top:1px solid var(--line); color:var(--tx); }
+  .tier li .c{ color:var(--em-d); font-weight:700; }
+  table{ border-collapse:collapse; width:100%; font-size:12.5px; margin:12px 0; }
+  th,td{ text-align:left; padding:6px 9px; border-bottom:1px solid var(--line); }
+  th{ background:var(--ink); color:#fff; font-weight:600; } th.c,td.c{ text-align:center; }
+  tbody tr:nth-child(even){ background:var(--wash); } .yes{ color:var(--em-d); font-weight:800; }
+  .cols td:first-child{ color:var(--tx); }
+  .call{ background:#eafaf3; border:1px solid #bfe9d7; border-left:4px solid var(--em); border-radius:10px; padding:13px 16px; margin:14px 0; font-size:13.5px; }
+  .call b{ color:var(--ink); } .mut{ color:var(--mut); }
+  .foot{ padding:16px 52px 34px; color:var(--mut); font-size:11.5px; border-top:1px solid var(--line); }
+  @page{ size:A4; margin:0; } .brk{ page-break-before:always; } tr,.tier{ page-break-inside:avoid; }
+  @media(max-width:640px){ .tiers{ grid-template-columns:repeat(2,1fr); } .pad,.cover,.foot{ padding-left:22px;padding-right:22px; } }
+</style>
+<div class="doc">
+  <div class="cover">
+    <div class="k">$ seo-content-pipeline · pricing</div>
+    <h1>Open-core engine.<br>Sell time &amp; scale, not access.</h1>
+    <p>Every command, all 52 tools, the autopilot loop and local dashboard are free forever. Paid tiers add the hosted conveniences teams don't want to run themselves.</p>
+  </div>
+  <div class="pad">
+    <div class="tiers">
+      <div class="tier"><div class="name">Open</div><div class="price">$0</div><div class="unit">self-host · BYO keys</div>
+        <ul><li><span class="c">✓</span> Full engine + MCP</li><li><span class="c">✓</span> Autopilot + dashboard</li><li><span class="c">✓</span> Ledger + attribution</li><li>1 workspace</li></ul></div>
+      <div class="tier"><div class="name">Pro</div><div class="price">$59</div><div class="unit">/workspace / mo</div>
+        <ul><li><span class="c">✓</span> Everything in Open</li><li><span class="c">✓</span> Hosted scheduler</li><li><span class="c">✓</span> White-label reports</li><li>3 workspaces</li></ul></div>
+      <div class="tier hi"><div class="name">Agency</div><div class="price">$249</div><div class="unit">/ mo · up to 25 sites</div>
+        <ul><li><span class="c">✓</span> Everything in Pro</li><li><span class="c">✓</span> Team seats + roles</li><li><span class="c">✓</span> Managed data</li><li><span class="c">✓</span> White-label reseller</li></ul></div>
+      <div class="tier"><div class="name">Enterprise</div><div class="price">$999+</div><div class="unit">/ mo</div>
+        <ul><li><span class="c">✓</span> Unlimited sites</li><li><span class="c">✓</span> SSO + audit logs</li><li><span class="c">✓</span> Custom connectors</li><li><span class="c">✓</span> SLAs + support</li></ul></div>
+    </div>
+    <div class="call"><b>The Agency tier replaces a ~$1,000+/mo stack</b> — Ahrefs ($249) + Surfer ($399) + a GEO tracker like Profound ($499) — while doing what none of them do: <b>ship the fix and attribute the result.</b></div>
+
+    <h2>What's gated (only hosted conveniences)</h2>
+    <table class="cols"><thead><tr><th>Capability</th><th class="c">Open</th><th class="c">Pro</th><th class="c">Agency</th><th class="c">Ent.</th></tr></thead>
+      <tbody>
+        <tr><td>Full engine · 52 tools · MCP · autopilot · dashboard · site-control · ledger</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+        <tr><td>Workspaces (sites)</td><td class="c">1</td><td class="c">3</td><td class="c">25</td><td class="c">∞</td></tr>
+        <tr><td>Hosted scheduler (no cron)</td><td class="c">—</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+        <tr><td>White-label reports</td><td class="c">—</td><td class="c yes">✓</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+        <tr><td>Team seats + roles</td><td class="c">—</td><td class="c">—</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+        <tr><td>Managed data (DataForSEO pass-through, cost +15–20%)</td><td class="c">—</td><td class="c">—</td><td class="c yes">✓</td><td class="c yes">✓</td></tr>
+        <tr><td>SSO · audit logs · priority support</td><td class="c">—</td><td class="c">prio</td><td class="c">prio</td><td class="c yes">✓</td></tr>
+      </tbody>
+    </table>
+    <p class="mut" style="font-size:12px">Enforced in code (<code>edition.py</code>); <code>python -m seo_agent edition</code> shows what's active. Nothing in the analysis/production/control engine is ever locked — open-core stays a real product and the distribution channel.</p>
+
+    <h2>Data &amp; compliance</h2>
+    <p style="font-size:13.5px"><b>BYO keys (default, every tier):</b> you pay DataForSEO directly — sub-cent per SERP call; the vendor never touches data revenue or liability. <b>Managed data (Agency+):</b> a thin, metered, transparent proxy at cost + margin — never a flat-fee pool. No central warehouse of Google/DataForSEO data; every workspace is isolated; every change is logged to its ledger.</p>
+
+    <h2>Start</h2>
+    <p style="font-size:13.5px"><b>Open</b> is <code>pip install</code> today. <b>Pro / Agency / Enterprise</b> (hosted) — the first paid surface is a hosted CLI-as-a-service. Prices are 2026-benchmarked launch targets.</p>
+  </div>
+  <div class="foot">SEO Content Pipeline — pricing &amp; packaging. Open-core (free engine) + hosted editions. See COMMERCIAL.md for licensing and PRODUCT-STRATEGY.md for the full go-to-market.</div>
+</div>

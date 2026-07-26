@@ -13,7 +13,8 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 
 def load_corpus(path="corpus.json"):
-    return json.load(open(path))
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
 
 
 class _Embed:
@@ -28,15 +29,17 @@ class _Embed:
 
 
 def _embed_backend():
-    """Opt-in semantic backend (Layer 2 upgrade). Enable with SEO_EMBEDDINGS=1 and
-    `pip install fastembed`; otherwise returns None and we stay on TF-IDF. Swap in
-    OpenAI/Cloudflare here the same way — the rest of the index is unchanged."""
-    if os.environ.get("SEO_EMBEDDINGS", "").lower() not in ("1", "true", "fastembed"):
+    """Semantic backend — **on by default when available** (2026 upgrade). If
+    `fastembed` is installed it's used automatically for semantic dedup / linking /
+    citability; set SEO_EMBEDDINGS=0 to force the no-dependency TF-IDF fallback. Swap
+    in OpenAI/Cloudflare here the same way — the rest of the index is unchanged."""
+    flag = os.environ.get("SEO_EMBEDDINGS", "").lower()
+    if flag in ("0", "false", "off", "tfidf"):
         return None
     try:
         from fastembed import TextEmbedding
     except Exception:
-        return None
+        return None  # not installed → graceful TF-IDF fallback
     return _Embed(TextEmbedding())
 
 

@@ -1,0 +1,225 @@
+<title>SEO Content Pipeline — Product Brochure & Manual</title>
+<style>
+  :root{
+    --ink:#0d1321; --ink2:#161d2e; --paper:#ffffff; --ground:#eef1f5; --wash:#f6f8fb;
+    --tx:#151b28; --mut:#5a6474; --line:#e3e7ee; --em:#0e9f6e; --em-d:#0b7a54; --amber:#b45309;
+    --term-bg:#0d1321; --term-tx:#d6deeb; --term-prompt:#34d399; --term-cmt:#7387a3;
+    --shadow:0 1px 2px rgba(13,19,33,.06),0 12px 44px rgba(13,19,33,.07);
+  }
+  @media (prefers-color-scheme:dark){ :root{ --ground:#0a0d14; } }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--ground); color:var(--tx);
+    font:15px/1.62 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased; }
+  title{ display:none; }
+  .doc{ max-width:900px; margin:0 auto; background:var(--paper); box-shadow:var(--shadow); }
+  .pad{ padding:44px 56px; }
+  h2{ font-size:25px; line-height:1.15; letter-spacing:-.02em; margin:0 0 4px; color:var(--ink); text-wrap:balance; }
+  h3{ font-size:16px; margin:20px 0 6px; color:var(--ink); letter-spacing:-.01em; }
+  .eyebrow{ font-size:12px; letter-spacing:2.5px; font-weight:700; color:var(--em-d); text-transform:uppercase; margin-bottom:10px; }
+  p{ margin:.5em 0; } a{ color:var(--em-d); }
+  .mut{ color:var(--mut); }
+  code{ font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; background:var(--wash);
+    border:1px solid var(--line); border-radius:5px; padding:1px 5px; }
+  .rule{ height:3px; width:60px; background:var(--em); border-radius:2px; margin:16px 0 22px; }
+
+  /* Cover */
+  .cover{ background:radial-gradient(120% 120% at 80% 0%, #1b2540 0%, var(--ink) 55%); color:#fff; padding:72px 56px 60px; }
+  .cover .kicker{ font:13px ui-monospace,Menlo,monospace; color:var(--term-prompt); letter-spacing:1px; }
+  .cover h1{ font-size:52px; line-height:1.02; letter-spacing:-.03em; margin:14px 0 6px; }
+  .cover h1 .g{ color:var(--em); }
+  .cover .tag{ font-size:20px; color:#c7d0e0; max-width:32em; margin-top:8px; line-height:1.45; }
+  .cover .runs{ margin-top:40px; display:flex; gap:10px; flex-wrap:wrap; }
+  .chip{ border:1px solid rgba(255,255,255,.22); border-radius:999px; padding:6px 14px; font-size:13px; color:#dfe6f2; }
+  .chip b{ color:#fff; }
+  .cover .meta{ margin-top:34px; padding-top:16px; border-top:1px solid rgba(255,255,255,.14); font:12.5px ui-monospace,Menlo,monospace; color:#8ea0bd; }
+
+  /* Terminal blocks */
+  .term{ background:var(--term-bg); color:var(--term-tx); border-radius:10px; padding:16px 18px; margin:12px 0;
+    font:13px/1.7 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; overflow-x:auto; }
+  .term .c{ color:var(--term-cmt); } .term .p{ color:var(--term-prompt); } .term .k{ color:#7cc4ff; }
+  .term div{ white-space:pre; }
+
+  /* Cards */
+  .grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:14px; margin:18px 0; }
+  .card{ background:var(--wash); border:1px solid var(--line); border-radius:12px; padding:16px 18px; }
+  .card .h{ font-weight:700; color:var(--ink); font-size:15px; display:flex; align-items:center; gap:8px; }
+  .card .h .d{ width:8px; height:8px; border-radius:2px; background:var(--em); }
+  .card p{ font-size:13.5px; color:var(--mut); margin:6px 0 0; }
+  .card code{ font-size:12px; }
+
+  /* Loop / steps */
+  .loop{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:14px 0 6px; font-weight:700; color:var(--ink); }
+  .loop span{ background:#eafaf3; border:1px solid #bfe9d7; color:var(--em-d); border-radius:8px; padding:6px 12px; font-size:14px; }
+  .loop .a{ color:var(--mut); font-weight:400; }
+  .step{ display:flex; gap:16px; margin:16px 0; }
+  .step .n{ flex:none; width:34px; height:34px; border-radius:9px; background:var(--ink); color:#fff; font-weight:700;
+    display:flex; align-items:center; justify-content:center; font-size:15px; }
+  .step .b h3{ margin:2px 0 4px; }
+  .step .b p{ margin:2px 0; font-size:14px; color:var(--mut); }
+
+  table{ border-collapse:collapse; width:100%; font-size:13px; margin:12px 0; }
+  th,td{ text-align:left; padding:7px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  thead th{ background:var(--ink); color:#fff; font-weight:600; font-size:12px; }
+  tbody tr:nth-child(even){ background:var(--wash); }
+  td code{ font-size:12px; background:#fff; }
+
+  .callout{ background:#eafaf3; border:1px solid #bfe9d7; border-left:4px solid var(--em); border-radius:10px; padding:14px 16px; margin:16px 0; }
+  .callout.warn{ background:#fdf6ec; border-color:#f0dcb9; border-left-color:var(--amber); }
+  .callout b{ color:var(--ink); }
+  ul{ margin:.4em 0; padding-left:20px; } li{ margin:4px 0; }
+  .foot{ padding:20px 56px 40px; color:var(--mut); font-size:12px; border-top:1px solid var(--line); }
+  section{ page-break-inside:auto; } h2{ page-break-after:avoid; } .card,.step,tr{ page-break-inside:avoid; }
+  .brk{ page-break-before:always; }
+  @media(max-width:620px){ .grid{ grid-template-columns:1fr; } .pad,.cover,.foot{ padding-left:24px; padding-right:24px; } .cover h1{ font-size:38px; } }
+</style>
+
+<div class="doc">
+
+  <!-- COVER -->
+  <div class="cover">
+    <div class="kicker">$ seo-content-pipeline</div>
+    <h1>The autonomous<br><span class="g">SEO operating system</span></h1>
+    <div class="tag">It doesn't just recommend the fix — it ships the fix, measures the impact, and learns. A closed-loop SEO engine that lives in your stack.</div>
+    <div class="runs">
+      <div class="chip">Runs as a <b>Claude Code skill</b></div>
+      <div class="chip">an <b>MCP server</b> (51 tools)</div>
+      <div class="chip">or a <b>standalone CLI</b></div>
+    </div>
+    <div class="meta">Product brochure &amp; quick-start manual · site-agnostic · file-based · every API optional</div>
+  </div>
+
+  <div class="pad">
+
+  <!-- WHY -->
+  <section>
+    <div class="eyebrow">Why it's different</div>
+    <h2>99% of SEO work is diagnosis without execution</h2>
+    <div class="rule"></div>
+    <p>Audits, spreadsheets, and briefs that <em>someone else</em> has to implement. This tool collapses that gap. It lives where the work happens — the codebase and the data — and runs the whole loop end to end:</p>
+    <div class="loop">
+      <span>Diagnose</span><span class="a">→</span><span>Decide</span><span class="a">→</span><span>Produce</span><span class="a">→</span><span>Ship</span><span class="a">→</span><span>Measure</span><span class="a">→</span><span>Learn</span><span class="a">↻</span>
+    </div>
+    <div class="grid">
+      <div class="card"><div class="h"><span class="d"></span>It ships the fix, not a description</div><p>Every finding becomes a real change — a git PR that edits meta/schema/redirects, a CMS update, or a browser action — gated by your approval.</p></div>
+      <div class="card"><div class="h"><span class="d"></span>It proves what worked</div><p>A causal change ledger logs every change and attributes the outcome — before→after clicks &amp; position vs a <b>holdout of untouched pages</b>. No human does this rigorously.</p></div>
+      <div class="card"><div class="h"><span class="d"></span>Expert-grade by design</div><p>Outputs are written by named personas — a McKinsey-caliber strategist, a top technical SEO, an E-E-A-T content writer — not a generic model.</p></div>
+      <div class="card"><div class="h"><span class="d"></span>Built for the AI-search era</div><p>Tracks your citation share in ChatGPT / Perplexity / Gemini / Google AI Overviews, and optimizes entity + passage-citability to win it.</p></div>
+    </div>
+    <div class="callout"><b>The moat:</b> that closed loop — execution + change-level attribution — is the thing SaaS dashboards and human consultants structurally can't do. It compounds into a proprietary "what actually works on <em>this</em> site" dataset that sharpens every future decision.</div>
+  </section>
+
+  <!-- WHAT IT DOES -->
+  <section class="brk">
+    <div class="eyebrow">Capabilities</div>
+    <h2>One engine, the whole SEO lifecycle</h2>
+    <div class="rule"></div>
+    <div class="grid">
+      <div class="card"><div class="h"><span class="d"></span>Technical Doctor</div><p>JS-rendered crawl, Core Web Vitals, canonical/redirect/orphan/hreflang checks, sitemap &amp; robots hygiene, structured-data generation + validation, log-file crawl-budget &amp; AI-crawler coverage. Every finding ships a diff.</p></div>
+      <div class="card"><div class="h"><span class="d"></span>Strategy Brain</div><p>Topical-authority map, cannibalization → 301 plan, striking-distance keywords, internal-PageRank sculpting, competitor content &amp; backlink gaps, and monthly competitor sitemap-deltas.</p></div>
+      <div class="card"><div class="h"><span class="d"></span>Content Studio</div><p>SERP-grounded briefs and full drafts, decaying-page refreshes, title/meta rewrites — written by a multi-agent crew (research → strategy → write → edit → tech-SEO).</p></div>
+      <div class="card"><div class="h"><span class="d"></span>AI-Search / GEO</div><p>AI-visibility tracker (mentions + citations + share-of-voice across ChatGPT/Perplexity/Gemini/AI Overviews), entity graph + Wikidata, passage-citability scoring.</p></div>
+      <div class="card"><div class="h"><span class="d"></span>Site Control</div><p>Full CRUD via repo PRs, WordPress/Webflow/Ghost APIs, or headless-browser automation — create, update meta/content, delete, redirect. Every change autonomy-gated and logged.</p></div>
+      <div class="card"><div class="h"><span class="d"></span>Reporting &amp; Attribution</div><p>Daily/weekly/monthly digests, causal ledger with holdout attribution, GA4 organic revenue, decay radar, and anomaly alerts (indexation drops, CWV regressions, an AI Overview appearing).</p></div>
+    </div>
+    <div class="callout warn"><b>Safe by design.</b> A programmatic-content safety gate hard-blocks thin / near-duplicate / boilerplate pages before publish (Google's 2026 scaled-content enforcement). Nothing ships without passing the gate <em>and</em> your autonomy mode.</div>
+  </section>
+
+  <!-- HOW TO START -->
+  <section class="brk">
+    <div class="eyebrow">Quick-start manual</div>
+    <h2>From zero to a shipping loop</h2>
+    <div class="rule"></div>
+
+    <div class="step"><div class="n">1</div><div class="b"><h3>Install</h3>
+      <p>Python 3.11+. Core is numpy + scikit-learn; every API is optional.</p>
+      <div class="term"><div><span class="c"># as a standalone CLI</span>
+<span class="p">$</span> pip install numpy scikit-learn
+<span class="p">$</span> git clone &lt;repo&gt; &amp;&amp; cd &lt;repo&gt;
+<span class="c"># …or drop it in as a Claude Code skill, or run: python -m seo_agent mcp</span></div></div>
+    </div></div>
+
+    <div class="step"><div class="n">2</div><div class="b"><h3>Create a workspace (one folder = one site)</h3>
+      <div class="term"><div><span class="p">$</span> python -m seo_agent <span class="k">init</span> --site https://your-site.com
+<span class="p">$</span> python -m seo_agent <span class="k">wizard</span>          <span class="c"># guided, hand-holding setup</span></div></div>
+      <p>The wizard walks you through every step with ✅/▶/○ status and the exact next action.</p>
+    </div></div>
+
+    <div class="step"><div class="n">3</div><div class="b"><h3>Wire the data (the readiness gate blocks until you do)</h3>
+      <div class="term"><div><span class="p">$</span> python -m seo_agent <span class="k">preflight</span>       <span class="c"># 0–100 readiness score</span>
+<span class="c"># Search performance: a GSC service account, or import an export:</span>
+<span class="p">$</span> python -m seo_agent <span class="k">gsc</span> --csv export.zip
+<span class="c"># Market data: DATAFORSEO_LOGIN / DATAFORSEO_PASSWORD in .env (or Semrush/Ahrefs)</span></div></div>
+      <p class="mut">Optional: PageSpeed key, GA4, Slack/WhatsApp channels, email transport — each unlocks more. Nothing required to start.</p>
+    </div></div>
+
+    <div class="step"><div class="n">4</div><div class="b"><h3>Baseline &amp; get the plan</h3>
+      <div class="term"><div><span class="p">$</span> python -m seo_agent <span class="k">onboard</span>        <span class="c"># → BASELINE.md (audit + speed + gaps + AI-search)</span>
+<span class="p">$</span> python -m seo_agent <span class="k">plan</span>           <span class="c"># ranked "what to do next"</span>
+<span class="p">$</span> python -m seo_agent <span class="k">consult</span>        <span class="c"># board-ready growth strategy</span></div></div>
+    </div></div>
+
+    <div class="step"><div class="n">5</div><div class="b"><h3>Choose how much it may do on its own</h3>
+      <p>Set <code>autonomy</code>: <b>manual</b> (plan only) · <b>approve</b> (queue → you sign off) · <b>auto</b> (execute, with destructive changes still queued).</p>
+    </div></div>
+
+    <div class="step"><div class="n">6</div><div class="b"><h3>Ship fixes &amp; content — with human review</h3>
+      <div class="term"><div><span class="p">$</span> python -m seo_agent <span class="k">audit</span> --fix        <span class="c"># audit + PR-ready remediation plan</span>
+<span class="p">$</span> python -m seo_agent <span class="k">pr</span> fixes.json         <span class="c"># edit repo files → open a PR</span>
+<span class="p">$</span> python -m seo_agent <span class="k">crew</span> article "keyword" <span class="c"># multi-agent draft → gated publish</span>
+<span class="p">$</span> python -m seo_agent <span class="k">review</span>              <span class="c"># send to reviewers (Slack/WhatsApp/email)</span>
+<span class="p">$</span> python -m seo_agent <span class="k">apply</span> --approved      <span class="c"># push ONLY approved items</span></div></div>
+      <p>Reviewers reply <code>APPROVE 3</code> or <code>CHANGES 3 make it punchier</code> from any channel. Only approved changes ship.</p>
+    </div></div>
+
+    <div class="step"><div class="n">7</div><div class="b"><h3>Run on a cadence &amp; deliver</h3>
+      <div class="term"><div><span class="p">$</span> python -m seo_agent <span class="k">run</span> --daily --email    <span class="c"># pulse + auto-email the PDF</span>
+<span class="p">$</span> python -m seo_agent <span class="k">run</span> --monthly          <span class="c"># full digest + AI-search + backlink gap</span>
+<span class="p">$</span> python -m seo_agent <span class="k">anomaly</span> --alert        <span class="c"># regressions → your channels</span></div></div>
+      <p class="mut">Schedule via cron or the hosted scheduler. Reports go to email, Slack, or Mattermost.</p>
+    </div></div>
+
+    <div class="step"><div class="n">8</div><div class="b"><h3>Measure &amp; ask why</h3>
+      <div class="term"><div><span class="p">$</span> python -m seo_agent <span class="k">ledger</span>              <span class="c"># every change → holdout-adjusted lift</span>
+<span class="p">$</span> python -m seo_agent <span class="k">explain</span> /pk/lawn-suits <span class="c"># "why did this page drop?"</span></div></div>
+      <p><code>explain</code> correlates a decline against our own change log, the GSC trend, and the Google-update timeline — evidence, not correlation theater.</p>
+    </div></div>
+  </section>
+
+  <!-- COMMAND REFERENCE -->
+  <section class="brk">
+    <div class="eyebrow">Reference</div>
+    <h2>Command map</h2>
+    <div class="rule"></div>
+    <table>
+      <thead><tr><th>Stage</th><th>Commands</th></tr></thead>
+      <tbody>
+        <tr><td><b>Onboard &amp; Doctor</b></td><td><code>init</code> <code>wizard</code> <code>preflight</code> <code>onboard</code> <code>audit</code> <code>sitemap</code> <code>speed</code> <code>logs</code> <code>schema</code> <code>renderdiff</code> <code>llmstxt</code></td></tr>
+        <tr><td><b>Observe</b></td><td><code>ingest</code> <code>gsc</code> <code>gsc --csv</code> <code>rank</code> <code>trends</code> <code>backlinks</code> <code>ctr</code> <code>ga4</code></td></tr>
+        <tr><td><b>Decide</b></td><td><code>plan</code> <code>consult</code> <code>consolidate</code> <code>gap</code> <code>competitors</code> <code>aio</code> <code>pagerank</code> <code>decay</code> <code>algo</code> <code>authority</code> <code>eeat</code></td></tr>
+        <tr><td><b>Produce</b></td><td><code>brief</code> <code>draft</code> <code>crew</code> <code>refresh</code> <code>retitle</code> <code>citability</code> <code>score</code></td></tr>
+        <tr><td><b>AI-search</b></td><td><code>aivis</code> <code>entity</code> <code>geo</code> <code>citability</code></td></tr>
+        <tr><td><b>Control &amp; review</b></td><td><code>control</code> <code>pr</code> <code>webtask</code> <code>autonomy</code> <code>review</code> <code>approve</code> <code>changes</code> <code>apply --approved</code></td></tr>
+        <tr><td><b>Measure &amp; deliver</b></td><td><code>ledger</code> <code>explain</code> <code>anomaly</code> <code>report --pdf --email</code> <code>run --daily|--monthly</code> <code>email</code></td></tr>
+        <tr><td><b>Scale (agency)</b></td><td><code>projects</code> <code>jobs</code> <code>mcp</code></td></tr>
+      </tbody>
+    </table>
+    <p class="mut" style="font-size:13px">51 tools, all also exposed over MCP. Everything degrades: with zero credentials you still get the full Site Doctor, strategy, drafts, entity/citability, and the plan.</p>
+  </section>
+
+  <!-- RUNTIMES + GUARDRAILS -->
+  <section>
+    <div class="eyebrow">How &amp; where it runs</div>
+    <h2>Your stack, your rules</h2>
+    <div class="rule"></div>
+    <div class="grid">
+      <div class="card"><div class="h"><span class="d"></span>Three runtimes, one engine</div><p>Claude Code skill · any MCP client / agent runtime · standalone CLI (cron). A hosted web app is planned — a thin wrapper over the same engine.</p></div>
+      <div class="card"><div class="h"><span class="d"></span>Human-in-the-loop by default</div><p>Nothing structural ships without review. Approve from CLI, email, Slack, Mattermost, or WhatsApp. Autonomy is a dial you control per site.</p></div>
+      <div class="card"><div class="h"><span class="d"></span>Your data stays yours</div><p>File-based, per-workspace. No central warehouse of Google/DataForSEO data — a compliance feature, not a limitation.</p></div>
+      <div class="card"><div class="h"><span class="d"></span>Fork-safe secrets</div><p>Keys live in a git-ignored, leak-scanned <code>.env</code>. They can never leak from a fork — enforced before anything else runs.</p></div>
+    </div>
+  </section>
+
+  </div>
+  <div class="foot">SEO Content Pipeline — product brochure &amp; quick-start manual. Site-agnostic · file-based · 51 tools · runs as a Claude Code skill, an MCP server, or a standalone CLI. Every output is proposed and human-gated; content passes a programmatic-safety gate before publish.</div>
+</div>

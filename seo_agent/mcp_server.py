@@ -11,9 +11,12 @@ import json
 import os
 import sys
 
-from . import (aio, analyze, audit, authority, backlinks, content_score, decay, eeat,
-               geo, ingest, integrations, internal, logs, onboard, orchestrate, plan,
-               produce, publish, rank, report, safety, schema, speed, trends)
+from . import (aio, aivis, analyze, anomaly, audit, authority, authority_flow, backlinks,
+               citability, competitors, consult, content_score, crew, decay, eeat, entity, ga4,
+               geo, ingest, integrations, internal, intl, ledger, local, logs, onboard, orchestrate,
+               plan, produce, prospect, publish, rank, refresh, remediate, report, review, safety,
+               schema, site_control, speed, trends, wizard)
+from . import explain as explain_mod
 from . import config as cfgmod
 from .index import Index, load_corpus
 
@@ -188,9 +191,132 @@ def _report(a):
     return "wrote " + report.build(_cfg())
 
 
+def _aivis(a):
+    return aivis.render_md(_cfg(), aivis.run(_cfg()))
+
+
+def _entity(a):
+    return entity.render_md(_cfg(), entity.report(_cfg()))
+
+
+def _citability(a):
+    return citability.render_md(_cfg(), citability.report(_cfg()))
+
+
+def _pagerank(a):
+    return authority_flow.render_md(_cfg(), authority_flow.report(_cfg()))
+
+
+def _refresh(a):
+    return refresh.render_md(_cfg(), refresh.packet(_cfg(), a["url"]))
+
+
+def _prospect(a):
+    return prospect.render_md(_cfg(), prospect.run(_cfg()))
+
+
+def _remediate(a):
+    return remediate.render_md(_cfg(), remediate.plan(_cfg()))
+
+
+def _intl(a):
+    return intl.render_md(_cfg(), intl.report(_cfg()))
+
+
+def _consult(a):
+    return consult.render_md(_cfg(), consult.run(_cfg()))
+
+
+def _crew(a):
+    cfg = _cfg()
+    p = crew.article(cfg, a["target"]) if a.get("kind", "article") == "article" else crew.change(cfg, a["target"])
+    return crew.render_md(cfg, p)
+
+
+def _wizard(a):
+    return wizard.render_md(_cfg(), wizard.next_step(_cfg()))
+
+
+def _control(a):
+    ch = dict(a); op = ch.pop("op")
+    return site_control.render_md(_cfg(), site_control.change(_cfg(), op, **ch))
+
+
+def _ledger(a):
+    return ledger.render_md(_cfg())
+
+
+def _explain(a):
+    return explain_mod.render_md(_cfg(), explain_mod.explain(_cfg(), a["url"]))
+
+
+def _review(a):
+    cfg = _cfg()
+    review.request(cfg)
+    return review.status_md(cfg)
+
+
+def _ga4(a):
+    return ga4.render_md(_cfg(), ga4.organic(_cfg()))
+
+
+def _competitors(a):
+    return competitors.render_md(_cfg(), competitors.delta(_cfg()))
+
+
+def _anomaly(a):
+    return anomaly.render_md(_cfg(), anomaly.detect(_cfg()))
+
+
+def _autopilot(a):
+    from . import autopilot
+    return autopilot.render_md(_cfg(), autopilot.cycle(_cfg(), cadence=a.get("cadence", "daily"), deliver=False))
+
+
 TOOLS = [
     ("ingest", "Crawl the configured site's sitemap into corpus.json.",
      {"type": "object", "properties": {}}, _ingest),
+    ("aivis", "AI-visibility: brand mentions + citations across ChatGPT/Perplexity/Gemini/AI Overviews.",
+     {"type": "object", "properties": {}}, _aivis),
+    ("entity", "Entity graph: Wikidata QID, sameAs profiles, Organization JSON-LD, brand salience.",
+     {"type": "object", "properties": {}}, _entity),
+    ("citability", "Passage-citability — how extractable each page is for AI answers.",
+     {"type": "object", "properties": {}}, _citability),
+    ("pagerank", "Internal PageRank / authority flow — starved pillars + link hoarders.",
+     {"type": "object", "properties": {}}, _pagerank),
+    ("refresh", "Content-refresh packet for a URL (diagnose staleness → rewrite → verify).",
+     {"type": "object", "properties": {"url": {"type": "string"}}, "required": ["url"]}, _refresh),
+    ("prospect", "Link-acquisition prospects from the competitor backlink gap.",
+     {"type": "object", "properties": {}}, _prospect),
+    ("remediate", "Ordered, human-gated remediation plan from the audit.",
+     {"type": "object", "properties": {}}, _remediate),
+    ("intl", "hreflang / international validation.",
+     {"type": "object", "properties": {}}, _intl),
+    ("consult", "McKinsey/Google-level SEO growth strategy from all signals.",
+     {"type": "object", "properties": {}}, _consult),
+    ("crew", "Multi-agent crew brief: research→write→tech-SEO→publish (article) or diagnose→plan→apply (change).",
+     {"type": "object", "properties": {"kind": {"type": "string", "enum": ["article", "change"]},
+                                       "target": {"type": "string"}}, "required": ["target"]}, _crew),
+    ("wizard", "Guided onboarding — the next best setup step with handholding.",
+     {"type": "object", "properties": {}}, _wizard),
+    ("control", "Full site control: create/update_meta/update_content/delete/redirect (autonomy-gated).",
+     {"type": "object", "properties": {"op": {"type": "string"}, "id": {"type": "string"},
+                                       "url": {"type": "string"}, "title": {"type": "string"},
+                                       "description": {"type": "string"}}, "required": ["op"]}, _control),
+    ("ledger", "Change log + causal attribution (before/after vs a holdout of untouched pages).",
+     {"type": "object", "properties": {}}, _ledger),
+    ("explain", "Diagnose why a page's traffic changed — vs our change log, GSC trend, and Google updates.",
+     {"type": "object", "properties": {"url": {"type": "string"}}, "required": ["url"]}, _explain),
+    ("review", "Send queued changes/drafts to reviewers (CLI/email/Slack/Mattermost/WhatsApp) + show status.",
+     {"type": "object", "properties": {}}, _review),
+    ("ga4", "GA4 organic sessions, conversions & revenue (business outcomes).",
+     {"type": "object", "properties": {}}, _ga4),
+    ("competitors", "Monthly competitor sitemap delta — what they newly published.",
+     {"type": "object", "properties": {}}, _competitors),
+    ("anomaly", "Anomaly/regression radar — indexation drops, traffic cliffs, rank drops, AI-Overview appearance.",
+     {"type": "object", "properties": {}}, _anomaly),
+    ("autopilot", "Run one autonomous cycle: Audit → Plan (dated) → Execute (dispatch due, gated) → Report.",
+     {"type": "object", "properties": {"cadence": {"type": "string", "enum": ["daily", "weekly", "monthly"]}}}, _autopilot),
     ("analyze", "Full SEO report (cannibalization, gaps, GSC) → recommendations.md.",
      {"type": "object", "properties": {"keywords": {"type": "array", "items": {"type": "string"}}}}, _analyze),
     ("discover", "DataForSEO keyword ideas for a seed.",

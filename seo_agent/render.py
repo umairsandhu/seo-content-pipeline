@@ -64,3 +64,47 @@ def session(cfg):
             yield _Renderer(browser, cfg)
         finally:
             browser.close()
+
+
+def diff(cfg, url):
+    """Rendered-vs-raw DOM diff for one URL: what content/links/schema exist only
+    AFTER JS runs — i.e. what a raw-HTML audit is blind to. Requires Playwright."""
+    import re
+    import urllib.request
+    from . import ingest
+    if not available():
+        return {"error": "no headless browser — pip install playwright && playwright install chromium"}
+    try:
+        raw = urllib.request.urlopen(
+            urllib.request.Request(url, headers={"User-Agent": UA}), timeout=20).read().decode("utf-8", "ignore")
+    except Exception as e:
+        return {"error": f"raw fetch failed: {e}"}
+    force = dict(cfg or {}, render={"enabled": True})
+    with session(force) as r:
+        if not r:
+            return {"error": "renderer unavailable"}
+        out = r.render(url)
+    if not out:
+        return {"error": "render failed"}
+    rendered = out[2]
+    ex_raw, ex_ren = ingest.extract(url, raw), ingest.extract(url, rendered)
+    words_gain = (ex_ren.get("words", 0) or 0) - (ex_raw.get("words", 0) or 0)
+    links_gain = len(set(ex_ren.get("links", [])) - set(ex_raw.get("links", [])))
+    schema_gain = bool(re.search(r"application/ld\+json", rendered, re.I)) and not \
+        bool(re.search(r"application/ld\+json", raw, re.I))
+    h1_gain = len(ex_ren.get("h1", []) or []) - len(ex_raw.get("h1", []) or [])
+    return {"url": url, "raw_words": ex_raw.get("words", 0), "rendered_words": ex_ren.get("words", 0),
+            "words_gain": words_gain, "links_only_in_rendered": links_gain,
+            "schema_only_in_rendered": schema_gain, "h1_gain": h1_gain,
+            "csr_risk": words_gain > 200 or links_gain > 10 or schema_gain}
+
+
+def render_md(cfg, d):
+    if d.get("error"):
+        return f"# Render diff\n\n_{d['error']}_"
+    flag = "🔴 client-rendered — audit with render.enabled" if d["csr_risk"] else "✅ raw HTML is representative"
+    return (f"# Rendered-vs-raw diff — {d['url']}\n\n{flag}\n\n"
+            f"- words: raw {d['raw_words']} → rendered {d['rendered_words']} (+{d['words_gain']})\n"
+            f"- links only after JS: {d['links_only_in_rendered']}\n"
+            f"- H1s gained after JS: {d['h1_gain']}\n"
+            f"- JSON-LD injected by JS: {'yes' if d['schema_only_in_rendered'] else 'no'}")

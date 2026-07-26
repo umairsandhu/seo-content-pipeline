@@ -17,6 +17,9 @@ dependencies = ["numpy", "scikit-learn"]
 gsc = ["google-api-python-client", "google-auth"]
 render = ["playwright"]
 embeddings = ["fastembed"]
+test = ["pytest"]                         # tests also run under stdlib: python -m unittest discover tests
+# AI-visibility engines (aivis) use urllib — no packages; keys via env:
+#   OPENAI_API_KEY · PERPLEXITY_API_KEY · GEMINI_API_KEY (or GOOGLE_API_KEY) · ANTHROPIC_API_KEY
 
 [project.scripts]
 seo-content-pipeline = "seo_agent.__main__:main"

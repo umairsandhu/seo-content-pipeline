@@ -14,7 +14,7 @@ import datetime
 import json
 from pathlib import Path
 
-from . import analyze, audit, integrations, logs, safety, speed
+from . import analyze, audit, integrations, journey, logs, safety, speed
 from .index import Index, load_corpus
 
 
@@ -45,8 +45,18 @@ def init(root=".", site=None):
             "created_config": created_cfg, "created_env": created_env, "fork_safe": saf["fork_safe"]}
 
 
-def run(cfg, keywords=None, root=".", do_ingest=True, out="BASELINE.md"):
+def run(cfg, keywords=None, root=".", do_ingest=True, out="BASELINE.md", degraded=False):
     stages = {}
+
+    # Gate 0 — onboarding readiness. Every new site must clear the required checks
+    # (workspace, target, sitemap, safety, search + market data) before we spend
+    # time or API budget. `--degraded` proceeds with whatever is wired in.
+    ready = journey.readiness(cfg, root=root)
+    stages["readiness"] = ready
+    if not ready["ready"] and not degraded:
+        md = journey.render_md(ready)
+        Path("SETUP.md").write_text(md)
+        return stages, md  # halted — resolve required accesses, then re-run
 
     stages["safety"] = safety.check(cfg, root=root, apply=True)
     if not stages["safety"]["fork_safe"]:
@@ -79,6 +89,16 @@ def run(cfg, keywords=None, root=".", do_ingest=True, out="BASELINE.md"):
         stages["gaps"] = []
         stages["competitor_gap"] = []
     stages["gsc"] = analyze.gsc_opportunities(cfg)
+    # AI-search baseline (offline, free) — entity + citability readiness
+    from . import citability, entity
+    try:
+        stages["entity"] = entity.report(cfg)
+    except Exception:
+        stages["entity"] = None
+    try:
+        stages["citability"] = citability.report(cfg)
+    except Exception:
+        stages["citability"] = None
 
     md = _render(cfg, stages, blocked=False)
     Path(out).write_text(md)
@@ -162,6 +182,19 @@ def _render(cfg, s, blocked):
     if gsc:
         L += [f"## 5. GSC striking-distance ({len(gsc['striking'])})", "| query | pos | impr |", "|---|--:|--:|"]
         L += [f"| {r['query']} | {r['position']:.1f} | {r['impressions']} |" for r in gsc["striking"][:10]]
+        L.append("")
+
+    en = s.get("entity")
+    ci = s.get("citability")
+    if en or ci:
+        L.append("## 6. AI search / GEO readiness")
+        if en:
+            wd = ("✅ " + en["wikidata"]["qid"]) if en["wikidata"] else "🔴 none (top GEO fix)"
+            L.append(f"- Wikidata entity: {wd} · sameAs profiles: {len(en['sameAs_present'])} · "
+                     f"brand salience {en['salience']}")
+        if ci:
+            L.append(f"- Passage-citability: **{ci['avg']}/100** avg · "
+                     f"{ci['missing'].get('answer_first',0)}/{ci['pages']} pages lack an answer-first passage")
         L.append("")
 
     L += ["## Next",

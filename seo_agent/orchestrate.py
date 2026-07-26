@@ -10,12 +10,14 @@ Wire via cron or the /schedule skill; the digest is the human review surface
 (human merge-gate first, auto-merge later)."""
 import datetime
 
-from . import algo, analyze, backlinks, decay, history, trends
+from . import (aivis, algo, analyze, authority_flow, backlinks, citability, decay, entity,
+               history, notify, rank, report, trends)
 from .index import Index, load_corpus
 
 
-def run(cfg, keywords=None, monthly=False, out="digest.md"):
-    rep = {"date": datetime.date.today().isoformat(), "monthly": monthly,
+def run(cfg, keywords=None, monthly=False, daily=False, email=False, out="digest.md"):
+    cadence = "daily" if daily else "monthly" if monthly else "weekly"
+    rep = {"date": datetime.date.today().isoformat(), "monthly": monthly, "cadence": cadence,
            "site": cfg.get("site", "site")}
 
     raw = analyze.gsc_raw(cfg)
@@ -24,6 +26,14 @@ def run(cfg, keywords=None, monthly=False, out="digest.md"):
         history.snapshot(cfg, "gsc_pages", raw["pages"])
         rep["gsc"] = analyze.opportunities_from(raw)
     rep["decay"] = decay.detect(cfg)
+
+    if daily:  # a light daily pulse — movement + fresh issues, skip the heavy passes
+        rep["movement"] = _safe(lambda: rank.movement(cfg))
+        md = render_digest(cfg, rep)
+        open(out, "w").write(md)
+        if email:
+            rep["email"] = _email(cfg, cadence, md)
+        return rep, md
 
     try:
         idx = Index(load_corpus())
@@ -38,10 +48,47 @@ def run(cfg, keywords=None, monthly=False, out="digest.md"):
             if keywords else None
         rep["link_gap"] = backlinks.link_gap(cfg) if cfg.get("competitors") else None
         rep["algo"] = algo.attribution(cfg)
+        # AI-search / GEO layer (all offline/free except aivis, which is opt-in)
+        for key, fn in (("citability", lambda: citability.report(cfg)),
+                        ("entity", lambda: entity.report(cfg)),
+                        ("authority_flow", lambda: authority_flow.report(cfg))):
+            try:
+                rep[key] = fn()
+            except Exception:
+                rep[key] = None
+        if (cfg.get("aivis", {}) or {}).get("auto"):  # set aivis.auto=true to track on cadence
+            try:
+                rep["aivis"] = aivis.run(cfg)
+            except Exception:
+                rep["aivis"] = None
+        else:
+            snap = history.latest(cfg, "aivis")
+            rep["aivis_last"] = (snap or {}).get("data")
 
     md = render_digest(cfg, rep)
     open(out, "w").write(md)
+    if email:
+        rep["email"] = _email(cfg, cadence, md)
     return rep, md
+
+
+def _safe(fn):
+    try:
+        return fn()
+    except Exception:
+        return None
+
+
+def _email(cfg, cadence, digest_md):
+    """Render report.pdf and email it (auto-email PDF reports on a cadence)."""
+    try:
+        html = report.build(cfg)
+        pdf, _err = report.to_pdf(html)
+    except Exception:
+        pdf = None
+    subject = f"{cadence.title()} SEO report — {cfg.get('site','')}"
+    body = f"{cadence.title()} SEO digest for {cfg.get('site','')}.\n\n" + digest_md[:1500]
+    return notify.send(cfg, None, subject, body, attachments=[pdf] if pdf else [])
 
 
 def _corpus_ok():
@@ -54,7 +101,18 @@ def _corpus_ok():
 
 def render_digest(cfg, rep):
     L = [f"# SEO run digest — {rep['site']} — {rep['date']}",
-         f"_{'monthly' if rep['monthly'] else 'weekly'} run_", ""]
+         f"_{rep.get('cadence','weekly')} run_", ""]
+
+    mv = rep.get("movement")
+    if mv:
+        up = [m for m in mv.get("moved", []) if m["delta"] < 0]
+        down = [m for m in mv.get("moved", []) if m["delta"] > 0]
+        L += [f"## Daily pulse — rank movement (▲{len(up)} / ▼{len(down)})"]
+        for m in (sorted(up, key=lambda m: m["delta"])[:8]):
+            L.append(f"- ▲ {m['keyword']}: {m['prev']}→{m['curr']}")
+        for m in (sorted(down, key=lambda m: -m["delta"])[:8]):
+            L.append(f"- ▼ {m['keyword']}: {m['prev']}→{m['curr']}")
+        L.append("")
 
     dec = rep.get("decay") or {}
     q = dec.get("queries")
@@ -112,6 +170,34 @@ def render_digest(cfg, rep):
         if a:
             L += ["## Algorithm-update impact", "| date | update | Δclicks |", "|---|---|--:|"]
             L += [f"| {u['date']} | {u['update']} | {u['change_pct']:+}% |" for u in a]
+            L.append("")
+
+        # ── AI-search / GEO section ──
+        en = rep.get("entity")
+        if en:
+            wd = "✅ " + en["wikidata"]["qid"] if en["wikidata"] else "🔴 none — top GEO fix"
+            L += ["## AI search / GEO",
+                  f"- Wikidata entity: {wd} · sameAs profiles: {len(en['sameAs_present'])} · "
+                  f"brand salience {en['salience']}"]
+        ci = rep.get("citability")
+        if ci:
+            L.append(f"- Passage-citability: **{ci['avg']}/100** avg · "
+                     f"{ci['missing'].get('answer_first',0)}/{ci['pages']} pages lack an answer-first passage")
+        af = rep.get("authority_flow")
+        if af and af.get("starved_pillars"):
+            L.append(f"- Internal authority: {len(af['starved_pillars'])} money/pillar page(s) starved — "
+                     "link them from high-PR pages (`pagerank`)")
+        av = rep.get("aivis")
+        if av and av.get("summary"):
+            s = av["summary"]
+            L.append(f"- AI visibility: brand cited in **{s['brand_sov']*100:.0f}%** of AI answers "
+                     + (f"(competitors: {', '.join(k for k in s['competitor_sov'])})" if s["competitor_sov"] else ""))
+        elif rep.get("aivis_last"):
+            rows = rep["aivis_last"]
+            sov = sum(r.get("mentioned") for r in rows) / max(len(rows), 1)
+            L.append(f"- AI visibility (last snapshot): brand cited in **{sov*100:.0f}%** of answers "
+                     "— set `aivis.auto=true` to refresh each run")
+        if en or ci or af:
             L.append("")
 
     if len(L) <= 3:

@@ -7,7 +7,8 @@ each with the command to run.
 This is the 0→100 co-pilot — run `plan` at any point to get the next best moves.
 Every source degrades: with no creds you still get the technical-fix plan from
 the Site Doctor."""
-from . import analyze, audit, authority, decay, eeat, geo, internal
+from . import (analyze, audit, authority, authority_flow, citability, decay, eeat, entity,
+               geo, history, internal)
 from .index import Index, load_corpus
 
 EFFORT_W = {"S": 1.0, "M": 0.8, "L": 0.6}
@@ -99,6 +100,61 @@ def build(cfg):
                 add(_a(48, "M", "geo", cfg.get("site", ""),
                        f"{n}/{g['pages']} pages missing {k} — AI-citation readiness", "geo"))
                 break
+    except Exception:
+        pass
+
+    # 6. Entity / knowledge-graph — a missing Wikidata node is the top GEO fix
+    try:
+        en = entity.report(cfg)
+        if not en["wikidata"]:
+            add(_a(72, "M", "entity", cfg.get("site", ""),
+                   "no Wikidata entity — AI engines can't resolve the brand to a knowledge-graph node", "entity"))
+        elif len(en["sameAs_present"]) < 4:
+            add(_a(45, "S", "entity", cfg.get("site", ""),
+                   f"only {len(en['sameAs_present'])} authoritative sameAs profiles — add more", "entity"))
+    except Exception:
+        pass
+
+    # 7. Passage-citability — front-load answers so AI answers can quote you
+    try:
+        ci = citability.report(cfg)
+        af = ci["missing"].get("answer_first", 0)
+        if ci["pages"] and af > ci["pages"] * 0.5:
+            add(_a(52, "M", "citability", cfg.get("site", ""),
+                   f"{af}/{ci['pages']} pages lack an answer-first passage (AI-citability {ci['avg']}/100)",
+                   "citability"))
+    except Exception:
+        pass
+
+    # 8. Internal authority flow — link starved money/pillar pages
+    try:
+        pr = authority_flow.report(cfg)
+        for p in pr["starved_pillars"][:2]:
+            add(_a(58, "M", "sculpt", p["url"],
+                   f"pillar starved of internal authority ({p['inbound']} inbound) — link from hoarders", "pagerank"))
+    except Exception:
+        pass
+
+    # 9. AI-visibility — act on the last aivis snapshot if the tracker has run
+    try:
+        av = history.latest(cfg, "aivis")
+        rows = (av or {}).get("data") or []
+        if rows:
+            sov = sum(r.get("mentioned") for r in rows) / len(rows)
+            if sov < 0.5:
+                add(_a(68, "M", "ai-visibility", cfg.get("site", ""),
+                       f"cited in only {sov*100:.0f}% of AI answers — improve entity + citability", "aivis"))
+    except Exception:
+        pass
+
+    # 10. Learn from what worked — repeat proven wins (from the causal ledger)
+    try:
+        from . import ledger
+        att = ledger.attribution(cfg)
+        for w in [r for r in att.get("rows", []) if r.get("holdout_adjusted_lift", 0) > 5][:3]:
+            add(_a(64, "S", "repeat-win", w["url"],
+                   f"proven +{w['holdout_adjusted_lift']} clicks (holdout-adjusted) after our last change — "
+                   "apply the same play to similar pages", "ledger"))
     except Exception:
         pass
 

@@ -14,10 +14,13 @@ import json
 import sys
 from pathlib import Path
 
-from . import (aio, algo, analyze, audit, authority, backlinks, content_score, decay,
-               eeat, geo, history, ingest, integrations, internal, logs, mcp_server, onboard,
-               orchestrate, plan, produce, publish, radar, rank, report, safety, schema,
-               speed, trends)
+from . import (aio, aivis, algo, analyze, anomaly, audit, authority, authority_flow, autonomy,
+               autopilot, backlinks, channels, citability, competitors, consult, content_score,
+               crew, ctr_curves, decay, eeat, edition, entity, ga4, geo, gsc_csv, history, ingest,
+               integrations, internal, intl, jobs, journey, local, logs, mcp_server, notify, onboard,
+               orchestrate, plan, produce, projects, prospect, publish, review, serve as serve_mod,
+               explain as explain_mod, ledger, radar, rank, refresh, remediate, render, repo, report,
+               safety, safetygate, schema, site_control, speed, trends, webagent, wizard)
 from . import config as cfgmod
 from .index import Index, load_corpus
 
@@ -27,12 +30,13 @@ def main():
     ap.add_argument("--config", default="config.json")
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("ingest")
-    sub.add_parser("gsc")
+    pg = sub.add_parser("gsc"); pg.add_argument("--csv", nargs="+", metavar="PATH",
+        help="import GSC CSV export(s) instead of the API (Queries.csv, Pages.csv, a dir, or a .zip)")
     sub.add_parser("decay")
     sub.add_parser("algo")
     sub.add_parser("radar")
     sub.add_parser("backlinks")
-    sub.add_parser("audit")
+    sub.add_parser("audit").add_argument("--fix", action="store_true", help="also emit the remediation plan (PR-ready)")
     sub.add_parser("speed")
     sub.add_parser("sitemap")
     sub.add_parser("gap")
@@ -43,11 +47,54 @@ def main():
     sub.add_parser("authority")
     sub.add_parser("geo")
     sub.add_parser("autolink")
-    sub.add_parser("report")
+    prep = sub.add_parser("report"); prep.add_argument("--pdf", action="store_true", help="also render report.pdf via headless Chrome/Chromium")
+    prep.add_argument("--email", action="store_true", help="email report.pdf to report.email_to")
     sub.add_parser("consolidate")
     sub.add_parser("toxicity")
     pin = sub.add_parser("inlinks"); pin.add_argument("url")
     sub.add_parser("llmstxt")
+    # roadmap capabilities
+    sub.add_parser("aivis")        # AI-visibility / LLM-citation tracker
+    sub.add_parser("entity")       # entity graph + Wikidata + sameAs
+    sub.add_parser("citability")   # passage-citability for AI answers
+    sub.add_parser("ctr")          # first-party CTR curve
+    sub.add_parser("pagerank")     # internal authority-flow (PageRank)
+    sub.add_parser("intl")         # hreflang / international
+    sub.add_parser("local")        # local SEO (NAP + LocalBusiness)
+    sub.add_parser("prospect")     # link-acquisition prospects
+    sub.add_parser("remediate")    # ordered remediation plan
+    sub.add_parser("jobs")         # durable job queue
+    sub.add_parser("refresh").add_argument("url")
+    sub.add_parser("renderdiff").add_argument("url")
+    sub.add_parser("gate").add_argument("post_json", help="draft JSON to check against the safety gate")
+    pj = sub.add_parser("projects"); pj.add_argument("action", nargs="?", choices=["list", "add"], default="list")
+    pj.add_argument("name", nargs="?"); pj.add_argument("directory", nargs="?")
+    # expert / control / delivery layer
+    sub.add_parser("consult")                                    # McKinsey-level strategy report
+    pcr = sub.add_parser("crew"); pcr.add_argument("kind", choices=["article", "change"])
+    pcr.add_argument("target")                                   # keyword or change goal
+    pw = sub.add_parser("wizard"); pw.add_argument("--interactive", action="store_true")
+    sub.add_parser("autonomy")                                   # show mode + pending approvals
+    sub.add_parser("apply").add_argument("--approved", action="store_true")  # execute approval queue
+    sub.add_parser("control").add_argument("change_json", help="a change JSON: {op, ...}")
+    sub.add_parser("pr").add_argument("edits_json", help="repo PR JSON: {title, edits:[{file, edits:[...], desc, url}]}")
+    sub.add_parser("ledger")                                     # change log + causal attribution
+    sub.add_parser("explain").add_argument("url")               # why did this page change?
+    # human review across channels + connectors
+    sub.add_parser("review").add_argument("--poll", action="store_true")
+    sub.add_parser("approve").add_argument("id", type=int)
+    pch = sub.add_parser("changes"); pch.add_argument("id", type=int); pch.add_argument("feedback")
+    sub.add_parser("ga4")
+    sub.add_parser("competitors")
+    sub.add_parser("anomaly").add_argument("--alert", action="store_true")
+    # autonomous loop + local dashboard
+    pap = sub.add_parser("autopilot")
+    pap.add_argument("--daily", action="store_true"); pap.add_argument("--weekly", action="store_true")
+    pap.add_argument("--monthly", action="store_true"); pap.add_argument("--no-deliver", action="store_true")
+    sub.add_parser("serve").add_argument("--port", type=int, default=8787)
+    sub.add_parser("edition")   # show edition + entitlements
+    sub.add_parser("webtask").add_argument("task_json", help="a web task JSON: {name, steps:[...]}")
+    pe = sub.add_parser("email"); pe.add_argument("--pdf", default="report.pdf")
     sub.add_parser("integrations")
     sub.add_parser("mcp")
     pl = sub.add_parser("logs"); pl.add_argument("path", nargs="?"); pl.add_argument("--verify", action="store_true")
@@ -55,7 +102,10 @@ def main():
     pcs = sub.add_parser("score"); pcs.add_argument("keyword"); pcs.add_argument("url")
     sf = sub.add_parser("safety"); sf.add_argument("--precommit", action="store_true")
     pin2 = sub.add_parser("init"); pin2.add_argument("--site")
+    sub.add_parser("preflight")   # onboarding readiness gate (no baseline)
     po = sub.add_parser("onboard"); po.add_argument("--keywords-file")
+    po.add_argument("--degraded", action="store_true",
+                    help="proceed even if required accesses (GSC/DataForSEO) are missing")
     sub.add_parser("brief").add_argument("keyword")
     sub.add_parser("draft").add_argument("keyword")
     sub.add_parser("discover").add_argument("seed")
@@ -63,6 +113,7 @@ def main():
     sub.add_parser("trends").add_argument("seeds", nargs="+")
     pa = sub.add_parser("analyze"); pa.add_argument("--keywords-file")
     pr = sub.add_parser("run"); pr.add_argument("--monthly", action="store_true")
+    pr.add_argument("--daily", action="store_true"); pr.add_argument("--email", action="store_true")
     pr.add_argument("--keywords-file")
     pp = sub.add_parser("publish"); pp.add_argument("post_json", help="path to a post JSON file")
     pt = sub.add_parser("retitle"); pt.add_argument("page"); pt.add_argument("--keyword", default="")
@@ -74,11 +125,18 @@ def main():
     if a.cmd == "ingest":
         ingest.build(cfg)
     elif a.cmd == "gsc":
-        raw = analyze.gsc_raw(cfg)
-        if not raw:
-            print("GSC not configured — set gsc_property + gsc_credentials."); return
-        history.snapshot(cfg, "gsc_queries", raw["queries"])
-        history.snapshot(cfg, "gsc_pages", raw["pages"])
+        if a.csv:
+            raw = gsc_csv.import_csv(cfg, a.csv)
+            print(f"imported GSC CSV → {len(raw['queries'])} queries, {len(raw['pages'])} pages"
+                  + (f", {len(raw['pairs'])} query×page pairs" if raw["pairs"] else "")
+                  + " (snapshot to history/)")
+        else:
+            raw = analyze.gsc_raw(cfg)
+            if not raw:
+                print("GSC not configured — set gsc_property + gsc_credentials, "
+                      "or import an export with `gsc --csv <path>`."); return
+            history.snapshot(cfg, "gsc_queries", raw["queries"])
+            history.snapshot(cfg, "gsc_pages", raw["pages"])
         dump(analyze.opportunities_from(raw))
     elif a.cmd == "decay":
         dump(decay.detect(cfg))
@@ -110,13 +168,19 @@ def main():
               f".env ({'created' if r['created_env'] else 'exists'}), .gitignore hardened")
         print("Next: edit config.json (site · competitors), add any keys to .env, then "
               "`python -m seo_agent onboard`. See PLAYBOOK.md for the 0→100 path.")
+    elif a.cmd == "preflight":
+        print(journey.render_md(journey.readiness(cfg)))
     elif a.cmd == "onboard":
-        _, md = onboard.run(cfg, kw_file(a.keywords_file))
+        _, md = onboard.run(cfg, kw_file(a.keywords_file), degraded=a.degraded)
         print(md)
     elif a.cmd == "audit":
         rep = audit.report(cfg)
         Path("audit.md").write_text(audit.render_md(cfg, rep))
         print(audit.render_md(cfg, rep))
+        if getattr(a, "fix", False):
+            print("\n---\n" + remediate.render_md(cfg, remediate.plan(cfg))
+                  + "\n\n_Ship each fix with `pr <edits.json>` or `control <change.json>` — "
+                    "queued items go through `review` → `apply --approved`._")
     elif a.cmd == "sitemap":
         f = []; info = audit.sitemap_health(cfg, load_corpus(), f)
         dump({"summary": info, "findings": f})
@@ -155,10 +219,108 @@ def main():
         print(authority.render_md(cfg, authority.clusters(cfg)))
     elif a.cmd == "geo":
         print(geo.render_md(cfg, geo.report(cfg)))
+    elif a.cmd == "aivis":
+        print(aivis.render_md(cfg, aivis.run(cfg)))
+    elif a.cmd == "entity":
+        print(entity.render_md(cfg, entity.report(cfg)))
+    elif a.cmd == "citability":
+        print(citability.render_md(cfg, citability.report(cfg)))
+    elif a.cmd == "ctr":
+        print(ctr_curves.render_md(cfg))
+    elif a.cmd == "pagerank":
+        print(authority_flow.render_md(cfg, authority_flow.report(cfg)))
+    elif a.cmd == "intl":
+        print(intl.render_md(cfg, intl.report(cfg)))
+    elif a.cmd == "local":
+        print(local.render_md(cfg, local.report(cfg)))
+    elif a.cmd == "refresh":
+        print(refresh.render_md(cfg, refresh.packet(cfg, a.url)))
+    elif a.cmd == "prospect":
+        print(prospect.render_md(cfg, prospect.run(cfg)))
+    elif a.cmd == "renderdiff":
+        print(render.render_md(cfg, render.diff(cfg, a.url)))
+    elif a.cmd == "remediate":
+        print(remediate.render_md(cfg, remediate.plan(cfg)))
+    elif a.cmd == "gate":
+        post = json.load(open(a.post_json))
+        print(safetygate.render_md(safetygate.check(
+            {"title": post.get("title", ""), "text": post.get("body") or post.get("markdown", "")})))
+    elif a.cmd == "jobs":
+        print(jobs.render_md(cfg))
+    elif a.cmd == "projects":
+        if a.action == "add":
+            projects.add(a.name, a.directory); print(f"added project {a.name}")
+            cap = edition.workspace_cap(cfg)
+            n = len(projects._load()["projects"])
+            if n > cap:
+                print(f"⚠ {n} sites on the {edition.edition(cfg).title()} edition (cap {cap}). "
+                      "Upgrade for more — see docs/PRICING.md.")
+        print(projects.render_md())
+    elif a.cmd == "consult":
+        print(consult.render_md(cfg, consult.run(cfg)))
+    elif a.cmd == "crew":
+        p = crew.article(cfg, a.target) if a.kind == "article" else crew.change(cfg, a.target)
+        print(crew.render_md(cfg, p))
+    elif a.cmd == "wizard":
+        if a.interactive:
+            wizard.interactive(cfg)
+        print(wizard.render_md(cfg, wizard.next_step(cfg)))
+    elif a.cmd == "autonomy":
+        print(autonomy.render_md(cfg))
+    elif a.cmd == "apply":
+        if a.approved:
+            dump(site_control.apply_approved(cfg))
+        else:
+            print(autonomy.render_md(cfg))
+    elif a.cmd == "control":
+        ch = json.load(open(a.change_json))
+        print(site_control.render_md(cfg, site_control.change(cfg, ch.pop("op"), **ch)))
+    elif a.cmd == "pr":
+        spec = json.load(open(a.edits_json))
+        print(repo.render_md(cfg, repo.open_pr(cfg, spec["title"], spec["edits"])))
+    elif a.cmd == "ledger":
+        print(ledger.render_md(cfg))
+    elif a.cmd == "explain":
+        print(explain_mod.render_md(cfg, explain_mod.explain(cfg, a.url)))
+    elif a.cmd == "review":
+        if a.poll:
+            dump(review.poll(cfg))
+        else:
+            dump(review.request(cfg))
+        print(review.status_md(cfg))
+    elif a.cmd == "approve":
+        dump(review.respond(cfg, a.id, "approve"))
+    elif a.cmd == "changes":
+        dump(review.respond(cfg, a.id, "changes", a.feedback))
+    elif a.cmd == "ga4":
+        print(ga4.render_md(cfg, ga4.organic(cfg)))
+    elif a.cmd == "competitors":
+        print(competitors.render_md(cfg, competitors.delta(cfg)))
+    elif a.cmd == "anomaly":
+        res = anomaly.alert(cfg) if a.alert else {"alerts": anomaly.detect(cfg)}
+        print(anomaly.render_md(cfg, res["alerts"]))
+    elif a.cmd == "autopilot":
+        cad = "monthly" if a.monthly else "weekly" if a.weekly else "daily"
+        print(autopilot.render_md(cfg, autopilot.cycle(cfg, cadence=cad, deliver=not a.no_deliver)))
+    elif a.cmd == "serve":
+        serve_mod.serve(cfg, port=a.port)
+    elif a.cmd == "edition":
+        print(edition.render_md(cfg))
+    elif a.cmd == "webtask":
+        print(webagent.render_md(cfg, webagent.run_task(cfg, json.load(open(a.task_json)))))
+    elif a.cmd == "email":
+        print(notify.render_md(cfg, notify.email_report(cfg, a.pdf)))
     elif a.cmd == "autolink":
         print(internal.render_link_plan(cfg, internal.link_plan(cfg)))
     elif a.cmd == "report":
-        print("wrote " + report.build(cfg) + " — open it in a browser")
+        html = report.build(cfg)
+        print("wrote " + html + " — open it in a browser")
+        pdf = None
+        if a.pdf or a.email:
+            pdf, err = report.to_pdf(html)
+            print("wrote " + pdf if pdf else "PDF skipped — " + err)
+        if a.email:
+            print(notify.render_md(cfg, notify.email_report(cfg, pdf or html)))
     elif a.cmd == "consolidate":
         print(internal.render_md(cfg, internal.consolidation(cfg)))
     elif a.cmd == "toxicity":
@@ -200,7 +362,8 @@ def main():
         Path("recommendations.md").write_text(md)
         print(md)
     elif a.cmd == "run":
-        _, md = orchestrate.run(cfg, kw_file(a.keywords_file), monthly=a.monthly)
+        _, md = orchestrate.run(cfg, kw_file(a.keywords_file), monthly=a.monthly,
+                                daily=a.daily, email=a.email)
         print(md)
     elif a.cmd == "publish":
         dump(publish.publish(cfg, json.load(open(a.post_json))))

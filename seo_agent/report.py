@@ -4,8 +4,46 @@ Writes `report.html`: open in a browser or host it. No external assets; light +
 dark aware. Everything degrades — sections whose data is unavailable are omitted."""
 import datetime
 import html as _h
+import os
+import shutil
+import subprocess
 
-from . import analyze, audit, eeat, geo, plan
+from . import analyze, audit, authority_flow, citability, eeat, entity, geo, plan
+
+# Headless-browser binaries we can drive to print HTML → PDF, in preference order.
+_BROWSERS = [
+    "google-chrome", "google-chrome-stable", "chromium", "chromium-browser", "chrome", "msedge",
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Chromium.app/Contents/MacOS/Chromium",
+    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+    "/Program Files/Google/Chrome/Application/chrome.exe",
+]
+
+
+def _find_browser():
+    for b in _BROWSERS:
+        return_path = shutil.which(b) if os.sep not in b else (b if os.path.exists(b) else None)
+        if return_path:
+            return return_path
+    return None
+
+
+def to_pdf(html_path, pdf_out=None):
+    """Render an existing HTML report to PDF via a headless Chromium/Chrome/Edge.
+    Returns the PDF path, or None (with the reason) if no browser is available —
+    the HTML is always still there, so this degrades gracefully."""
+    browser = _find_browser()
+    if not browser:
+        return None, "no Chrome/Chromium/Edge found — open report.html and Print → Save as PDF"
+    pdf_out = pdf_out or os.path.splitext(html_path)[0] + ".pdf"
+    url = "file://" + os.path.abspath(html_path)
+    try:
+        subprocess.run([browser, "--headless", "--disable-gpu", "--no-pdf-header-footer",
+                        f"--print-to-pdf={pdf_out}", url],
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=120)
+    except Exception as e:  # noqa: BLE001 — any launch failure degrades to HTML-only
+        return None, f"browser render failed ({type(e).__name__})"
+    return (pdf_out, None) if os.path.exists(pdf_out) else (None, "browser produced no file")
 
 _CSS = """
 :root{--bg:#fff;--fg:#111;--mut:#666;--card:#f6f7f9;--bd:#e3e6ea;--hi:#e5484d;--me:#f5a524;--lo:#e8c020;--ok:#12b886;--ac:#3b82f6}
@@ -37,6 +75,8 @@ def build(cfg, out="report.html"):
     A = _safe(lambda: audit.report(cfg))
     G = _safe(lambda: geo.report(cfg))
     E = _safe(lambda: eeat.report(cfg))
+    CI = _safe(lambda: citability.report(cfg))
+    EN = _safe(lambda: entity.report(cfg))
     acts = _safe(lambda: plan.build(cfg)) or []
     gsc = _safe(lambda: analyze.gsc_opportunities(cfg))
 
@@ -46,6 +86,8 @@ def build(cfg, out="report.html"):
         tiles.append(_tile(A["links"].get("orphans", "—"), "orphan pages"))
     if G:
         tiles.append(_tile(f"{G['avg_score']}/100", "GEO readiness"))
+    if CI:
+        tiles.append(_tile(f"{CI['avg']}/100", "AI citability"))
     if E:
         tiles.append(_tile(f"{E['avg_signals']}/4", "E-E-A-T signals"))
     if gsc:
@@ -79,6 +121,18 @@ def build(cfg, out="report.html"):
         body.append("<p>Most-missing signals: " + "".join(
             f'<span class="pill">{_h.escape(k)} · {n}</span>' for k, n in list(G["missing"].items())[:8] if n) + "</p>")
 
+    if EN or CI:
+        body.append("<h2>AI search — entity & citability</h2>")
+        if EN:
+            wd = (f'<span class="badge ok">Wikidata {EN["wikidata"]["qid"]}</span>' if EN["wikidata"]
+                  else '<span class="badge hi">no Wikidata entity</span>')
+            body.append(f"<p>{wd} · sameAs profiles: {len(EN['sameAs_present'])} · "
+                        f"brand salience {EN['salience']}</p>")
+        if CI:
+            body.append("<p>Passage-citability <b>" + f"{CI['avg']}/100</b>. Fix site-wide: " + "".join(
+                f'<span class="pill">{_h.escape(k)} · {n}</span>'
+                for k, n in sorted(CI["missing"].items(), key=lambda kv: -kv[1])[:5] if n) + "</p>")
+
     if gsc and gsc["striking"]:
         body.append("<h2>Striking distance — one push to page 1</h2><table><tr><th>query</th><th>pos</th><th>impr</th></tr>")
         for r in gsc["striking"][:12]:
@@ -87,6 +141,10 @@ def build(cfg, out="report.html"):
 
     body.append('<p class="foot">Fixes are proposed, not applied — review and apply as PRs. '
                 'Run <code>plan</code> for the live action list.</p>')
+    from . import edition
+    if not edition.has(cfg, "white_label_reports"):  # open edition keeps a small attribution
+        body.append('<p class="foot" style="opacity:.6">Generated with the SEO Content Pipeline · '
+                    'white-label reports available on Pro+</p>')
     doc = f"<!doctype html><html><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>" \
           f"<title>SEO report — {_h.escape(site)}</title><style>{_CSS}</style></head>" \
           f"<body><div class=wrap>{''.join(body)}</div></body></html>"
