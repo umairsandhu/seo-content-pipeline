@@ -120,13 +120,16 @@ type* into a "what works best" playbook; and **`learn.cycle` runs automatically 
 `autopilot` and `run` cycle** — so the follow-up + learning happen without anyone remembering to.
 `plan` then recommends *doing more of* the change types with the best proven track record.
 
-**18. Learning compounds across every site — anonymously.** `learn.update_global` contributes
+**18. Learning compounds across every site — anonymously, and only with consent.** `learn.update_global` contributes
 this site's per-(change-type × horizon) aggregates to a cross-site store
 (`~/.seo-agent/lessons.json`, override with `global_lessons_path` / `SEO_GLOBAL_LESSONS`), keyed
 by a **hash of the domain** — only aggregate lift stats, no URLs, content, or domains in the
 clear. A brand-new client **cold-starts** from what worked on every prior site
 (`learn.ranking` falls back to the global store when local evidence is thin). One tool, many
-sites, one growing brain — privacy-safe.
+sites, one growing brain — privacy-safe. **And opt-in**: even anonymized aggregates cross
+client-workspace boundaries, so contribution is OFF until the operator consents
+(`learning.share_cross_site` — the wizard asks in plain words; `SEO_SHARE_LESSONS` overrides).
+Reading the store is always allowed — it's the operator's own machine.
 
 **19. Attribution needs the snapshot cadence.** Follow-ups only fill in as `gsc` snapshots
 accumulate across the horizons. Run `gsc` (or `gsc --csv`) on a schedule; the day/week/month

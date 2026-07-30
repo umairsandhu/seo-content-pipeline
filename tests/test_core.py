@@ -429,9 +429,21 @@ class Learn(unittest.TestCase):
         self.assertEqual(loc[90]["mean_lift"], 65.0)
         self.assertEqual(loc[28]["win_rate"], 1.0)
 
+    def test_no_global_write_without_consent(self):
+        from seo_agent import learn, ledger
+        cfg = self._scenario()          # note: NO learning.share_cross_site set
+        os.environ.pop("SEO_SHARE_LESSONS", None)
+        ledger.follow_up(cfg)
+        r = learn.update_global(cfg)
+        self.assertEqual(r["contributed"], 0)
+        self.assertEqual(r["sharing"], "off")
+        self.assertFalse(Path(cfg["global_lessons_path"]).exists())   # nothing crossed the boundary
+
     def test_cross_site_global_store(self):
         from seo_agent import learn
         cfg = self._scenario()
+        cfg["learning"] = {"share_cross_site": True}    # opted in (the wizard asks)
+        os.environ.pop("SEO_SHARE_LESSONS", None)
         learn.follow_up = getattr(learn, "follow_up", None)  # noop guard
         from seo_agent import ledger
         ledger.follow_up(cfg)
@@ -628,6 +640,27 @@ class Freshness(unittest.TestCase):
         agg = [f for f in F if f["sev"] == "low" and f["cat"] == "freshness"]
         self.assertEqual(len(agg), 1)                             # /c body-stale, aggregated
         self.assertIn("1 pages", agg[0]["msg"])
+
+
+class Demo(unittest.TestCase):
+    """W6/G5: the zero-key demo must produce a genuinely working workspace."""
+
+    def test_demo_builds_working_workspace(self):
+        from seo_agent import brain, demo, learn
+        d = tempfile.mkdtemp(); os.chdir(d)
+        r = demo.build("dw")
+        self.assertTrue(r["ok"])
+        os.chdir("dw")
+        cfg = json.loads(Path("config.json").read_text())
+        loc = learn.local_lessons(cfg)
+        self.assertEqual(loc["retitle"][28]["n"], 2)              # measured wins exist
+        self.assertGreater(loc["retitle"][28]["mean_lift"], 0)
+        self.assertLess(loc["refresh"][28]["mean_lift"], 0)       # and one honest loss
+        self.assertGreaterEqual(brain.counts(cfg).get("playbook", 0), 1)
+        self.assertFalse(Path("lessons-local.json").exists())     # sharing off → nothing written
+        os.chdir("..")
+        Path("busy").mkdir(); Path("busy/x.txt").write_text("x")
+        self.assertIn("error", demo.build("busy"))                # never clobbers a non-demo dir
 
 
 class RequirementsLoop(unittest.TestCase):

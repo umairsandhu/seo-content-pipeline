@@ -35,10 +35,12 @@ def _fixes_by_type(cfg):
 
 
 def _lift(cfg, typ, horizon=28):
+    """Positive, winning evidence only — a losing 'refresh' must never be presented as
+    proof that an unrelated practice works (negatives surface as their own Rethink row)."""
     try:
         v = (learn.local_lessons(cfg).get(typ) or {})
         v = v.get(horizon) or next(iter(v.values()), None)
-        if v:
+        if v and v["mean_lift"] > 0 and v["win_rate"] >= 0.5:
             return f"{v['mean_lift']:+g} avg clicks/page at +{horizon}d ({int(v['win_rate']*100)}% win, n={v['n']})"
     except Exception:
         pass
@@ -82,13 +84,16 @@ def report(cfg, corpus_path="corpus.json"):
         no_meta = sum(1 for c in corpus if c.get("status", 200) == 200 and not c.get("description"))
         row("Every indexable page has a meta description", no_meta, ["fix:meta", "update_meta"], "")
 
-    # 6. what measurement itself has proven (top learned change types)
+    # 6. what measurement itself has proven — wins AND losses, honestly labeled
     try:
-        for r in learn.ranking(cfg)[:3]:
-            rows.append({"practice": f"Do more '{r['type']}' changes — proven track record",
-                         "found": None, "fixed": r["n"],
-                         "proof": f"{r['mean_lift']:+g} avg lift ({int(r['win_rate']*100)}% win, {r['source']})",
-                         "tier": "measured"})
+        for r in learn.ranking(cfg):
+            ev = f"{r['mean_lift']:+g} avg lift ({int(r['win_rate']*100)}% win, {r['source']})"
+            if r["mean_lift"] > 0 and r["win_rate"] >= 0.5:
+                rows.append({"practice": f"Do more '{r['type']}' changes — proven track record",
+                             "found": None, "fixed": r["n"], "proof": ev, "tier": "measured"})
+            elif r["mean_lift"] < 0:
+                rows.append({"practice": f"Rethink '{r['type']}' changes — measurably NOT working here",
+                             "found": None, "fixed": r["n"], "proof": ev, "tier": "measured"})
     except Exception:
         pass
     # 7. brain lessons (negative knowledge is a best practice too)

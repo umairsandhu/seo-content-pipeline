@@ -96,6 +96,9 @@ def interactive(cfg, root=".", config_path="config.json"):
                 (cfg.get("cms", {}) or {}).get("type", "file")).lower()
     emails = ask("Email PDF reports to (comma-separated, optional)")
     drive = ask("Google Drive folder id for deliverables (optional)")
+    share = ask("Share anonymized change-type stats across your workspaces so every site "
+                "learns from the others? Only 'change type × lift' aggregates, domain hashed — "
+                "no URLs/content/domains [y/N]").lower().startswith("y")
     auton = ask("Autonomy [manual/approve/auto]", cfg.get("autonomy") if isinstance(cfg.get("autonomy"), str) else "manual")
     cfg["site"] = site.rstrip("/")
     cfg["sitemap"] = cfg.get("sitemap") or site.rstrip("/") + "/sitemap.xml"
@@ -107,6 +110,7 @@ def interactive(cfg, root=".", config_path="config.json"):
         cfg.setdefault("report", {})["email_to"] = [e.strip() for e in emails.split(",") if e.strip()]
     if drive:
         cfg.setdefault("drive", {})["folder_id"] = drive.strip()
+    cfg.setdefault("learning", {})["share_cross_site"] = share
     Path(config_path).write_text(json.dumps(cfg, indent=2) + "\n")
     req = cms_extra.requirements(cms_t) or {}
     if req.get("env") or req.get("config"):

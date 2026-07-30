@@ -106,6 +106,7 @@ def main():
     pst = sub.add_parser("start")  # THE hand-held entry: status → guided web dashboard
     pst.add_argument("--port", type=int, default=8787); pst.add_argument("--no-open", action="store_true")
     sub.add_parser("practices")   # best practices learned + applied here, with numbers
+    sub.add_parser("demo").add_argument("--dir", default="seo-demo")  # 5-min zero-key demo workspace
     sub.add_parser("edition")   # show edition + entitlements
     sub.add_parser("webtask").add_argument("task_json", help="a web task JSON: {name, steps:[...]}")
     pe = sub.add_parser("email"); pe.add_argument("--pdf", default="report.pdf")
@@ -347,6 +348,9 @@ def main():
     elif a.cmd == "practices":
         from . import practices
         print(practices.render_md(cfg))
+    elif a.cmd == "demo":
+        from . import demo
+        print(demo.render_md(demo.build(a.dir)))
     elif a.cmd == "edition":
         print(edition.render_md(cfg))
     elif a.cmd == "webtask":

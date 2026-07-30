@@ -3,7 +3,7 @@
 **The autonomous, closed-loop SEO operating system — runs entirely on your machine.** Point
 it at any domain and it takes you 0→100: fork-safe onboarding, a technical Site Doctor,
 rank/CTR/backlink/AI-search tracking, an expert strategy, content the agent writes, and — the
-part no dashboard does — it **ships the fix straight into your CMS (13 connectors) or as a
+part dashboards don't do — it **ships the fix straight into your CMS (13 connectors) or as a
 repo PR, measures the impact against a holdout at day/week/month, and learns**: what worked
 here, what worked across every site it has ever touched (anonymized), and how *you* like
 your work delivered. Human-gated at every step.
@@ -19,6 +19,15 @@ your work delivered. Human-gated at every step.
 optional and the whole thing **degrades gracefully** — the audit, strategy, drafts, AI-search
 and plan run with zero credentials. Drive it from the **Claude Code skill**, the **CLI**, or any
 **MCP client**.
+
+> **Status: beta.** A 3-site pilot is running now; the measured case study (real ledger
+> numbers) lands with v1. Until then, every claim you can verify yourself in 2 minutes:
+
+```bash
+pip install numpy scikit-learn
+python -m seo_agent demo        # builds a full synthetic workspace — zero keys, zero network
+cd seo-demo && python -m seo_agent start   # the guided dashboard opens in your browser
+```
 
 ## What's inside (the 60-second tour)
 
@@ -113,8 +122,9 @@ Diagnose → Decide → Produce → Ship → Deliver → Measure → Learn ↻
   **proven playbooks**, client feedback becomes **taste**, and both are auto-injected into every
   prompt. An **anonymized cross-site store** (only change-type × horizon aggregates, keyed by a
   domain hash) means lesson #1 from site A makes site B better on day one.
-- **Expert-grade** — outputs are written as named personas: a McKinsey-caliber strategist, a top
-  technical SEO, an E-E-A-T writer.
+- **Expert personas** — outputs are written by deliberately-specified expert prompts (strategist,
+  technical SEO, E-E-A-T writer, editor), sharpened further by what the brain has learned about
+  your site and your taste.
 - **AI-search native** — measures and optimizes your visibility in AI answers, not just blue links.
 
 ## The autonomous daily loop

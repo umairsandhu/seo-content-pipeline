@@ -19,10 +19,10 @@ clean cycles, full case study at 90 days.
 | G2 | Attribution shows min-n + confidence intervals + confound flags (W2) | ⬜ 🔒 |
 | G3 | Negative changes get rollback proposals automatically (W3) | ⬜ 🔒 |
 | G4 | ≥4 CMS connectors verified against live sandbox accounts + CI green (W4) | ⬜ 🔒 |
-| G5 | `demo` gives a stranger the full aha in <5 min, zero keys (W6) | ⬜ 🔒 |
-| G6 | Cross-site learning is opt-in with clear disclosure (W7) | ⬜ 🔒 |
+| G5 | `demo` gives a stranger the full aha in <5 min, zero keys (W6) | 🟨 built + auto-tested — human timed test pending 🔒 |
+| G6 | Cross-site learning is opt-in with clear disclosure (W7) | ✅ |
 | G7 | One public case study with real ledger numbers (≥30d) | ⬜ 🔒 |
-| G8 | README claims audited — no superlative we can't screenshot | ⬜ |
+| G8 | README claims audited — no superlative we can't screenshot | ✅ (re-check at launch) |
 | G9 | Hand-held first run: `start` → guided web dashboard showing steps, learned best practices, and documents to review (W9) | 🟨 built — polish during pilots 🔒 |
 | — | *Nice-to-have, not gating:* experiment engine v1 (W5) | ⬜ |
 
@@ -52,7 +52,7 @@ python -m seo_agent onboard         # baseline
 30 8 * * *  cd ~/seo-workspaces/<site> && python -m seo_agent gsc && python -m seo_agent autopilot --daily >> autopilot.log 2>&1
 0  9 * * 5  cd ~/seo-workspaces/<site> && python -m seo_agent report --pdf --email
 ```
-- [ ] P1: Webflow token in, autonomy=approve, cron live, first 5 changes shipped
+- [ ] P1: Webflow token in, ~~autonomy=approve~~ ✅, cron live, first 5 changes shipped · workspace + `~/.seo-agent` now under **local-only git backup** (2026-07-30); cross-site sharing consented
 - [ ] P2: chosen + onboarded + cron live
 - [ ] P3: chosen (different CMS) + onboarded + cron live
 - [ ] All: GSC snapshot cadence confirmed (attribution needs it — LEARNINGS #19)
@@ -96,24 +96,24 @@ python -m seo_agent onboard         # baseline
 - [ ] `experiment start|status|conclude`; winner → playbook (with real stats), loser → W3 rollback
 - [ ] Surfaces in `serve` + digest
 
-## W6 · 5-minute demo mode (Gate G5)
+## W6 · 5-minute demo mode (Gate G5) — ✅ built 2026-07-30
 
 *Why: strangers quit at the first missing API key.*
 
-- [ ] `python -m seo_agent demo`: scaffolds a demo workspace from bundled synthetic data (corpus + 3 months GSC history + a ledger with measured changes) — zero keys, zero network
-- [ ] Instantly meaningful: `audit`, `plan`, `learn`, `brain`, `serve` all show real-looking output
-- [ ] README quickstart becomes: `pip install … && python -m seo_agent demo` → "now point it at your real site"
-- [ ] Timed test with someone who's never seen it: <5 min to the aha
+- [x] `python -m seo_agent demo`: generates a synthetic workspace in code (17-page corpus with realistic flaws, 3 months GSC history, 4 measured changes — 2 wins, 1 modest, 1 honest loss, seeded brain) — zero keys, zero network; never clobbers a non-demo dir; its lesson store stays inside the folder
+- [x] Instantly meaningful: `plan`, `learn` (+36 retitle, −18 refresh), `practices` (found→fixed→measured), `brain` (playbook + taste), dashboard all light up — verified live + regression-tested
+- [x] README quickstart is now demo-first ("every claim you can verify yourself in 2 minutes")
+- [ ] Timed test with someone who's never seen it: <5 min to the aha (the human half of G5)
 
-## W7 · Cross-site learning → opt-in (Gate G6)
+## W7 · Cross-site learning → opt-in (Gate G6) — ✅ done 2026-07-30
 
 *Why: aggregating across clients without asking is the first angry issue.*
 
-- [ ] `learning.share_cross_site` config (default: unset = OFF until asked)
-- [ ] Wizard + onboard ask explicitly: "Share anonymized change-type stats across your workspaces? (only type × horizon aggregates, domain hashed) [y/N]"
-- [ ] `learn.update_global` no-ops unless opted in; `learn` output shows share status
-- [ ] Journey Stage D shows the setting; README + docs disclosure section
-- [ ] Test: no global write without consent
+- [x] `learning.share_cross_site` config — OFF until consented (`SEO_SHARE_LESSONS` env override); reading the store always allowed (operator's own machine)
+- [x] Wizard asks in plain words ("only 'change type × lift' aggregates, domain hashed — no URLs/content/domains [y/N]")
+- [x] `learn.update_global` no-ops without consent; `learn` output + journey Stage D show share status
+- [x] Disclosure in LEARNINGS #18
+- [x] Test: no global write without consent (file never created)
 
 ## W9 · Hand-held first run + guided dashboard (Gate G9)
 
@@ -134,7 +134,7 @@ are proven.*
 ## W8 · Launch execution (Gate G7, G8)
 
 - [ ] Case study from the 3 pilots (real ledger screenshots, honest wins AND flat results)
-- [ ] README claims audit — cut superlatives, show receipts (G8)
+- [x] README claims audit — cut superlatives ("McKinsey-caliber" → specified expert personas), beta status line + verify-it-yourself demo block (G8; re-check at launch)
 - [ ] Show HN draft: "local-first SEO agent that measures its own changes against a holdout" — lead with the ledger
 - [ ] MCP registries (Smithery, PulseMCP, mcp.so) + awesome-claude-code lists
 - [ ] r/ClaudeAI post · Indie Hackers build-log · 10 direct boutique-agency conversations

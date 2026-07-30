@@ -51,10 +51,26 @@ def local_lessons(cfg):
                 for h, v in hs.items()} for t, hs in agg.items()}
 
 
-# ── cross-site global store (anonymized, aggregate-only) ────────────────────
+# ── cross-site global store (anonymized, aggregate-only, OPT-IN) ────────────
+def sharing(cfg):
+    """Cross-site contribution is consent-gated (asked at wizard/onboarding). Only
+    change-type × horizon aggregates keyed by a domain hash are ever stored — but it
+    still crosses workspace (client) boundaries, so it is OFF until someone says yes.
+    config: learning.share_cross_site · env override: SEO_SHARE_LESSONS=1/0."""
+    env = os.environ.get("SEO_SHARE_LESSONS")
+    if env is not None:
+        return env.lower() not in ("0", "false", "no", "off")
+    return bool((cfg.get("learning") or {}).get("share_cross_site"))
+
+
 def update_global(cfg):
     """Contribute this site's aggregate lessons to the global store (idempotent: replaces
-    this site's prior contribution, keyed by domain hash). Runs automatically each cycle."""
+    this site's prior contribution, keyed by domain hash). Runs automatically each cycle —
+    but ONLY with consent (see `sharing`). Reading the store is always allowed: it's the
+    operator's own machine-wide memory."""
+    if not sharing(cfg):
+        return {"contributed": 0, "sharing": "off",
+                "how": "opt in with learning.share_cross_site=true in config.json (the wizard asks)"}
     raw = {}
     for r in ledger.followups(cfg):
         d = raw.setdefault(r["type"], {}).setdefault(str(r["horizon"]), {"n": 0, "sum": 0.0, "wins": 0})
@@ -149,8 +165,10 @@ def render_md(cfg):
         for t, hs in sorted(glob.items(), key=lambda kv: -(kv[1].get(28, {}).get("mean_lift", 0)))[:8]:
             v = hs.get(28) or next(iter(hs.values()))
             L.append(f"| {t} | {v['mean_lift']:+g} | {int(v['win_rate']*100)}% | {v['n']} |")
-    L.append("\n_Runs automatically every autopilot/run cycle. Global store: only change-type × "
-             "horizon aggregates keyed by a domain hash — no URLs, content, or domains stored._")
+    share = "ON" if sharing(cfg) else "OFF (opt in: learning.share_cross_site=true — the wizard asks)"
+    L.append(f"\n_Runs automatically every autopilot/run cycle. Cross-site sharing: **{share}**. "
+             "Global store: only change-type × horizon aggregates keyed by a domain hash — "
+             "no URLs, content, or domains stored._")
     return "\n".join(L)
 
 

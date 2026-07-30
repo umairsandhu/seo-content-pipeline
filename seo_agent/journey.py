@@ -136,10 +136,12 @@ def readiness(cfg, root="."):
                    "(share the folder with your GSC service account) — then `deliver report.pdf`",
                    "deliver + the client-feedback → taste loop"))
     from . import brain as brainmod
+    from . import learn as learnmod
     counts = brainmod.counts(cfg)
+    share = "cross-site sharing ON" if learnmod.sharing(cfg) else "cross-site sharing OFF (opt-in)"
     D.append(_item("brain", "Learning loop (memory · playbooks · taste)", "ok", False,
                    f"always on — {counts['total']} memories "
-                   f"({counts.get('preference', 0)} taste, {counts.get('playbook', 0)} playbooks)",
+                   f"({counts.get('preference', 0)} taste, {counts.get('playbook', 0)} playbooks) · {share}",
                    "", ""))
     stages.append({"stage": "D · Publish, delivery & learning", "items": D})
 
