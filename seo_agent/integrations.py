@@ -181,7 +181,9 @@ def env_example():
             seen += [f"{e}=" for e in it["env"]]
         if seen:
             L += [f"# ── {label} ──"] + seen + [""]
-    L += ["# GSC uses a service-account JSON file (set `gsc_credentials` in config.json), not env.",
+    L += ["# GSC uses a service-account JSON key file, not env: save it in the workspace as",
+          "# gsc-credentials.json (auto-detected, git-ignored) and set gsc_property in config.json.",
+          "# No service account? `gsc --csv <export.zip>` imports a Search Console export instead.",
           "# Content drafting needs NO key when an agent drives the skill (agent writes it).",
           "# Server logs: set `logs.path` in config.json (a file path, not a secret).",
           "# Optional switches (not secrets): SEO_EMBEDDINGS=1 · SEO_CONFIG=config.json"]

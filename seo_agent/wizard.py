@@ -29,8 +29,9 @@ def _steps(cfg, root):
          "do": "`safety` — it hardens .gitignore and writes .env.example. Never commit .env."},
         {"n": 4, "title": "Connect search performance", "done": by.get("gsc", {}).get("status") == "ok",
          "why": "GSC is your real demand data — it powers striking-distance, decay, and CTR curves.",
-         "do": "Share a GSC service account (gsc_property + gsc_credentials) OR import an export: "
-               "`gsc --csv <export.zip>` (a Google Sheet works too)."},
+         "do": by.get("gsc", {}).get("how_to") or "Easiest: `gsc --csv <export.zip>` (a Search Console "
+               "export or Google Sheet). API: save the service-account JSON here as "
+               "gsc-credentials.json (auto-detected) + set gsc_property in config.json."},
         {"n": 5, "title": "Connect market data", "done": by.get("dataforseo", {}).get("status") == "ok",
          "why": "Volumes, difficulty, SERPs, backlinks and gaps — how you find and size opportunities.",
          "do": "Put DATAFORSEO_LOGIN + DATAFORSEO_PASSWORD in .env (or a Semrush/Ahrefs alt)."},

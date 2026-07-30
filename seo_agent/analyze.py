@@ -130,6 +130,7 @@ def render_md(cfg, rep):
         for r in gsc["low_ctr"][:20]:
             L.append(f"| {r['page']} | {r['impressions']} | {r['ctr']*100:.1f}% |")
     else:
-        L += ["", "## 3–4. GSC opportunities", "_(set gsc_property + gsc_credentials to unlock "
+        L += ["", "## 3–4. GSC opportunities", "_(connect Search Console to unlock — easiest: "
+              "`gsc --csv <export.zip>`; or drop gsc-credentials.json in this folder + set gsc_property — "
               "striking-distance + low-CTR analysis)_"]
     return "\n".join(L)

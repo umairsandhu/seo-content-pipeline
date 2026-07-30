@@ -29,11 +29,9 @@ def init(root=".", site=None):
     cfgp = root / "config.json"
     created_cfg = False
     if not cfgp.exists():
-        s = (site or "https://www.example.com").rstrip("/")
-        cfg = {"site": s, "sitemap": s + "/sitemap.xml", "include": [], "competitors": [],
-               "dataforseo": {"location_name": "United States", "language_name": "English"},
-               "cms": {"type": "file", "dir": "content"}, "brand": {"name": "Site"}}
-        cfgp.write_text(json.dumps(cfg, indent=2) + "\n")
+        from . import config as cfgmod
+        # every settable key gets a visible slot + a "_hints" how-to — like .env.example
+        cfgp.write_text(json.dumps(cfgmod.scaffold(site), indent=2) + "\n")
         created_cfg = True
     saf = safety.check(root=str(root), apply=True)  # .env.example + hardened .gitignore
     envp, exp = root / ".env", root / ".env.example"

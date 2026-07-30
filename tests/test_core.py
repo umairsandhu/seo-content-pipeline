@@ -642,6 +642,42 @@ class Freshness(unittest.TestCase):
         self.assertIn("1 pages", agg[0]["msg"])
 
 
+class ConfigScaffold(unittest.TestCase):
+    """Hand-holding: every setting has a visible slot (like .env.example), the
+    credentials file is auto-detected, and the hint names the exact email to share."""
+
+    def test_init_scaffolds_every_slot(self):
+        from seo_agent import config as cfgmod
+        c = cfgmod.scaffold("https://acme.com")
+        for k in ("gsc_property", "gsc_credentials", "autonomy", "cms", "report",
+                  "drive", "learning", "review"):
+            self.assertIn(k, c)
+        self.assertIn("gsc_credentials", c["_hints"])
+
+    def test_config_fix_adds_missing_slots_keeps_values(self):
+        from seo_agent import config as cfgmod
+        d = tempfile.mkdtemp(); os.chdir(d)
+        Path("config.json").write_text(json.dumps({"site": "https://x.com", "include": ["/blog/"]}))
+        added = cfgmod.ensure_keys("config.json")
+        self.assertIn("gsc_credentials", added)
+        cur = json.loads(Path("config.json").read_text())
+        self.assertEqual(cur["include"], ["/blog/"])          # values preserved
+        self.assertEqual(cur["gsc_credentials"], "")          # slot now visible
+
+    def test_credentials_file_auto_detected_and_email_surfaced(self):
+        from seo_agent import config as cfgmod, journey
+        d = tempfile.mkdtemp(); os.chdir(d)
+        Path("gsc-credentials.json").write_text(json.dumps(
+            {"type": "service_account", "client_email": "bot@proj.iam.gserviceaccount.com"}))
+        Path("config.json").write_text(json.dumps({"site": "https://x.com"}))
+        cfg = cfgmod.load("config.json")
+        self.assertEqual(cfg["gsc_credentials"], "gsc-credentials.json")   # zero-config pickup
+        r = journey.readiness(cfg, root=d)
+        gsc = next(i for s in r["stages"] for i in s["items"] if i["key"] == "gsc")
+        self.assertIn("bot@proj.iam.gserviceaccount.com", gsc["how_to"])   # tells you WHO to invite
+        self.assertIn("key file found", gsc["detail"])
+
+
 class Demo(unittest.TestCase):
     """W6/G5: the zero-key demo must produce a genuinely working workspace."""
 

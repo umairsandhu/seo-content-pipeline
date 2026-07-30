@@ -74,8 +74,9 @@ def _drive(cfg, files):
     tok = _drive_token(cfg)
     if not tok:
         return {"ok": False, "transport": "drive-api",
-                "error": "no Google credentials — set drive.credentials (or reuse gsc_credentials) "
-                         "and share the folder with the service-account email"}
+                "error": "no Google credentials — save a service-account JSON as gsc-credentials.json "
+                         "(auto-detected; drive.credentials overrides) and share the Drive folder with "
+                         "the service account's client_email"}
     out = {"ok": True, "transport": "drive-api", "uploaded": [], "link": None}
     for f in files:
         try:

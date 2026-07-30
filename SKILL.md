@@ -128,6 +128,7 @@ python -m seo_agent run --daily|--monthly [--email]  # scheduled digest at 3 cad
 
 # Autonomous loop + local dashboard
 python -m seo_agent demo                       # 5-min zero-key demo: full synthetic workspace (corpus + history + measured changes)
+python -m seo_agent config [--fix]             # every setting slot + hint, ✅/⬜ filled status; --fix adds missing slots (values kept)
 python -m seo_agent start                      # THE hand-held entry: status + guided web dashboard (auto-opens the browser)
 python -m seo_agent autopilot --daily          # 4-agent cycle: Audit→Plan(dated)→Execute(gated)→Report → state/
 python -m seo_agent serve [--port 8787] [--no-open]  # dashboard: getting-started guide, situation/plan/execution, best practices (learned+applied here), documents to review, inline approvals

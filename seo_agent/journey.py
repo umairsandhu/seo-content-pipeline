@@ -80,15 +80,37 @@ def readiness(cfg, root="."):
     # ── Stage C · Data & access (the crux) ───────────────────────────────────
     C = []
     mtx = {it["key"]: it for it in integrations.matrix(cfg)}
-    # GSC — satisfied by API creds OR an imported CSV/Sheet snapshot in history
+    # GSC — satisfied by API creds OR an imported CSV/Sheet snapshot in history.
+    # The how-to is STATEFUL: it looks at what you already did and names the ONE next move.
     gsc = mtx.get("gsc", {})
     gsc_csv = _has_gsc_history(cfg)
-    gsc_ok = gsc.get("active") or gsc_csv
+    cred = cfg.get("gsc_credentials") or ""
+    cred_ok = bool(cred) and Path(cred).exists()
+    api_ok = bool(gsc.get("active")) and cred_ok
+    gsc_ok = api_ok or gsc_csv
+    if api_ok:
+        detail, how = "API connected", ""
+    elif gsc_csv:
+        detail, how = "CSV imported ✓ (re-import fresh exports on a cadence — attribution needs snapshots)", ""
+    elif cred_ok and not cfg.get("gsc_property"):
+        from . import config as _cfgmod
+        email = _cfgmod.service_account_email(cred)
+        detail = f"key file found ({cred}) — 2 steps left"
+        how = (f'1) in config.json set "gsc_property" EXACTLY as in Search Console '
+               f'("sc-domain:example.com" or "https://www.example.com/")  '
+               f'2) share the property with {email or "the service-account email (client_email in the JSON)"} '
+               f"→ GSC → Settings → Users and permissions → Add user (Full)")
+    elif cred and not cred_ok:
+        detail = f'config points at "{cred}" but that file is not here'
+        how = f"save your service-account JSON key at {cred} (it is git-ignored) — or fix the path"
+    else:
+        detail = "not connected"
+        how = ("EASIEST: no Google Cloud needed — export from Search Console and run "
+               "`gsc --csv <export.zip>`. OR use the API: create a service account "
+               "(console.cloud.google.com → IAM → Service Accounts → Keys → JSON), save the file "
+               "HERE as gsc-credentials.json (auto-detected, git-ignored), then see the next hint.")
     C.append(_item("gsc", "Search performance (GSC)", "ok" if gsc_ok else "todo", True,
-                   "API connected" if gsc.get("active") else ("CSV imported" if gsc_csv else "not connected"),
-                   "share a GSC service account (gsc_property + gsc_credentials) OR import an export: "
-                   "`gsc --csv <export.zip|dir|Queries.csv>`",
-                   "striking-distance, low-CTR, decay, algo attribution"))
+                   detail, how, "striking-distance, low-CTR, decay, algo attribution"))
     for key in ("dataforseo", "pagespeed", "logs", "render"):
         it = mtx.get(key)
         if not it:

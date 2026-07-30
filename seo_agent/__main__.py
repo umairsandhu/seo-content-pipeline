@@ -107,6 +107,8 @@ def main():
     pst.add_argument("--port", type=int, default=8787); pst.add_argument("--no-open", action="store_true")
     sub.add_parser("practices")   # best practices learned + applied here, with numbers
     sub.add_parser("demo").add_argument("--dir", default="seo-demo")  # 5-min zero-key demo workspace
+    pcf = sub.add_parser("config")  # show every setting slot + what's filled; --fix adds missing slots
+    pcf.add_argument("--fix", action="store_true", help="add any missing slots to config.json (values kept)")
     sub.add_parser("edition")   # show edition + entitlements
     sub.add_parser("webtask").add_argument("task_json", help="a web task JSON: {name, steps:[...]}")
     pe = sub.add_parser("email"); pe.add_argument("--pdf", default="report.pdf")
@@ -148,8 +150,13 @@ def main():
         else:
             raw = analyze.gsc_raw(cfg)
             if not raw:
-                print("GSC not configured — set gsc_property + gsc_credentials, "
-                      "or import an export with `gsc --csv <path>`."); return
+                print("GSC not connected. Two ways (pick one):\n"
+                      "  1) EASIEST — export from Search Console (Performance → Export) and run:\n"
+                      "     python -m seo_agent gsc --csv <export.zip>\n"
+                      "  2) API — save your service-account JSON here as gsc-credentials.json\n"
+                      "     (auto-detected, git-ignored), set gsc_property in config.json, and share\n"
+                      "     the GSC property with the service account's email.\n"
+                      "  `preflight` shows exactly which step you're on."); return
             history.snapshot(cfg, "gsc_queries", raw["queries"])
             history.snapshot(cfg, "gsc_pages", raw["pages"])
         dump(analyze.opportunities_from(raw))
@@ -179,10 +186,11 @@ def main():
         if r.get("error"):
             print(r["error"]); return
         print(f"✓ workspace ready for {r['site']}  ·  fork-safe: {r['fork_safe']}")
-        print(f"  config.json ({'created' if r['created_config'] else 'exists'}), "
-              f".env ({'created' if r['created_env'] else 'exists'}), .gitignore hardened")
-        print("Next: edit config.json (site · competitors), add any keys to .env, then "
-              "`python -m seo_agent onboard`. See PLAYBOOK.md for the 0→100 path.")
+        print(f"  config.json ({'created' if r['created_config'] else 'exists'} — every setting has "
+              f"a slot + hint), .env ({'created' if r['created_env'] else 'exists'}), .gitignore hardened")
+        print("Next: `python -m seo_agent start` — the dashboard opens and walks you through "
+              "every remaining step.\n(Prefer text? `wizard` · `config` shows every slot · "
+              "`preflight` is the readiness gate.)")
     elif a.cmd == "preflight":
         print(journey.render_md(journey.readiness(cfg)))
     elif a.cmd == "onboard":
@@ -351,6 +359,28 @@ def main():
     elif a.cmd == "demo":
         from . import demo
         print(demo.render_md(demo.build(a.dir)))
+    elif a.cmd == "config":
+        if a.fix:
+            added = cfgmod.ensure_keys(a.config)
+            print(("added slots: " + ", ".join(added)) if added else "all slots already present",
+                  "→ " + a.config)
+        raw = json.load(open(a.config)) if Path(a.config).exists() else {}
+
+        def _filled(v):  # a slot counts as filled when SOMETHING non-placeholder is in it
+            if isinstance(v, dict):
+                return any(_filled(x) for x in v.values())
+            if isinstance(v, (list, tuple)):
+                return len(v) > 0
+            return bool(v) and "example.com" not in str(v)
+
+        print(f"# config — {a.config}\n")
+        for k, hint in cfgmod.HINTS.items():
+            if k.startswith("_"):
+                continue
+            v = raw.get(k)
+            slot = "" if k in raw else "  (no slot yet — run `config --fix`)"
+            print(f"{'✅' if _filled(v) else '⬜'} {k}: {json.dumps(v) if k in raw else '—'}{slot}\n     ↳ {hint}")
+        print("\nSecrets live in .env (never here). `wizard` fills the essentials interactively.")
     elif a.cmd == "edition":
         print(edition.render_md(cfg))
     elif a.cmd == "webtask":
