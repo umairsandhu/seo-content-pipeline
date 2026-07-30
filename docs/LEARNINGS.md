@@ -149,6 +149,16 @@ delivery and becomes a preference. Two or three cycles in, drafts/reports read l
 client wrote the spec themselves. Ask for feedback explicitly in the delivery note — silence
 teaches nothing.
 
+**23. A per-page instrument is not a sitewide check — sweep everything the audit should own.**
+`refresh <url>` detected stale year references from day one, but the sitewide `audit` never
+ran that scan across the corpus — so **44 "… in 2025" titles sailed through a 400-page audit**
+(caught by the operator, 2026-07-30). The report can only recommend what a module measures
+sitewide. Encoded: `audit.freshness()` now sweeps every page (past-year title/H1 with no
+current year → per-page `retitle` finding; body-only staleness ≥2y → aggregated refresh
+finding) and feeds `plan`/`autopilot` automatically. General rule: whenever a per-URL command
+grows a diagnostic, ask "should the audit sweep this?" — and when a human catches a miss,
+encode the check the same day.
+
 **22. One CMS registry, every surface.** `cms_extra.REQUIREMENTS` is the single source of
 truth for every CMS's env vars + config keys; integrations, `.env.example`, `preflight`
 Stage D, and the wizard all generate from it. When a client's CMS has no public write API

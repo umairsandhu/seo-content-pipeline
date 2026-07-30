@@ -33,8 +33,10 @@ def diagnose(cfg, url, corpus_path="corpus.json"):
     years = [int(y) for y in re.findall(r"\b(20\d\d)\b", text)]
     if years and max(years) < year - 1:
         signals.append(f"newest year referenced is {max(years)} (now {year}) — update dates/stats")
-    if re.search(rf"\b({year-3}|{year-4}|{year-5})\b", (page.get('title') or '') + " " + " ".join(page.get('headings', []))):
-        signals.append("an old year is in the title/heading — bump it")
+    tyrs = [int(y) for y in re.findall(r"\b(20\d\d)\b",
+            (page.get('title') or '') + " " + " ".join(page.get('headings', [])))]
+    if tyrs and max(tyrs) < year:  # ANY past year with no current one — "in 2025" is stale in 2026
+        signals.append(f"title/heading says {max(tyrs)} — bump to {year}")
     # thin vs typical
     words = page.get("words") or len(text.split())
     if words < 700:

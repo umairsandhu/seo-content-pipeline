@@ -570,6 +570,28 @@ class Deliver(unittest.TestCase):
         self.assertIn("too long", m.group(1))
 
 
+class Freshness(unittest.TestCase):
+    """LEARNINGS #23: stale year mentions must surface in the SITEWIDE audit, not
+    only in the per-page refresh packet."""
+
+    def test_stale_title_year_flagged(self):
+        from seo_agent import audit
+        corpus = [
+            {"url": "https://d.com/a", "status": 200, "title": "10 Best Dialers in 2024", "h1": [], "text": "x"},
+            {"url": "https://d.com/b", "status": 200, "title": "Dialers in 2026 (vs 2024)", "h1": [], "text": "x"},
+            {"url": "https://d.com/c", "status": 200, "title": "Evergreen guide", "h1": [],
+             "text": "back in 2023 the market shifted"},
+        ]
+        F = []
+        audit.freshness(corpus, F, year=2026)
+        stale_titles = [f for f in F if f["sev"] == "med" and f["cat"] == "freshness"]
+        self.assertEqual(len(stale_titles), 1)                    # /a only
+        self.assertIn("/a", stale_titles[0]["url"])               # /b has a current year → fine
+        agg = [f for f in F if f["sev"] == "low" and f["cat"] == "freshness"]
+        self.assertEqual(len(agg), 1)                             # /c body-stale, aggregated
+        self.assertIn("1 pages", agg[0]["msg"])
+
+
 class RequirementsLoop(unittest.TestCase):
     """The loop that keeps checking we're 'there': standing rules must stay wired."""
 

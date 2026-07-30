@@ -88,6 +88,7 @@ _TASK = {
     "refresh": lambda t: f"refresh {t}", "retitle": lambda t: f"retitle {t}",
     "consolidate": lambda t: f"consolidate → control redirect into {t}",
     "fix:meta": lambda t: f"pr/control update_meta on {t}", "fix:links": lambda t: f"autolink → {t}",
+    "fix:freshness": lambda t: f"retitle {t} (bump the stale year, refresh dated stats)",
     "sculpt": lambda t: f"add internal links to {t} (pagerank)", "push": lambda t: f'brief "{t}" → optimize',
     "entity": lambda t: "entity → add Wikidata + sameAs", "citability": lambda t: f"rewrite {t} answer-first",
 }

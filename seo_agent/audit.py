@@ -182,6 +182,36 @@ def metadata(corpus, F, t):
             F.append({"cat": "meta", "sev": "low", "url": us[0], "msg": f"duplicate meta description on {len(us)} pages"})
 
 
+def freshness(corpus, F, year=None):
+    """Stale year references — sitewide. A "… in 2024" title in 2026 depresses CTR and
+    freshness signals even when the metadata says the page was updated yesterday.
+    Rule: a title/H1 with a past year AND no current-or-newer year → per-page finding
+    (retitle-able); pages whose newest year anywhere in the body is ≥2 years old
+    aggregate into one refresh finding. (This was a real blind spot: `refresh <url>`
+    checked it per-page, but no sitewide sweep ever ran — 44 stale titles slipped
+    through a 400-page audit. Encoded per LEARNINGS #23.)"""
+    import datetime
+    year = year or datetime.date.today().year
+    pat = re.compile(r"\b(20[123]\d)\b")
+    stale_body = []
+    for c in corpus:
+        if not _indexable(c):
+            continue
+        head = (c.get("title") or "") + " " + " ".join(c.get("h1") or [])
+        yrs = [int(y) for y in pat.findall(head)]
+        if yrs and max(yrs) < year:
+            F.append({"cat": "freshness", "sev": "med", "url": c["url"],
+                      "msg": f"title/H1 says {max(yrs)} — it's {year}; retitle (stale years depress CTR + freshness)"})
+            continue
+        byrs = [int(y) for y in pat.findall(c.get("text", "") or "")]
+        if byrs and max(byrs) < year - 1:
+            stale_body.append(c["url"])
+    if stale_body:
+        F.append({"cat": "freshness", "sev": "low", "url": stale_body[0],
+                  "msg": f"{len(stale_body)} pages whose newest year reference is ≤{year-2} — "
+                         f"update stats/dates (`refresh <url>` per page)"})
+
+
 def headings(corpus, F):
     seen = {}
     for c in corpus:
@@ -346,6 +376,7 @@ def report(cfg, corpus_path="corpus.json"):
     llms_txt(cfg, F)
     js_render(corpus, F)
     metadata(corpus, F, t)
+    freshness(corpus, F)
     headings(corpus, F)
     canonicals(corpus, F)
     content_depth(corpus, F, t)
