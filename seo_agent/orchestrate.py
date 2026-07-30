@@ -26,6 +26,12 @@ def run(cfg, keywords=None, monthly=False, daily=False, email=False, out="digest
         history.snapshot(cfg, "gsc_pages", raw["pages"])
         rep["gsc"] = analyze.opportunities_from(raw)
     rep["decay"] = decay.detect(cfg)
+    # STANDING RULE — measure change follow-ups (day/week/month) + cross-site learning, every run,
+    # and the brain's observe→distill→reuse→refine pass (client feedback → taste → playbooks).
+    from . import brain, learn
+    _safe(lambda: learn.cycle(cfg))
+    rep["brain"] = (_safe(lambda: brain.cycle(cfg)) or {}).get("memory")
+    rep["learned_best"] = _safe(lambda: learn.ranking(cfg)) or []
 
     if daily:  # a light daily pulse — movement + fresh issues, skip the heavy passes
         rep["movement"] = _safe(lambda: rank.movement(cfg))
@@ -199,6 +205,14 @@ def render_digest(cfg, rep):
                      "— set `aivis.auto=true` to refresh each run")
         if en or ci or af:
             L.append("")
+
+    lb = rep.get("learned_best")
+    if lb:
+        L += ["## 📚 What's working best (learned — day/week/month follow-ups)"]
+        for r in lb[:4]:
+            L.append(f"- **{r['type']}** — {r['mean_lift']:+g} avg lift/page "
+                     f"({int(r['win_rate']*100)}% win, {r['source']})")
+        L.append("")
 
     if len(L) <= 3:
         L.append("_No signals yet — run `ingest` + `gsc` at least twice to build history._")

@@ -158,6 +158,18 @@ def build(cfg):
     except Exception:
         pass
 
+    # 11. Learned playbook — do MORE of the change types that have actually worked, ranked by
+    # day/week/month follow-ups. Uses cross-site evidence to cold-start a brand-new site.
+    try:
+        from . import learn
+        for r in learn.ranking(cfg)[:2]:
+            if r["mean_lift"] > 0:
+                add(_a(66 if r["source"] == "this-site" else 58, "S", "do-more", r["type"],
+                       f"proven {r['mean_lift']:+g} avg lift/page ({int(r['win_rate']*100)}% win, {r['source']}) — "
+                       "repeat this change type on similar pages", "learn"))
+    except Exception:
+        pass
+
     actions.sort(key=lambda x: -x["score"])
     return actions
 

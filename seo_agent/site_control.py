@@ -57,8 +57,13 @@ def _execute(cfg, change):
     cms = (cfg.get("cms", {}) or {}).get("type", "file")
     if cms == "wordpress" and op in ("update_meta", "update_content", "delete", "create"):
         return _wp(cfg, change)
+    if cms == "webflow" and op in ("update_meta", "update_content", "delete"):
+        return _webflow_update(cfg, change)
     if cms == "file" or op == "redirect":
         return _file(cfg, change)
+    from . import cms_extra
+    if cms in cms_extra.extended() and op in ("create", "update_meta", "update_content", "delete"):
+        return cms_extra.execute(cfg, change)  # shopify/contentful/strapi/sanity/hubspot/drupal/joomla/wix/notion
     # webflow / ghost create delegate to publish; other ops fall back to a change file
     if op == "create":
         return publish.publish(cfg, change.get("post", {}), skip_gate=change.get("skip_gate", False))
@@ -87,6 +92,53 @@ def _wp(cfg, change):
         fields["content"] = change["content"]
     r = _http(f"{base}/wp-json/wp/v2/{ptype}/{pid}", "POST", auth, fields)
     return {"ok": True, "id": r.get("id"), "url": r.get("link")}
+
+
+def _webflow_update(cfg, change):
+    """Update meta/body or delete an existing Webflow CMS item (Data API v2). Resolves the
+    item by `id`, else by the slug in `url` (paged lookup). Needs WEBFLOW_TOKEN + cms.collection_id
+    + cms.field_map. (Field slugs are site-specific — smoke-tested offline, verify on first live run.)"""
+    token = os.environ.get("WEBFLOW_TOKEN")
+    cms = cfg.get("cms", {})
+    coll = cms.get("collection_id")
+    if not (token and coll):
+        return {"ok": False, "error": "set WEBFLOW_TOKEN + cms.collection_id (and cms.field_map)"}
+    hdr = {"Authorization": f"Bearer {token}", "accept-version": "2.0.0"}
+    item_id = change.get("id") or _webflow_resolve(coll, hdr, change.get("url", ""))
+    if not item_id:
+        return {"ok": False, "error": "could not resolve the Webflow item (pass id, or a url whose slug matches)"}
+    base = f"https://api.webflow.com/v2/collections/{coll}/items/{item_id}"
+    if change["op"] == "delete":
+        _http(base, "DELETE", hdr)
+        return {"ok": True, "deleted": item_id}
+    f = cms.get("field_map", {})
+    fd = {}
+    if change.get("title"):
+        fd[f.get("name", "name")] = change["title"]
+    if change.get("description"):
+        fd[f.get("summary", "post-summary")] = change["description"]
+    if change.get("content"):
+        fd[f.get("body", "post-body")] = change["content"]
+    r = _http(base, "PATCH", hdr, {"fieldData": fd})
+    return {"ok": True, "id": r.get("id"), "connector": "webflow"}
+
+
+def _webflow_resolve(coll, hdr, url):
+    """Find a CMS item's id by matching the slug in `url` (pages through the collection)."""
+    slug = (url or "").rstrip("/").rsplit("/", 1)[-1]
+    if not slug:
+        return None
+    offset = 0
+    for _ in range(30):  # up to 3000 items
+        page = _http(f"https://api.webflow.com/v2/collections/{coll}/items?limit=100&offset={offset}", "GET", hdr)
+        items = page.get("items", []) if isinstance(page, dict) else []
+        for it in items:
+            if (it.get("fieldData", {}) or {}).get("slug") == slug:
+                return it.get("id")
+        if len(items) < 100:
+            break
+        offset += 100
+    return None
 
 
 def _file(cfg, change):

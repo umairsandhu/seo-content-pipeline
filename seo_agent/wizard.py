@@ -38,17 +38,41 @@ def _steps(cfg, root):
             by.get("competitors", {}).get("status") == "ok" and by.get("include", {}).get("status") == "ok",
          "why": "Focuses gap/backlink analysis and keeps the crawl on the pages that matter.",
          "do": "Set `competitors` (2–3 domains) and `include` (e.g. [\"/blog/\"]) in config.json."},
-        {"n": 7, "title": "Pick an autonomy mode", "done": bool(cfg.get("autonomy")),
+        {"n": 7, "title": "Connect your CMS (publish + update/delete)",
+         "done": by.get("cms", {}).get("status") == "ok",
+         "why": "Lets approved changes ship straight into WordPress / Webflow / Ghost / Shopify / "
+                "Contentful / Strapi / Sanity / HubSpot / Drupal / Joomla / Wix / Notion. "
+                "No CMS API? The file/git-PR flow always works.",
+         "do": _cms_do(cfg)},
+        {"n": 8, "title": "Pick an autonomy mode", "done": bool(cfg.get("autonomy")),
          "why": "Decide how much the tool may do on its own: plan-only, approve-then-do, or auto.",
          "do": "Set `autonomy` to `manual`, `approve`, or `auto` in config.json (default manual)."},
-        {"n": 8, "title": "Set report delivery (optional)", "done": bool((cfg.get("report", {}) or {}).get("email_to")),
-         "why": "Auto-email PDF reports to stakeholders on a daily/weekly/monthly cadence.",
-         "do": "Set `report.email_to` + a transport (SMTP_* or RESEND_API_KEY) to enable `report --email`."},
-        {"n": 9, "title": "Run the baseline", "done": Path(root, "BASELINE.md").exists(),
+        {"n": 9, "title": "Set delivery + the feedback loop (optional)",
+         "done": by.get("delivery", {}).get("status") == "ok",
+         "why": "Reports/drafts reach the client by email or their Google Drive folder; their replies "
+                "feed the taste/learning loop (`feedback`), so output matches how they like to work.",
+         "do": "Set `report.email_to` + a transport (SMTP_* or RESEND_API_KEY), and/or `drive.folder_id` "
+               "(share the folder with your service account). Then `deliver report.pdf`."},
+        {"n": 10, "title": "Run the baseline", "done": Path(root, "BASELINE.md").exists(),
          "why": "Your snapshot + first prioritized plan — everything is measured against it.",
          "do": "`onboard` (clears the readiness gate first), then `plan` for the ranked next actions."},
     ]
     return steps, r
+
+
+def _cms_do(cfg):
+    from . import cms_extra
+    t = ((cfg.get("cms") or {}).get("type") or "file").lower()
+    req = cms_extra.requirements(t) or {}
+    if t == "file":
+        return ("Set `cms.type` in config.json — run `cms` for the full matrix. e.g. webflow needs "
+                "WEBFLOW_TOKEN (.env) + cms.collection_id/field_map; shopify needs SHOPIFY_ACCESS_TOKEN "
+                "+ cms.store/blog_id.")
+    if "manual" in req:
+        return f"{req['name']} has no public write API — keep the file/git-PR flow ({req['manual']})."
+    need = cms_extra.missing_env(t)
+    return (f"{req['name']}: add {', '.join(need) or 'creds'} to .env (git-ignored) and set "
+            f"{', '.join(req.get('config', [])) or 'cms config'} in config.json.")
 
 
 def next_step(cfg, root="."):
@@ -65,17 +89,32 @@ def interactive(cfg, root=".", config_path="config.json"):
         return {"error": "not a TTY — run in a terminal, or let the agent ask these questions"}
     print("\n=== SEO pipeline — guided setup ===\n")
     ask = lambda q, d="": (input(f"{q}" + (f" [{d}]" if d else "") + ": ").strip() or d)
+    from . import cms_extra
     site = ask("Site URL", cfg.get("site", ""))
     comps = ask("Competitor domains (comma-separated)", ",".join(cfg.get("competitors", [])))
+    cms_t = ask("CMS (" + "/".join(cms_extra.REQUIREMENTS) + ")",
+                (cfg.get("cms", {}) or {}).get("type", "file")).lower()
     emails = ask("Email PDF reports to (comma-separated, optional)")
+    drive = ask("Google Drive folder id for deliverables (optional)")
     auton = ask("Autonomy [manual/approve/auto]", cfg.get("autonomy") if isinstance(cfg.get("autonomy"), str) else "manual")
     cfg["site"] = site.rstrip("/")
     cfg["sitemap"] = cfg.get("sitemap") or site.rstrip("/") + "/sitemap.xml"
     cfg["competitors"] = [c.strip() for c in comps.split(",") if c.strip()]
     cfg["autonomy"] = auton
+    if cms_t in cms_extra.REQUIREMENTS:
+        cfg.setdefault("cms", {})["type"] = cms_t
     if emails:
         cfg.setdefault("report", {})["email_to"] = [e.strip() for e in emails.split(",") if e.strip()]
+    if drive:
+        cfg.setdefault("drive", {})["folder_id"] = drive.strip()
     Path(config_path).write_text(json.dumps(cfg, indent=2) + "\n")
+    req = cms_extra.requirements(cms_t) or {}
+    if req.get("env") or req.get("config"):
+        print(f"\n  {req['name']}: add {', '.join(req['env']) or 'nothing'} to .env (git-ignored)"
+              + (f"; set {', '.join(req['config'])} in config.json" if req.get("config") else "")
+              + f"\n  docs: {req['docs']}")
+    if "manual" in req:
+        print(f"\n  {req['name']}: {req['manual']}")
     print(f"\n✓ wrote {config_path}. Next: add keys to .env, then `wizard` to see the next step.\n")
     return {"ok": True, "config": config_path}
 

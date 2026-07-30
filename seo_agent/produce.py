@@ -13,7 +13,9 @@ return `mode: "agent"` by default (write it yourself) or `mode: "generated"`."""
 from . import index as idxmod
 from . import personas, providers
 
-# The content writer operates at the top of the field — see personas.WRITER.
+# The content writer operates at the top of the field — see personas.WRITER. At call
+# time the brain's learned context (client taste + proven playbooks) is appended via
+# personas.system("writer", cfg), so drafts match how this client wants to be written for.
 _SYSTEM = personas.WRITER
 
 
@@ -57,7 +59,8 @@ def draft(cfg, keyword, corpus_path="corpus.json"):
     b = brief(cfg, keyword)
     links = _link_targets(cfg, keyword, corpus_path)
     assignment = _assignment_md(cfg, keyword, b, links)
-    body = providers.complete(assignment, system=_SYSTEM, cfg_llm=cfg.get("llm", {}),
+    body = providers.complete(assignment, system=personas.system("writer", cfg=cfg, query=keyword),
+                              cfg_llm=cfg.get("llm", {}),
                               max_tokens=cfg.get("llm", {}).get("max_tokens", 8000))
     if body:
         return {"keyword": keyword, "mode": "generated", "internal_links": links,
@@ -79,7 +82,8 @@ def retitle(cfg, page, keyword="", current_title="", current_meta=""):
             f"Give 3 distinct title options (≤60 chars, benefit-led, keyword near the front) "
             f"and 1 meta description (≤155 chars with a clear call to action). Return as plain "
             f"lines: 'Title 1: …', 'Title 2: …', 'Title 3: …', 'Meta: …'.")
-    out = providers.complete(task, cfg_llm=cfg.get("llm", {}), max_tokens=800)
+    out = providers.complete(task, system=personas.system("writer", cfg=cfg, query=keyword),
+                             cfg_llm=cfg.get("llm", {}), max_tokens=800)
     if out:
         return {"page": page, "mode": "generated", "suggestions": out}
     return {"page": page, "mode": "agent", "task": task,

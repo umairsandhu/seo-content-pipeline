@@ -15,9 +15,10 @@ import sys
 from pathlib import Path
 
 from . import (aio, aivis, algo, analyze, anomaly, audit, authority, authority_flow, autonomy,
-               autopilot, backlinks, channels, citability, competitors, consult, content_score,
-               crew, ctr_curves, decay, eeat, edition, entity, ga4, geo, gsc_csv, history, ingest,
-               integrations, internal, intl, jobs, journey, local, logs, mcp_server, notify, onboard,
+               autopilot, backlinks, brain, channels, citability, cms_extra, competitors, consult,
+               content_score, crew, ctr_curves, decay, deliver as deliver_mod, eeat, edition, entity,
+               ga4, geo, gsc_csv, history, ingest,
+               integrations, internal, intl, jobs, journey, learn, local, logs, mcp_server, notify, onboard,
                orchestrate, plan, produce, projects, prospect, publish, review, serve as serve_mod,
                explain as explain_mod, ledger, radar, rank, refresh, remediate, render, repo, report,
                safety, safetygate, schema, site_control, speed, trends, webagent, wizard)
@@ -80,6 +81,15 @@ def main():
     sub.add_parser("pr").add_argument("edits_json", help="repo PR JSON: {title, edits:[{file, edits:[...], desc, url}]}")
     sub.add_parser("ledger")                                     # change log + causal attribution
     sub.add_parser("explain").add_argument("url")               # why did this page change?
+    sub.add_parser("learn").add_argument("--notify", action="store_true")  # what worked best (day/week/month) + cross-site
+    pbr = sub.add_parser("brain")  # continuous self-learning memory (taste/playbooks/lessons)
+    pbr.add_argument("--add", metavar="TEXT"); pbr.add_argument("--kind", default="fact",
+                     choices=["fact", "lesson", "preference", "playbook"])
+    sub.add_parser("cms")  # every CMS connector + its env/config requirements
+    pdl = sub.add_parser("deliver"); pdl.add_argument("files", nargs="*", default=["report.pdf"])
+    pdl.add_argument("--note", default="")   # email + Google Drive delivery to the client
+    pfb = sub.add_parser("feedback"); pfb.add_argument("text")
+    pfb.add_argument("--about", default="")  # client's reaction → taste → future output
     # human review across channels + connectors
     sub.add_parser("review").add_argument("--poll", action="store_true")
     sub.add_parser("approve").add_argument("id", type=int)
@@ -282,6 +292,20 @@ def main():
         print(ledger.render_md(cfg))
     elif a.cmd == "explain":
         print(explain_mod.render_md(cfg, explain_mod.explain(cfg, a.url)))
+    elif a.cmd == "learn":
+        print(learn.render_md(cfg))
+        if a.notify:
+            dump(learn.notify(cfg))
+    elif a.cmd == "brain":
+        if a.add:
+            dump(brain.add(cfg, a.kind, a.add, source="manual"))
+        print(brain.render_md(cfg))
+    elif a.cmd == "cms":
+        print(cms_extra.render_md(cfg))
+    elif a.cmd == "deliver":
+        print(deliver_mod.render_md(cfg, deliver_mod.deliver(cfg, a.files, note=a.note)))
+    elif a.cmd == "feedback":
+        dump(deliver_mod.feedback(cfg, a.text, about=a.about))
     elif a.cmd == "review":
         if a.poll:
             dump(review.poll(cfg))

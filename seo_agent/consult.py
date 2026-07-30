@@ -70,7 +70,8 @@ def run(cfg):
     pack = situation(cfg)
     import json
     prompt = _BRIEF + "\n\n## Evidence pack\n```json\n" + json.dumps(pack, indent=1)[:6000] + "\n```"
-    out = providers.complete(prompt, system=personas.STRATEGIST, cfg_llm=cfg.get("llm"))
+    out = providers.complete(prompt, system=personas.system("strategist", cfg=cfg),
+                             cfg_llm=cfg.get("llm"))
     if out:
         return {"mode": "generated", "strategy": out, "pack": pack}
     return {"mode": "agent", "pack": pack,

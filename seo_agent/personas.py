@@ -55,7 +55,20 @@ EDITOR = (
 ROLES = {"strategist": STRATEGIST, "tech_seo": TECH_SEO, "writer": WRITER,
          "researcher": RESEARCHER, "editor": EDITOR}
 
+_PURPOSE = {"writer": "writing", "editor": "writing", "strategist": "planning",
+            "tech_seo": "planning", "researcher": "any"}
 
-def system(role):
-    """Return the system prompt for a role (default: strategist)."""
-    return ROLES.get(role, STRATEGIST)
+
+def system(role, cfg=None, query=""):
+    """System prompt for a role (default: strategist). Pass `cfg` to append the brain's
+    learned context — client taste + proven playbooks + lessons — so every persona
+    works the way THIS client wants and repeats what measurably worked (the 'reuse'
+    step of the observe→distill→reuse→refine loop)."""
+    base = ROLES.get(role, STRATEGIST)
+    if cfg is None:
+        return base
+    try:
+        from . import brain
+        return base + brain.context_block(cfg, purpose=_PURPOSE.get(role, "any"), query=query)
+    except Exception:
+        return base

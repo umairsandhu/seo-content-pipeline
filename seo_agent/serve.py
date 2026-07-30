@@ -80,6 +80,51 @@ def _page(cfg):
     else:
         P.append('<p class="empty">attribution builds as GSC history accrues</p>')
     P.append('</div>')
+    # Learning — impact by day/week/month + what worked best
+    P.append('<div class="card wide"><h2>Learning — impact by day / week / month</h2>')
+    try:
+        from . import learn
+        loc = learn.local_lessons(cfg)
+        rank = learn.ranking(cfg)
+        if loc:
+            rows = []
+            for t, hs in sorted(loc.items(), key=lambda kv: -(kv[1].get(28, kv[1].get(7, {})).get("mean_lift", 0))):
+                c = lambda h: (f"{hs[h]['mean_lift']:+g} (n{hs[h]['n']})" if hs.get(h) else "—")
+                wr = hs.get(28, hs.get(7, {})).get("win_rate", 0)
+                rows.append(f'<tr><td>{html.escape(t)}</td><td class="n">{c(7)}</td><td class="n">{c(28)}</td>'
+                            f'<td class="n">{c(90)}</td><td class="n">{int(wr*100)}%</td></tr>')
+            P.append('<table><tr><th>change type</th><th>+7d</th><th>+28d</th><th>+90d</th><th>win</th></tr>'
+                     + "".join(rows) + '</table>')
+        else:
+            P.append('<p class="empty">follow-ups accrue as GSC snapshots build after changes are logged</p>')
+        if rank:
+            P.append('<p>▶ <b>Do more of:</b> ' + " · ".join(
+                f'{html.escape(r["type"])} ({r["mean_lift"]:+g}, {r["source"]})' for r in rank[:4]) + '</p>')
+    except Exception:
+        P.append('<p class="empty">learning unavailable</p>')
+    P.append('</div>')
+
+    # Brain — memory / playbooks / client taste (the Hermes-style loop, visible)
+    P.append('<div class="card wide"><h2>Brain — memory · playbooks · client taste</h2>')
+    try:
+        from . import brain
+        bs = brain.load(cfg)["entries"]
+        if bs:
+            lab = {"preference": "🎨 taste", "playbook": "📗 playbook", "lesson": "⚠ lesson", "fact": "📌 fact"}
+            rows = "".join(
+                f'<tr><td class="mut">{lab.get(e["kind"], e["kind"])}</td>'
+                f'<td>{html.escape(e["text"][:120])}</td><td class="n">{e["updated"]}</td></tr>'
+                for e in sorted(bs, key=lambda e: -e["score"])[:8])
+            P.append('<table><tr><th></th><th>learned</th><th>updated</th></tr>' + rows + '</table>')
+            P.append('<p class="mut">auto-injected into every writer/strategist prompt · '
+                     'observe → distill → reuse → refine, every cycle</p>')
+        else:
+            P.append('<p class="empty">fills itself from review notes, client replies to delivered '
+                     'reports (FEEDBACK …), and measured outcomes</p>')
+    except Exception:
+        P.append('<p class="empty">brain unavailable</p>')
+    P.append('</div>')
+
     # Review queue (wide, interactive)
     P.append('<div class="card wide"><h2>Review queue — approve or request changes</h2>')
     if queue:

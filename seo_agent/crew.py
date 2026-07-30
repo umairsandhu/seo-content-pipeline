@@ -15,32 +15,34 @@ from . import personas, produce, safetygate, schema
 from . import autonomy
 
 
-def _stage(role, goal, inputs, deliverable):
-    return {"role": role, "persona": personas.system(role), "goal": goal,
+def _stage(role, goal, inputs, deliverable, cfg=None, query=""):
+    return {"role": role, "persona": personas.system(role, cfg=cfg, query=query), "goal": goal,
             "inputs": inputs, "deliverable": deliverable}
 
 
 def article(cfg, keyword):
     b = produce.brief(cfg, keyword)
     links = produce._link_targets(cfg, keyword, "corpus.json")
+    _stage_ = lambda role, goal, inputs, deliverable: _stage(role, goal, inputs, deliverable,
+                                                             cfg=cfg, query=keyword)
     stages = [
-        _stage("researcher", f'Assemble the truth set for "{keyword}"',
+        _stage_("researcher", f'Assemble the truth set for "{keyword}"',
                {"top_results": b["serp"][:8], "questions": b["questions"][:12], "related": b["related"][:10]},
                "A fact sheet: what the top results cover, the PAA questions, the unique angle/gap, and 3–5 "
                "verifiable data points (with sources) the article should own."),
-        _stage("strategist", "Define the winning angle + outline",
+        _stage_("strategist", "Define the winning angle + outline",
                {"keyword": keyword, "internal_link_targets": links},
                "Search intent, the one job this page must do, the differentiated angle, and an H2/H3 outline "
                "that beats the current top results and maps to the PAA questions."),
-        _stage("writer", "Write the draft",
+        _stage_("writer", "Write the draft",
                {"outline_from": "strategist", "brand": cfg.get("brand", {}).get("name", "")},
                "The full article in Markdown: SEO title (`# …`), meta (`> meta: …`), answer-first intro, "
                "question H2/H3s, quotable 40–170-word passages, concrete facts, natural internal links."),
-        _stage("editor", "Tighten and fact-check",
+        _stage_("editor", "Tighten and fact-check",
                {"draft_from": "writer"},
                "A tightened draft: fluff cut, claims verified, intent satisfied better than the top results, "
                "E-E-A-T and answer-first enforced. Note any weak passage rewritten."),
-        _stage("tech_seo", "On-page + structured data + linking",
+        _stage_("tech_seo", "On-page + structured data + linking",
                {"schema_scaffold": schema.blogposting(cfg, {"url": cfg.get("site", ""), "title": keyword,
                                                              "h1": [keyword]}),
                 "internal_link_targets": links},
@@ -52,14 +54,16 @@ def article(cfg, keyword):
 
 
 def change(cfg, goal):
+    _stage_ = lambda role, g, inputs, deliverable: _stage(role, g, inputs, deliverable,
+                                                          cfg=cfg, query=goal)
     stages = [
-        _stage("tech_seo", f"Diagnose: {goal}",
+        _stage_("tech_seo", f"Diagnose: {goal}",
                {"site": cfg.get("site", "")},
                "Root-cause diagnosis and the exact change(s) needed, ordered crawl/index → content → links, "
                "each tied to a crawler/ranking mechanism and a rollback."),
-        _stage("strategist", "Justify + prioritize",
+        _stage_("strategist", "Justify + prioritize",
                {}, "Which changes to make now vs later, expected impact, and risk."),
-        _stage("tech_seo", "Specify the change",
+        _stage_("tech_seo", "Specify the change",
                {}, "A precise `site_control` change spec (op + fields) for each approved item."),
     ]
     return {"goal": f"change: {goal}", "kind": "change", "stages": stages,

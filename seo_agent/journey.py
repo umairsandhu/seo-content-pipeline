@@ -11,7 +11,7 @@ import os
 import urllib.request
 from pathlib import Path
 
-from . import integrations, safety
+from . import cms_extra, integrations, safety
 
 # status: ok (green) · warn (amber, recommended-but-missing) · todo (red, required-missing) · skip
 _WEIGHT = {"must": 3, "recommended": 2, "optional": 1}
@@ -101,6 +101,47 @@ def readiness(cfg, root="."):
                        + (f" · alts: {', '.join(it['options'][:2])}" if it.get("options") else ""),
                        ", ".join(it["unlocks"][:4])))
     stages.append({"stage": "C · Data & access", "items": C})
+
+    # ── Stage D · Publish, delivery & learning ───────────────────────────────
+    D = []
+    cms_cfg = cfg.get("cms", {}) or {}
+    cms_t = (cms_cfg.get("type") or "file").lower()
+    req = cms_extra.requirements(cms_t) or {}
+    if "manual" in req:
+        D.append(_item("cms", f"CMS write access ({req.get('name', cms_t)})", "warn", False,
+                       req["ops"] + " — " + req["manual"],
+                       "content ships via the reviewable file/git-PR flow", "publish, control"))
+    elif cms_t == "file":
+        D.append(_item("cms", "CMS write access (file/git-PR default)", "warn", False,
+                       "no CMS API configured — changes ship as reviewable files",
+                       "set `cms.type` in config.json — run `cms` to see every option + its env vars",
+                       "publish + update/delete straight into your CMS"))
+    else:
+        miss = cms_extra.missing_env(cms_t) + [
+            c for c in req.get("config", []) if not cms_cfg.get(c.split(".", 1)[-1])]
+        D.append(_item("cms", f"CMS write access ({req.get('name', cms_t)})",
+                       "ok" if not miss else "todo", False,
+                       "connected" if not miss else "missing: " + ", ".join(miss),
+                       f"add {', '.join(miss)} (env vars → .env, git-ignored; config keys → config.json)"
+                       if miss else "", "publish + update/delete straight into your CMS"))
+    drive_cfg = cfg.get("drive", {}) or {}
+    email_ok = bool((cfg.get("report", {}) or {}).get("email_to"))
+    drive_ok = bool(drive_cfg.get("folder_id") or drive_cfg.get("rclone_remote"))
+    D.append(_item("delivery", "Deliverables reach the client (email / Drive)",
+                   "ok" if (email_ok or drive_ok) else "warn", False,
+                   ("email → " + ", ".join((cfg.get("report", {}) or {}).get("email_to", [])) if email_ok else "")
+                   + (" · " if email_ok and drive_ok else "")
+                   + ("Drive folder set" if drive_ok else "") or "not configured",
+                   "set `report.email_to` (+ SMTP_*/RESEND_API_KEY) and/or `drive.folder_id` "
+                   "(share the folder with your GSC service account) — then `deliver report.pdf`",
+                   "deliver + the client-feedback → taste loop"))
+    from . import brain as brainmod
+    counts = brainmod.counts(cfg)
+    D.append(_item("brain", "Learning loop (memory · playbooks · taste)", "ok", False,
+                   f"always on — {counts['total']} memories "
+                   f"({counts.get('preference', 0)} taste, {counts.get('playbook', 0)} playbooks)",
+                   "", ""))
+    stages.append({"stage": "D · Publish, delivery & learning", "items": D})
 
     # ── Verdict ──────────────────────────────────────────────────────────────
     allitems = [i for s in stages for i in s["items"]]

@@ -246,6 +246,35 @@ def _ledger(a):
     return ledger.render_md(_cfg())
 
 
+def _learn(a):
+    from . import learn
+    return learn.render_md(_cfg())
+
+
+def _brain(a):
+    from . import brain
+    if a.get("add"):
+        brain.add(_cfg(), a.get("kind", "fact"), a["add"], source="manual")
+    return brain.render_md(_cfg())
+
+
+def _cms(a):
+    from . import cms_extra
+    return cms_extra.render_md(_cfg())
+
+
+def _deliver(a):
+    from . import deliver
+    r = deliver.deliver(_cfg(), a.get("files") or ["report.pdf"], note=a.get("note", ""))
+    return deliver.render_md(_cfg(), r)
+
+
+def _feedback(a):
+    from . import deliver
+    import json as _json
+    return _json.dumps(deliver.feedback(_cfg(), a["text"], about=a.get("about", "")))
+
+
 def _explain(a):
     return explain_mod.render_md(_cfg(), explain_mod.explain(_cfg(), a["url"]))
 
@@ -305,6 +334,19 @@ TOOLS = [
                                        "description": {"type": "string"}}, "required": ["op"]}, _control),
     ("ledger", "Change log + causal attribution (before/after vs a holdout of untouched pages).",
      {"type": "object", "properties": {}}, _ledger),
+    ("learn", "What's working — impact of changes by day/week/month + cross-site 'best change types'.",
+     {"type": "object", "properties": {}}, _learn),
+    ("brain", "Continuous self-learning memory: client taste, proven playbooks, lessons (auto-injected into every persona).",
+     {"type": "object", "properties": {"add": {"type": "string"},
+                                       "kind": {"type": "string", "enum": ["fact", "lesson", "preference", "playbook"]}}}, _brain),
+    ("cms", "Every CMS connector (WordPress/Webflow/Ghost/Shopify/Contentful/Strapi/Sanity/HubSpot/Drupal/Joomla/Wix/Notion) + required env vars.",
+     {"type": "object", "properties": {}}, _cms),
+    ("deliver", "Send deliverables to the client via email and/or their Google Drive folder; logs the delivery for the feedback loop.",
+     {"type": "object", "properties": {"files": {"type": "array", "items": {"type": "string"}},
+                                       "note": {"type": "string"}}}, _deliver),
+    ("feedback", "Record the client's reaction to delivered work — distills into the brain as taste for all future output.",
+     {"type": "object", "properties": {"text": {"type": "string"}, "about": {"type": "string"}},
+      "required": ["text"]}, _feedback),
     ("explain", "Diagnose why a page's traffic changed — vs our change log, GSC trend, and Google updates.",
      {"type": "object", "properties": {"url": {"type": "string"}}, "required": ["url"]}, _explain),
     ("review", "Send queued changes/drafts to reviewers (CLI/email/Slack/Mattermost/WhatsApp) + show status.",

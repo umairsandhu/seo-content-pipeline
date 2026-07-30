@@ -128,7 +128,16 @@ python -m seo_agent run --daily|--monthly [--email]  # scheduled digest at 3 cad
 
 # Autonomous loop + local dashboard
 python -m seo_agent autopilot --daily          # 4-agent cycle: Audit→Plan(dated)→Execute(gated)→Report → state/
-python -m seo_agent serve [--port 8787]        # live local dashboard (situation/plan/execution/review/ledger) + inline approvals
+python -m seo_agent serve [--port 8787]        # live local dashboard (situation/plan/execution/review/ledger/learning) + inline approvals
+python -m seo_agent ledger                      # every change → holdout-adjusted attribution
+python -m seo_agent learn [--notify]           # what worked best by day/week/month + cross-site knowledge (auto-runs each cycle)
+python -m seo_agent brain [--add "…" --kind fact|lesson|preference|playbook]  # self-learning memory: client taste + proven playbooks (auto-injected into every persona)
+python -m seo_agent explain <url>              # why did this page's traffic change?
+
+# Client delivery + the feedback (taste) loop
+python -m seo_agent cms                        # every CMS connector (WP/Webflow/Ghost/Shopify/Contentful/Strapi/Sanity/HubSpot/Drupal/Joomla/Wix/Notion) + required env vars
+python -m seo_agent deliver report.pdf [--note "…"]   # email + Google Drive delivery to the client (logged)
+python -m seo_agent feedback "their reply" [--about "…"]  # client reaction → learned as taste → future output matches them
 
 # Decide / Produce
 python -m seo_agent analyze --keywords-file seeds.txt   # → recommendations.md

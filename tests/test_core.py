@@ -267,7 +267,7 @@ class Wizard(unittest.TestCase):
     def test_next_step(self):
         d = _workspace()
         r = wizard.next_step(CFG, root=d)
-        self.assertEqual(len(r["steps"]), 9)
+        self.assertEqual(len(r["steps"]), 10)   # includes the CMS + delivery/feedback steps
         self.assertIn("next", r)
 
 
@@ -401,6 +401,44 @@ class Dashboard(unittest.TestCase):
         self.assertIn("Run cycle", page)
 
 
+class Learn(unittest.TestCase):
+    def _scenario(self):
+        d = tempfile.mkdtemp()
+        cfg = {"store_path": os.path.join(d, "seo.db"), "history_dir": os.path.join(d, "hist"),
+               "site": "https://demo.com", "global_lessons_path": os.path.join(d, "g.json")}
+        from seo_agent import history, ledger
+        def snap(date, pc, hc):
+            rows = [{"page": "https://demo.com/a", "clicks": pc, "position": 8.0}]
+            rows += [{"page": f"https://demo.com/h{i}", "clicks": hc, "position": 10.0} for i in range(10)]
+            history.snapshot(cfg, "gsc_pages", rows, date=date)
+        snap("2026-01-01", 20, 50); snap("2026-01-08", 35, 50)
+        snap("2026-01-29", 60, 52); snap("2026-04-01", 90, 55)
+        ledger.record(cfg, "https://demo.com/a", "retitle", "x", date="2026-01-01")
+        return cfg
+
+    def test_multi_horizon_followup(self):
+        from seo_agent import ledger, learn
+        cfg = self._scenario()
+        self.assertEqual(ledger.follow_up(cfg)["recorded"], 3)   # +7/+28/+90
+        loc = learn.local_lessons(cfg)["retitle"]
+        self.assertEqual(loc[7]["mean_lift"], 15.0)              # holdout-adjusted
+        self.assertEqual(loc[90]["mean_lift"], 65.0)
+        self.assertEqual(loc[28]["win_rate"], 1.0)
+
+    def test_cross_site_global_store(self):
+        from seo_agent import learn
+        cfg = self._scenario()
+        learn.follow_up = getattr(learn, "follow_up", None)  # noop guard
+        from seo_agent import ledger
+        ledger.follow_up(cfg)
+        self.assertTrue(learn.update_global(cfg)["contributed"] > 0)
+        gl, sites = learn.global_lessons(cfg)
+        self.assertEqual(sites, 1)
+        self.assertIn("retitle", gl)
+        # ranking recommends the proven type
+        self.assertEqual(learn.ranking(cfg)[0]["type"], "retitle")
+
+
 class Edition(unittest.TestCase):
     def test_open_core_never_gates_core(self):
         from seo_agent import edition
@@ -419,6 +457,135 @@ class Edition(unittest.TestCase):
         self.assertTrue(edition.has(cfg, "reseller_rights"))
         self.assertFalse(edition.has(cfg, "custom_dev"))     # enterprise-only
         self.assertGreater(edition.workspace_cap(cfg), 100)  # unlimited (local, many client folders)
+
+
+class CMSConnectors(unittest.TestCase):
+    """Requirement: every possible CMS has its .env requirements wired in."""
+
+    def test_every_cms_registered_with_env_requirements(self):
+        from seo_agent import cms_extra, integrations
+        for t in ["wordpress", "webflow", "ghost", "shopify", "contentful", "strapi", "sanity",
+                  "hubspot", "drupal", "joomla", "wix", "notion", "squarespace", "framer", "duda"]:
+            self.assertIn(t, cms_extra.REQUIREMENTS)
+        ex = integrations.env_example()
+        for v in ["SHOPIFY_ACCESS_TOKEN", "CONTENTFUL_MANAGEMENT_TOKEN", "STRAPI_TOKEN",
+                  "SANITY_TOKEN", "HUBSPOT_TOKEN", "DRUPAL_USER", "DRUPAL_PASSWORD",
+                  "JOOMLA_TOKEN", "WIX_API_KEY", "WIX_SITE_ID", "NOTION_TOKEN"]:
+            self.assertIn(v, ex)
+
+    def test_missing_creds_are_named_in_the_error(self):
+        from seo_agent import cms_extra
+        os.environ.pop("SHOPIFY_ACCESS_TOKEN", None)
+        r = cms_extra.execute({"cms": {"type": "shopify"}}, {"op": "update_meta", "url": "/x", "title": "t"})
+        self.assertFalse(r["ok"])
+        self.assertIn("SHOPIFY_ACCESS_TOKEN", r["error"])
+
+    def test_no_write_api_cms_routes_to_file_flow(self):
+        from seo_agent import site_control
+        os.chdir(tempfile.mkdtemp())
+        r = site_control._execute({"cms": {"type": "squarespace"}},
+                                  {"op": "update_meta", "url": "/x", "title": "t"})
+        self.assertTrue(r["ok"])
+        self.assertIn("site-changes", r["wrote"])
+
+    def test_onboarding_asks_for_cms_and_delivery(self):
+        from seo_agent import journey, wizard
+        d = tempfile.mkdtemp(); os.chdir(d)
+        cfg = {"site": "https://demo.com", "cms": {"type": "webflow"}}
+        r = journey.readiness(cfg, root=d)
+        items = {i["key"]: i for s in r["stages"] for i in s["items"]}
+        for k in ("cms", "delivery", "brain"):
+            self.assertIn(k, items)
+        steps, _ = wizard._steps(cfg, d)
+        self.assertTrue(any("Connect your CMS" in s["title"] for s in steps))
+        self.assertTrue(any("feedback loop" in s["title"] for s in steps))
+
+
+class Brain(unittest.TestCase):
+    """Requirement: Hermes-style continuous self-learning — feedback + outcomes distill
+    into memory that is injected into every persona prompt."""
+
+    def _cfg(self):
+        d = tempfile.mkdtemp(); os.chdir(d)
+        return {"state_dir": os.path.join(d, "state"), "site": "https://demo.com",
+                "store_path": os.path.join(d, "seo.db"), "history_dir": os.path.join(d, "hist"),
+                "global_lessons_path": os.path.join(d, "g.json")}
+
+    def test_review_feedback_becomes_taste_in_prompts(self):
+        from seo_agent import autonomy, brain, personas
+        cfg = self._cfg()
+        autonomy.save_queue(cfg, [{"id": 1, "status": "changes", "action": "retitle /pricing",
+                                   "kind": "update", "feedback": "shorter titles, less salesy, keep our em-dash style"}])
+        out = brain.cycle(cfg)
+        self.assertGreaterEqual(out["distilled"], 1)
+        self.assertGreaterEqual(brain.counts(cfg).get("preference", 0), 1)
+        sysp = personas.system("writer", cfg=cfg)
+        self.assertIn("less salesy", sysp)          # the client's words reach the Writer
+        self.assertIn("LEARNED CONTEXT", sysp)
+        self.assertNotIn("LEARNED CONTEXT", personas.system("writer"))  # no cfg → clean base persona
+
+    def test_measured_outcomes_become_playbooks(self):
+        from seo_agent import brain, history, ledger
+        cfg = self._cfg()
+        def snap(date, ca, cb, hc):
+            rows = [{"page": "https://demo.com/a", "clicks": ca, "position": 8.0},
+                    {"page": "https://demo.com/b", "clicks": cb, "position": 9.0}]
+            rows += [{"page": f"https://demo.com/h{i}", "clicks": hc, "position": 10.0} for i in range(10)]
+            history.snapshot(cfg, "gsc_pages", rows, date=date)
+        snap("2026-01-01", 20, 30, 50); snap("2026-01-29", 60, 75, 52)
+        ledger.record(cfg, "https://demo.com/a", "retitle", "x", date="2026-01-01")
+        ledger.record(cfg, "https://demo.com/b", "retitle", "y", date="2026-01-01")
+        ledger.follow_up(cfg)
+        brain.cycle(cfg)
+        entries = brain.load(cfg)["entries"]
+        pb = [e for e in entries if e["kind"] == "playbook" and e["tag"] == "retitle"]
+        self.assertEqual(len(pb), 1)
+        self.assertIn("PROVEN", pb[0]["text"])
+        self.assertIn("retitle", brain.context_block(cfg, purpose="planning"))
+
+
+class Deliver(unittest.TestCase):
+    """Requirement: deliverables reach the buyer (email / Google Drive), and their reply
+    is captured + learned from (taste)."""
+
+    def _cfg(self):
+        d = tempfile.mkdtemp(); os.chdir(d)
+        return {"state_dir": os.path.join(d, "state"), "site": "https://demo.com"}
+
+    def test_delivery_logged_and_reply_learned(self):
+        from seo_agent import brain, deliver, personas
+        cfg = self._cfg()
+        Path("report.pdf").write_bytes(b"%PDF-1.4 test")
+        r = deliver.deliver(cfg, ["report.pdf"])
+        self.assertEqual(r["delivery"]["id"], 1)             # logged even with no channel
+        fb = deliver.feedback(cfg, "love the tables, drop the jargon, monthly summary on page 1")
+        self.assertEqual(fb["attached_to_delivery"], 1)
+        self.assertGreaterEqual(brain.counts(cfg).get("preference", 0), 1)
+        self.assertIn("drop the jargon", personas.system("writer", cfg=cfg))
+
+    def test_feedback_email_reply_is_recognized(self):
+        from seo_agent import review
+        m = review._FEEDBACK.search("FEEDBACK: the intro was too long, cut to 3 lines")
+        self.assertTrue(m)
+        self.assertIn("too long", m.group(1))
+
+
+class RequirementsLoop(unittest.TestCase):
+    """The loop that keeps checking we're 'there': standing rules must stay wired."""
+
+    def test_learning_and_brain_run_every_cycle(self):
+        import inspect
+        from seo_agent import autopilot, orchestrate
+        self.assertIn("learn.cycle", inspect.getsource(autopilot.report_phase))
+        self.assertIn("brain.cycle", inspect.getsource(autopilot.report_phase))
+        self.assertIn("learn.cycle", inspect.getsource(orchestrate.run))
+        self.assertIn("brain.cycle", inspect.getsource(orchestrate.run))
+
+    def test_mcp_exposes_the_new_surface(self):
+        from seo_agent import mcp_server
+        names = [t[0] for t in mcp_server.TOOLS]
+        for n in ("brain", "cms", "deliver", "feedback", "learn"):
+            self.assertIn(n, names)
 
 
 if __name__ == "__main__":

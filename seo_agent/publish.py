@@ -32,7 +32,10 @@ def publish(cfg, post, skip_gate=False):
                     "error": "publish gate blocked: " + "; ".join(gate["reasons"])}
     fn = {"file": _file, "wordpress": _wordpress, "webflow": _webflow,
           "ghost": _ghost}.get(cms.get("type", "file"))
-    if not fn:
+    if not fn:  # Shopify / Contentful / Strapi / Sanity / HubSpot / Drupal / Joomla / Wix / Notion …
+        from . import cms_extra
+        if cms.get("type") in cms_extra.REQUIREMENTS:
+            return cms_extra.create(cfg, post)
         return {"ok": False, "error": f"unknown cms type {cms.get('type')!r}"}
     try:
         return fn(cfg, cms, post)

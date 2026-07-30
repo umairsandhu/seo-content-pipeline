@@ -118,7 +118,20 @@ INTEGRATIONS = [
      "unlocks": ["ai-search visibility (pending API)"],
      "options": ["server logs for AI-crawler coverage (proxy, available now)", "aivis (live cross-engine tracking now)"],
      "docs": "https://developers.google.com/search/blog"},
+    {"key": "gdrive", "name": "Google Drive delivery", "tier": "optional", "kind": "oauth-file",
+     "purpose": "Place reports/drafts in the client's Drive folder (alternative to email delivery)",
+     "env": [], "config": ["drive.folder_id"],
+     "unlocks": ["deliver (Drive upload + share link)", "client feedback loop"],
+     "options": ["reuse the GSC service account (share the Drive folder with it)",
+                 "rclone remote (drive.rclone_remote)", "email delivery (default)"],
+     "docs": "https://developers.google.com/drive/api/guides/manage-uploads"},
 ]
+
+# Every other CMS the pipeline can drive (Shopify, Contentful, Strapi, Sanity, HubSpot,
+# Drupal, Joomla, Wix, Notion + the no-write-API ones) — generated from cms_extra so
+# the registry, .env.example, and onboarding never drift from the connectors.
+from . import cms_extra  # noqa: E402
+INTEGRATIONS += cms_extra.integration_entries()
 
 
 def _get(cfg, dotted):

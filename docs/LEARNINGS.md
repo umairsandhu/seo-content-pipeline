@@ -111,7 +111,51 @@ Edge (auto-detected, degrades to "open the HTML and Print" if none found). For a
 link, inline every asset (logo as inlined SVG / data-URI) — external assets are blocked in
 hardened viewers and break the PDF's portability.
 
+## The learning loop (a standing rule — never skip)
+
+**17. Measure every change's impact at day / week / month, and never forget what worked.**
+This is encoded, not optional: `ledger.follow_up` computes each logged change's holdout-adjusted
+lift at **+7 / +28 / +90 days** from the GSC page snapshots; `learn` aggregates that by *change
+type* into a "what works best" playbook; and **`learn.cycle` runs automatically inside every
+`autopilot` and `run` cycle** — so the follow-up + learning happen without anyone remembering to.
+`plan` then recommends *doing more of* the change types with the best proven track record.
+
+**18. Learning compounds across every site — anonymously.** `learn.update_global` contributes
+this site's per-(change-type × horizon) aggregates to a cross-site store
+(`~/.seo-agent/lessons.json`, override with `global_lessons_path` / `SEO_GLOBAL_LESSONS`), keyed
+by a **hash of the domain** — only aggregate lift stats, no URLs, content, or domains in the
+clear. A brand-new client **cold-starts** from what worked on every prior site
+(`learn.ranking` falls back to the global store when local evidence is thin). One tool, many
+sites, one growing brain — privacy-safe.
+
+**19. Attribution needs the snapshot cadence.** Follow-ups only fill in as `gsc` snapshots
+accumulate across the horizons. Run `gsc` (or `gsc --csv`) on a schedule; the day/week/month
+cells populate as time passes after a change is logged. If a horizon is blank, it's "not yet
+measurable," not "no effect."
+
+**20. The brain closes the loop Hermes-style (observe → distill → reuse → refine).** Modeled
+on Nous Research's Hermes Agent (memory + auto-distilled skills + user modeling — no weight
+updates, just context that compounds): `brain.cycle` runs inside every autopilot/run/review
+cycle, distilling review notes + client replies into **taste** (preferences), measured
+outcomes into **proven playbooks**, and negative outcomes into **avoid lessons** — then
+injects the top entries into every Writer/Strategist prompt (`personas.system(role, cfg)`).
+Never build a generation path that bypasses `personas.system(...,cfg)` — that's how learned
+taste reaches the output.
+
+**21. Deliver → reply → taste is how you learn how a client works.** Every deliverable goes
+out via `deliver` (email and/or their Google Drive folder) and is logged; every reply
+(`feedback "…"`, or an email starting `FEEDBACK` caught by `review --poll`) attaches to the
+delivery and becomes a preference. Two or three cycles in, drafts/reports read like the
+client wrote the spec themselves. Ask for feedback explicitly in the delivery note — silence
+teaches nothing.
+
+**22. One CMS registry, every surface.** `cms_extra.REQUIREMENTS` is the single source of
+truth for every CMS's env vars + config keys; integrations, `.env.example`, `preflight`
+Stage D, and the wizard all generate from it. When a client's CMS has no public write API
+(Squarespace, Framer, Duda), say so at onboarding and route to the file/git-PR flow — an
+honest "paste this in" beats a connector that silently can't ship.
+
 ---
 
 _Every new site teaches the tool something. When a run surprises you, encode the fix in code
-**and** add the rule here._
+**and** add the rule here. The learning loop above makes that automatic for outcomes._

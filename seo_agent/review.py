@@ -16,6 +16,7 @@ from . import autonomy, channels
 RESP_FILE = "review-responses.json"
 _APPROVE = re.compile(r"\bapprove[d]?\b\s*#?(\d+)", re.I)
 _CHANGES = re.compile(r"\bchanges?\b\s*#?(\d+)\s*(.*)", re.I | re.S)
+_FEEDBACK = re.compile(r"^\s*feedback\b[:\s]+(.+)", re.I | re.S | re.M)
 
 
 def request(cfg, ids=None):
@@ -54,10 +55,21 @@ def poll(cfg):
     p = Path(RESP_FILE)
     if p.exists():
         for r in json.loads(p.read_text() or "[]"):
+            if r.get("id") is None and r.get("feedback"):  # general feedback, not a decision
+                from . import deliver
+                deliver.feedback(cfg, r["feedback"])
+                applied.append("feedback")
+                continue
             respond(cfg, r["id"], r.get("decision", "approve"), r.get("feedback", ""))
             applied.append(r["id"])
     # 2) email replies via IMAP
     applied += _poll_email(cfg)
+    # 3) every new CHANGES note / client reply also distills into the brain (taste)
+    try:
+        from . import brain
+        brain.cycle(cfg)
+    except Exception:
+        pass
     return {"processed": applied, "count": len(applied)}
 
 
@@ -80,6 +92,9 @@ def _poll_email(cfg):
                 respond(cfg, m.group(1), "approve"); done.append(int(m.group(1)))
             for m in _CHANGES.finditer(body):
                 respond(cfg, m.group(1), "changes", (m.group(2) or "").strip()[:500]); done.append(int(m.group(1)))
+            for m in _FEEDBACK.finditer(body):  # "FEEDBACK …" reply to a delivered report/draft
+                from . import deliver
+                deliver.feedback(cfg, m.group(1).strip()[:800]); done.append("feedback")
         M.logout()
     except Exception:
         return done

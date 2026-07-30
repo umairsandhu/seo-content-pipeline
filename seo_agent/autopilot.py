@@ -124,12 +124,20 @@ def execute_phase(cfg):
 
 # ── 4. REPORT (attribution + deliver) ───────────────────────────────────────
 def report_phase(cfg, deliver=True):
+    from . import learn
     ex = state.read(cfg, "executions", {}) or {}
     att = _safe(lambda: ledger.attribution(cfg)) or {}
     wins = [r for r in att.get("rows", []) if r.get("holdout_adjusted_lift", 0) > 0][:8]
+    # STANDING RULE: measure follow-ups (day/week/month) + contribute to cross-site learning,
+    # and run the brain's observe→distill→reuse→refine pass (feedback → taste → playbooks).
+    from . import brain
+    _safe(lambda: learn.cycle(cfg))
+    brain_state = _safe(lambda: brain.cycle(cfg)) or {}
+    learned = _safe(lambda: learn.ranking(cfg)) or []
     rep = {"date": _today().isoformat(), "shipped_today": ex.get("done", []),
            "dispatched_today": ex.get("dispatched", []), "proven_wins": wins,
-           "attribution_window": att.get("window")}
+           "attribution_window": att.get("window"),
+           "learned_best": learned[:5], "brain": brain_state.get("memory")}
     state.write(cfg, "report", rep)
     if deliver and (cfg.get("review", {}) or cfg.get("report", {})):
         text = _digest_text(cfg, rep)
@@ -179,5 +187,10 @@ def render_md(cfg, r):
         L += ["", "## Proven wins (ledger)"]
         for w in rep["proven_wins"][:5]:
             L.append(f"- {w['url']}: +{w['holdout_adjusted_lift']} clicks (holdout-adjusted)")
-    L.append("\n_Watch it live with `serve`; approve dispatched changes there or via `review`._")
+    if rep.get("learned_best"):
+        L += ["", "## What's working best (learned — day/week/month follow-ups)"]
+        for r in rep["learned_best"][:4]:
+            L.append(f"- **{r['type']}** — {r['mean_lift']:+g} avg lift/page ({int(r['win_rate']*100)}% win, {r['source']})")
+    L.append("\n_Watch it live with `serve`; approve dispatched changes there or via `review`. "
+             "Impact by day/week/month + what works: `learn`._")
     return "\n".join(L)

@@ -44,6 +44,89 @@ def _norm(u):
     return (u or "").split("#")[0].split("?")[0].rstrip("/")
 
 
+def _snapshots_sorted(cfg):
+    """[(date, {norm_url: row})] for every gsc_pages snapshot, oldest first."""
+    import datetime
+    out = []
+    for p in history.snapshots(cfg, "gsc_pages"):
+        d = json.load(open(p))
+        try:
+            dt = datetime.date.fromisoformat(d["date"])
+        except Exception:
+            continue
+        out.append((dt, {_norm(r["page"]): r for r in d["data"]}))
+    return sorted(out, key=lambda x: x[0])
+
+
+def _on_or_before(snaps, target):
+    prior = [s for s in snaps if s[0] <= target]
+    return prior[-1] if prior else None
+
+
+def _on_or_after(snaps, target):
+    later = [s for s in snaps if s[0] >= target]
+    return later[0] if later else None
+
+
+def follow_up(cfg, horizons=(7, 28, 90)):
+    """Measure each change's impact at day/week/month horizons — the follow-up loop.
+    For a change on date D, compare its URL's clicks/position from the snapshot nearest D
+    to the snapshot nearest D+horizon, minus a holdout of untouched pages over the same
+    window. Persists to a `followups` table so learning accrues as history builds."""
+    import datetime
+    snaps = _snapshots_sorted(cfg)
+    if len(snaps) < 2:
+        return {"error": "need ≥2 GSC page snapshots over time (run `gsc` on a cadence)", "recorded": 0}
+    con = _con(cfg)
+    con.execute("CREATE TABLE IF NOT EXISTS followups(change_id INTEGER, horizon INTEGER, "
+                "from_date TEXT, to_date TEXT, delta_clicks REAL, holdout REAL, lift REAL, "
+                "delta_pos REAL, PRIMARY KEY(change_id, horizon))")
+    ch_all = changes(cfg)
+    changed_urls = {_norm(c["url"]) for c in ch_all}
+    recorded = 0
+    with con:
+        for ch in ch_all:
+            if ch["status"] != "applied":
+                continue
+            try:
+                cdate = datetime.date.fromisoformat(ch["date"])
+            except Exception:
+                continue
+            base = _on_or_before(snaps, cdate) or snaps[0]
+            u = _norm(ch["url"])
+            for h in horizons:
+                res = _on_or_after(snaps, cdate + datetime.timedelta(days=h))
+                if not res or res[0] <= base[0]:
+                    continue
+                b, r = base[1].get(u), res[1].get(u)
+                if not (b and r):
+                    continue
+                dclicks = (r.get("clicks", 0) or 0) - (b.get("clicks", 0) or 0)
+                hds = sorted((res[1][x].get("clicks", 0) or 0) - (base[1][x].get("clicks", 0) or 0)
+                             for x in set(base[1]) & set(res[1]) if x not in changed_urls)
+                hold = hds[len(hds) // 2] if hds else 0
+                dpos = (r.get("position", 0) or 0) - (b.get("position", 0) or 0)
+                con.execute("INSERT OR REPLACE INTO followups VALUES (?,?,?,?,?,?,?,?)",
+                            (ch["id"], h, base[0].isoformat(), res[0].isoformat(),
+                             dclicks, hold, dclicks - hold, round(dpos, 1)))
+                recorded += 1
+    con.close()
+    return {"recorded": recorded, "horizons": list(horizons)}
+
+
+def followups(cfg):
+    """Joined change type + horizon lift rows (for the learning layer)."""
+    con = _con(cfg)
+    con.execute("CREATE TABLE IF NOT EXISTS followups(change_id INTEGER, horizon INTEGER, "
+                "from_date TEXT, to_date TEXT, delta_clicks REAL, holdout REAL, lift REAL, delta_pos REAL, "
+                "PRIMARY KEY(change_id, horizon))")
+    rows = con.execute("SELECT c.type, f.horizon, f.lift, f.delta_pos, f.to_date "
+                       "FROM followups f JOIN changes c ON c.id=f.change_id").fetchall()
+    con.close()
+    return [{"type": t, "horizon": h, "lift": lift, "delta_pos": dp, "to_date": td}
+            for t, h, lift, dp, td in rows]
+
+
 def _section(u):
     parts = [p for p in urlparse(u).path.split("/") if p]
     return "/" + (parts[0] if parts else "")

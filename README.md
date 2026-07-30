@@ -36,7 +36,7 @@ python -m seo_agent plan                # the co-pilot: ranked "what to do next"
 python -m seo_agent serve               # live local dashboard at http://127.0.0.1:8787
 ```
 
-**As an MCP server:** `python -m seo_agent mcp` → 52 tools in any MCP client.
+**As an MCP server:** `python -m seo_agent mcp` → 57 tools in any MCP client.
 
 > **One directory = one site.** `init` scaffolds a clean workspace (`config.json` + `.env` +
 > hardened `.gitignore`) and runs fork-safety so keys can never leak. Everything — data, keys,
