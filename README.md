@@ -3,19 +3,43 @@
 **The autonomous, closed-loop SEO operating system — runs entirely on your machine.** Point
 it at any domain and it takes you 0→100: fork-safe onboarding, a technical Site Doctor,
 rank/CTR/backlink/AI-search tracking, an expert strategy, content the agent writes, and — the
-part no dashboard does — it **ships the fix (repo PR / CMS / browser), measures the impact
-against a holdout, and learns**. Human-gated at every step.
+part no dashboard does — it **ships the fix straight into your CMS (13 connectors) or as a
+repo PR, measures the impact against a holdout at day/week/month, and learns**: what worked
+here, what worked across every site it has ever touched (anonymized), and how *you* like
+your work delivered. Human-gated at every step.
 
 ![license](https://img.shields.io/badge/license-open--core-green)
 ![python](https://img.shields.io/badge/python-%E2%89%A53.9-blue)
 ![deps](https://img.shields.io/badge/core%20deps-numpy%20%2B%20scikit--learn-orange)
 ![storage](https://img.shields.io/badge/storage-file--based%20(no%20DB%2C%20no%20server)-lightgrey)
-![mcp](https://img.shields.io/badge/MCP-52%20tools-purple)
+![mcp](https://img.shields.io/badge/MCP-57%20tools-purple)
+![tests](https://img.shields.io/badge/tests-56%20passing-brightgreen)
 
 **No hosting, no SaaS, no database.** Stdlib + `numpy`/`scikit-learn` at the core; every API is
 optional and the whole thing **degrades gracefully** — the audit, strategy, drafts, AI-search
 and plan run with zero credentials. Drive it from the **Claude Code skill**, the **CLI**, or any
 **MCP client**.
+
+## What's inside (the 60-second tour)
+
+- 🩺 **Site Doctor** — full technical/on-page/CWV/structured-data/log audit, plus AI-search
+  readiness (GEO score, passage citability, entity graph, `llms.txt`).
+- 🧭 **A co-pilot that decides** — `plan` ranks everything by impact×confidence÷effort;
+  `consult` writes a McKinsey-grade strategy from your actual data.
+- ✍️ **An expert crew that produces** — researcher → strategist → writer → editor → tech-SEO
+  personas turn SERP + People-Also-Ask data into answer-first, citable drafts.
+- 🚀 **Hands that ship** — create/update/delete straight into **WordPress, Webflow, Ghost,
+  Shopify, Contentful, Strapi, Sanity, HubSpot, Drupal, Joomla, Wix, Notion** — or a git-PR
+  file flow with zero creds. Every change goes through a safety gate + your review.
+- 📏 **Proof, not vibes** — a causal change ledger measures every shipped change vs a holdout
+  of untouched pages at **+7 / +28 / +90 days**.
+- 🧠 **A brain that never forgets** — outcomes distill into *proven playbooks*, client
+  feedback distills into *taste*, both are auto-injected into every prompt, and an anonymized
+  cross-site store means every new site cold-starts from everything learned before.
+- 📬 **Delivery + feedback loop** — reports go to your client by email or straight into their
+  Google Drive folder; their replies are captured and learned from.
+- 🤖 **A 4-agent autopilot** — Audit → Plan → Execute → Report on a daily/weekly cadence,
+  with a live local dashboard (`serve`) for inline approvals.
 
 ## Install & run
 
@@ -61,8 +85,9 @@ The gate asks for two things (both optional to *start*, required for depth):
 | **Decide** | **`plan`** **`consult`** `consolidate` `gap` `competitors` `aio` `pagerank` `decay` `algo` `authority` `eeat` `radar` | One ranked action list · McKinsey-level strategy · cannibalization/301 · competitor sitemap-delta · internal PageRank |
 | **Produce** | `brief` `draft` `crew` `refresh` `retitle` `citability` `score` | SERP-grounded briefs & drafts by a multi-agent expert crew; decaying-page refreshes |
 | **AI-search / GEO** | `aivis` `entity` `geo` `citability` | Citation share across ChatGPT/Perplexity/Gemini/AI Overviews · entity graph + Wikidata · passage-citability |
-| **Control & review** | `control` `pr` `webtask` `autonomy` `review` `approve` `changes` `apply --approved` | Ship fixes via repo PRs / CMS / headless browser — autonomy-gated, human-approved on CLI/email/Slack/Mattermost/WhatsApp |
-| **Measure & deliver** | `ledger` `explain` `anomaly` `report --pdf --email` `run --daily\|--monthly` `email` | Causal change ledger + holdout attribution · "why did /x drop?" · anomaly alerts · PDF reports |
+| **Control & review** | `control` `pr` `cms` `webtask` `autonomy` `review` `approve` `changes` `apply --approved` | Ship fixes via repo PRs / **13 CMS connectors** / headless browser — autonomy-gated, human-approved on CLI/email/Slack/Mattermost/WhatsApp |
+| **Measure & deliver** | `ledger` `explain` `anomaly` `report --pdf --email` `run --daily\|--monthly` `email` `deliver` `feedback` | Causal change ledger + holdout attribution · "why did /x drop?" · anomaly alerts · PDF reports · **email/Google-Drive client delivery + the feedback loop** |
+| **Learn** | **`learn`** **`brain`** | Impact of every change at day/week/month + cross-site "what works" · self-learning memory: client taste + proven playbooks, injected into every prompt |
 | **Autonomy loop** | **`autopilot --daily\|--weekly\|--monthly`** **`serve`** | The 4-agent loop (Audit→Plan→Execute→Report) + the live local dashboard |
 | **Scale & packaging** | `projects` `jobs` `edition` `mcp` | Multi-site (agency) portfolio · job queue · edition/entitlements · MCP server |
 
@@ -73,9 +98,10 @@ Full reference: **[docs/Capabilities.md](docs/Capabilities.md)** and **[docs/Com
 Most tools stop at diagnosis. This one runs the whole loop, locally:
 
 ```
-Diagnose → Decide → Produce → Ship → Measure → Learn ↻
- audit      plan      crew     pr/     ledger    plan (repeats
- anomaly    consult   draft    control  explain   proven wins)
+Diagnose → Decide → Produce → Ship → Deliver → Measure → Learn ↻
+ audit      plan      crew     pr/      deliver   ledger     learn + brain
+ anomaly    consult   draft    control  (email/   explain    (playbooks, taste,
+                               13 CMSs   Drive)   +7/28/90d   cross-site)
 ```
 
 - **It ships the fix, not a description** — a git PR that edits meta/schema/redirects, a CMS
@@ -83,6 +109,10 @@ Diagnose → Decide → Produce → Ship → Measure → Learn ↻
   (`manual` / `approve` / `auto`).
 - **It proves what worked** — the causal **ledger** logs every change and attributes the outcome
   vs a **holdout of untouched pages**. `explain <url>` answers "why did this move?" with evidence.
+- **It learns continuously** (Hermes-style observe→distill→reuse→refine) — measured wins become
+  **proven playbooks**, client feedback becomes **taste**, and both are auto-injected into every
+  prompt. An **anonymized cross-site store** (only change-type × horizon aggregates, keyed by a
+  domain hash) means lesson #1 from site A makes site B better on day one.
 - **Expert-grade** — outputs are written as named personas: a McKinsey-caliber strategist, a top
   technical SEO, an E-E-A-T writer.
 - **AI-search native** — measures and optimizes your visibility in AI answers, not just blue links.
@@ -114,7 +144,8 @@ skill — on *your* machine. See **[docs/AGENT-LOOP-PLAN.md](docs/AGENT-LOOP-PLA
 | recommended | PageSpeed/CrUX · GA4 · server logs · Playwright | CWV · organic revenue · crawl budget · JS rendering |
 | recommended | Slack / Mattermost / WhatsApp / email · Resend/SendGrid/SMTP | review + digest + alert delivery |
 | optional | OpenAI / Perplexity / Gemini / Anthropic | live AI-visibility tracking (`aivis`); headless drafting |
-| optional | WordPress / Webflow / Ghost · GitHub (`gh`) | publishing / repo PRs (git-PR file is the default) |
+| optional | WordPress · Webflow · Ghost · Shopify · Contentful · Strapi · Sanity · HubSpot · Drupal · Joomla · Wix · Notion · GitHub (`gh`) | publish + update/delete live content / repo PRs (git-PR file is the default; `cms` shows every connector + its env vars) |
+| optional | Google Drive (service account or rclone) | drop deliverables straight into the client's folder (`deliver`) |
 
 `integrations` prints a live matrix of what's active/missing and what each unlocks.
 
@@ -126,6 +157,27 @@ skill — on *your* machine. See **[docs/AGENT-LOOP-PLAN.md](docs/AGENT-LOOP-PLA
 - **[Agent Loop](docs/AGENT-LOOP-PLAN.md)** · **[Distribution & Runtimes](docs/APP-PLAN.md)** (local-only)
 - Commercial: **[Pricing](docs/PRICING.md)** · **[Commercial license](COMMERCIAL.md)** · **[Product strategy](docs/PRODUCT-STRATEGY.md)**
 - For the operator: **[Learnings](docs/LEARNINGS.md)** · **[Roadmap](docs/ROADMAP.md)** · **[Playbook](PLAYBOOK.md)** · **[Build loop](BUILDLOOP.md)**
+
+## ☕ Support this project
+
+This is an independent, open-core project — no VC, no SaaS, everything runs on *your*
+machine. If it saved you hours, won you rankings, or replaced a paid tool:
+
+- ⭐ **Star the repo** — it's how other people find it.
+- 🗣 **Share it** — a post, a Slack message, a "this exists" to one SEO friend.
+- 🐛 **Open an issue / PR** — real-site war stories make the tool sharper (see
+  [docs/LEARNINGS.md](docs/LEARNINGS.md)).
+- 💸 **Tip / sponsor** — click the **Sponsor** button at the top of the repo (or see
+  `.github/FUNDING.yml`). One-off tips and recurring sponsorships both welcome; they fund
+  more connectors, deeper AI-search tracking, and support.
+- 🏢 **Using it commercially?** The right way to say thanks is a [Pro or Agency
+  license](docs/PRICING.md) — white-label reports, multi-site, priority support.
+
+<!-- Once your tip accounts exist, you can also add badges here, e.g.
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-☕-yellow)](https://buymeacoffee.com/yourhandle)
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-tip-red)](https://ko-fi.com/yourhandle)
+[![Sponsor](https://img.shields.io/badge/GitHub-Sponsor-ea4aaa)](https://github.com/sponsors/umairsandhu)
+-->
 
 ## License
 

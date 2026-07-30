@@ -1,0 +1,11 @@
+# Funding links — GitHub renders these as the "❤ Sponsor" button on the repo.
+# Uncomment a line once the matching account exists (each is free to create).
+# Docs: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/displaying-a-sponsor-button-in-your-repository
+
+# github: [umairsandhu]          # GitHub Sponsors (needs enrollment at github.com/sponsors)
+# buy_me_a_coffee: yourhandle    # buymeacoffee.com — one-off tips, no account needed by the tipper
+# ko_fi: yourhandle              # ko-fi.com — one-off tips + memberships, 0% platform fee
+# patreon: yourhandle            # patreon.com — recurring memberships
+# open_collective: seo-content-pipeline   # opencollective.com — transparent project funding
+# liberapay: yourhandle          # liberapay.com — recurring donations, open-source friendly
+# custom: ["https://your-payment-link"]   # up to 4 custom URLs (Stripe Payment Link, Wise, etc.)
