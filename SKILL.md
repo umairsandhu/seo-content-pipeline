@@ -127,8 +127,10 @@ python -m seo_agent email [--pdf <path>]       # email the PDF report to report.
 python -m seo_agent run --daily|--monthly [--email]  # scheduled digest at 3 cadences; --email auto-sends the PDF
 
 # Autonomous loop + local dashboard
+python -m seo_agent start                      # THE hand-held entry: status + guided web dashboard (auto-opens the browser)
 python -m seo_agent autopilot --daily          # 4-agent cycle: Audit→Plan(dated)→Execute(gated)→Report → state/
-python -m seo_agent serve [--port 8787]        # live local dashboard (situation/plan/execution/review/ledger/learning) + inline approvals
+python -m seo_agent serve [--port 8787] [--no-open]  # dashboard: getting-started guide, situation/plan/execution, best practices (learned+applied here), documents to review, inline approvals
+python -m seo_agent practices                  # best practices learned & applied on this site — found → fixed → measured
 python -m seo_agent ledger                      # every change → holdout-adjusted attribution
 python -m seo_agent learn [--notify]           # what worked best by day/week/month + cross-site knowledge (auto-runs each cycle)
 python -m seo_agent brain [--add "…" --kind fact|lesson|preference|playbook]  # self-learning memory: client taste + proven playbooks (auto-injected into every persona)

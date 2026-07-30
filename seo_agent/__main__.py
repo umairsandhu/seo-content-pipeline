@@ -101,7 +101,11 @@ def main():
     pap = sub.add_parser("autopilot")
     pap.add_argument("--daily", action="store_true"); pap.add_argument("--weekly", action="store_true")
     pap.add_argument("--monthly", action="store_true"); pap.add_argument("--no-deliver", action="store_true")
-    sub.add_parser("serve").add_argument("--port", type=int, default=8787)
+    psrv = sub.add_parser("serve"); psrv.add_argument("--port", type=int, default=8787)
+    psrv.add_argument("--no-open", action="store_true", help="don't auto-open the browser")
+    pst = sub.add_parser("start")  # THE hand-held entry: status → guided web dashboard
+    pst.add_argument("--port", type=int, default=8787); pst.add_argument("--no-open", action="store_true")
+    sub.add_parser("practices")   # best practices learned + applied here, with numbers
     sub.add_parser("edition")   # show edition + entitlements
     sub.add_parser("webtask").add_argument("task_json", help="a web task JSON: {name, steps:[...]}")
     pe = sub.add_parser("email"); pe.add_argument("--pdf", default="report.pdf")
@@ -327,7 +331,22 @@ def main():
         cad = "monthly" if a.monthly else "weekly" if a.weekly else "daily"
         print(autopilot.render_md(cfg, autopilot.cycle(cfg, cadence=cad, deliver=not a.no_deliver)))
     elif a.cmd == "serve":
-        serve_mod.serve(cfg, port=a.port)
+        serve_mod.serve(cfg, port=a.port, open_browser=not a.no_open)
+    elif a.cmd == "start":
+        # hand-held entry point: show where you are, then open the guided dashboard
+        if not (cfg.get("site") or "").strip() or "example.com" in cfg.get("site", ""):
+            print("No site configured here yet. In an EMPTY folder (one per site), run:\n"
+                  "  python -m seo_agent init --site https://your-site.com\n"
+                  "  python -m seo_agent start\n"
+                  "The dashboard opens and walks you through every remaining step.")
+            return
+        print(wizard.render_md(cfg, wizard.next_step(cfg)))
+        print("\nOpening the dashboard — it shows these steps, what's done, best practices "
+              "learned, and every document to review…")
+        serve_mod.serve(cfg, port=a.port, open_browser=not a.no_open)
+    elif a.cmd == "practices":
+        from . import practices
+        print(practices.render_md(cfg))
     elif a.cmd == "edition":
         print(edition.render_md(cfg))
     elif a.cmd == "webtask":

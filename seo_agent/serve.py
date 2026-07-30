@@ -1,14 +1,31 @@
 """Local dashboard — a single glass pane over the shared state the autopilot agents
-write. Serves a live web page (stdlib `http.server`, zero deps) with the Situation,
-Plan (dated), Execution, Review queue, and Ledger panels. Humans approve or request
-changes inline (posts to the same autonomy/review queue the CLI uses), and can trigger a
-cycle. Local by default (127.0.0.1). Site-agnostic."""
+write, AND the hand-holding layer for a first run. Serves a live web page (stdlib
+`http.server`, zero deps) with: a Getting-started guide (wizard steps + the exact
+next action), Situation, Plan, Execution, Ledger, Learning, Brain, Best-practices
+(learned + applied here, with numbers), Documents-to-review (reports/drafts/change
+files, viewable in-browser), and the interactive Review queue. Opens the browser
+automatically (`--no-open` to skip). Local by default (127.0.0.1). Site-agnostic."""
 import html
 import json
+import threading
+import time
 import urllib.parse
+import webbrowser
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
 
 from . import autonomy, autopilot, ledger, review, state
+
+_CACHE = {}
+
+
+def _cached(key, ttl, fn):
+    hit = _CACHE.get(key)
+    if hit and time.time() - hit[0] < ttl:
+        return hit[1]
+    val = fn()
+    _CACHE[key] = (time.time(), val)
+    return val
 
 _CSS = """
 :root{--ink:#0d1321;--em:#0e9f6e;--tx:#151b28;--mut:#5a6474;--line:#e3e7ee;--wash:#f6f8fb;--amber:#b45309;--red:#d64545}
@@ -38,6 +55,29 @@ def _page(cfg):
     queue = [i for i in autonomy.load_queue(cfg) if i["status"] != "done"]
     site = html.escape(cfg.get("site", "site"))
     P = []
+    # Getting started — the hand-holding layer (wizard + readiness, cached 10 min)
+    guide = None
+    try:
+        from . import wizard
+        guide = _cached("guide", 600, lambda: wizard.next_step(cfg))
+    except Exception:
+        pass
+    if guide:
+        steps, nxt = guide["steps"], guide["next"]
+        done = sum(1 for st in steps if st["done"])
+        P.append('<div class="card wide"><h2>Getting started — '
+                 f'{done}/{len(steps)} steps · readiness {guide["readiness"]["score"]}/100</h2>')
+        P.append('<p>' + " ".join(
+            f'<span class="pill {"s-done" if st["done"] else ("s-in_review" if nxt and st["n"] == nxt["n"] else "s-planned")}" '
+            f'title="{html.escape(st["title"])}">{st["n"]}</span>' for st in steps) + '</p>')
+        if nxt:
+            P.append(f'<p>▶ <b>Do this next: {html.escape(nxt["title"])}</b><br>'
+                     f'<span class="mut">{html.escape(nxt["why"])}</span><br>'
+                     f'<code>{html.escape(nxt["do"])}</code></p>')
+        else:
+            P.append('<p>🎉 <b>Setup complete.</b> <span class="mut">The loop below runs it: '
+                     'Run cycle → approve → it ships, measures, and learns.</span></p>')
+        P.append('</div>')
     # Situation
     P.append('<div class="card"><h2>Situation</h2>')
     if sit.get("health"):
@@ -125,6 +165,52 @@ def _page(cfg):
         P.append('<p class="empty">brain unavailable</p>')
     P.append('</div>')
 
+    # Best practices — learned & applied HERE, with numbers (show, don't tell)
+    P.append('<div class="card wide"><h2>Best practices — learned &amp; applied here</h2>')
+    try:
+        from . import practices
+        pr = _cached("practices", 600, lambda: practices.report(cfg))
+        if pr["rows"]:
+            icon = {"measured": "✅", "applied": "🔧", "encoded": "📘"}
+            rows = "".join(
+                f'<tr><td>{icon[r["tier"]]}</td><td>{html.escape(r["practice"][:95])}</td>'
+                f'<td class="n">{r["found"] if r["found"] is not None else "—"}</td>'
+                f'<td class="n">{r["fixed"] if r["fixed"] is not None else "—"}</td>'
+                f'<td class="mut">{html.escape((r["proof"] or "—")[:60])}</td></tr>'
+                for r in pr["rows"][:10])
+            P.append('<table><tr><th></th><th>practice</th><th>found</th><th>fixed</th><th>evidence</th></tr>'
+                     + rows + '</table>')
+            P.append(f'<p class="mut">✅ measured on this site · 🔧 applied, measuring · 📘 encoded — '
+                     f'{pr["encoded_rules"]} field-tested rules ship with the tool. Full detail: <code>practices</code></p>')
+        else:
+            P.append('<p class="empty">run <code>ingest</code> — practices light up from the corpus + ledger</p>')
+    except Exception:
+        P.append('<p class="empty">practices unavailable</p>')
+    P.append('</div>')
+
+    # Documents & deliverables — everything reviewable, viewable in-browser
+    P.append('<div class="card wide"><h2>Documents to review</h2>')
+    try:
+        docs = _docs_list(cfg)
+        if docs:
+            rows = "".join(
+                f'<tr><td><a href="/doc?f={urllib.parse.quote(d["path"])}">{html.escape(d["path"])}</a></td>'
+                f'<td class="mut">{d["kind"]}</td><td class="n">{d["modified"]}</td>'
+                f'<td class="mut">{html.escape(d.get("note", ""))[:40]}</td></tr>' for d in docs[:14])
+            P.append('<table><tr><th>document</th><th>kind</th><th>updated</th><th></th></tr>' + rows + '</table>')
+        else:
+            P.append('<p class="empty">reports, drafts and change files appear here as they are produced '
+                     '(<code>report --pdf</code>, <code>draft</code>, <code>control</code>)</p>')
+        dl = state.read(cfg, "deliveries", []) or []
+        if dl:
+            last = dl[-1]
+            fb = f' · feedback: “{html.escape((last.get("feedback") or "")[:40])}”' if last.get("feedback") else " · awaiting feedback"
+            P.append(f'<p class="mut">last delivery #{last["id"]} ({last["date"]}): '
+                     f'{html.escape(", ".join(Path(f).name for f in last["files"])[:60])}{fb}</p>')
+    except Exception:
+        P.append('<p class="empty">documents unavailable</p>')
+    P.append('</div>')
+
     # Review queue (wide, interactive)
     P.append('<div class="card wide"><h2>Review queue — approve or request changes</h2>')
     if queue:
@@ -154,6 +240,47 @@ def _page(cfg):
             f'{head}<div class="wrap">{"".join(P)}</div>')
 
 
+_DOC_FILES = ("report.html", "report.pdf", "plan.md", "audit.md", "BASELINE.md", "PLAYBOOK.md",
+              "recommendations.md", "digest.md", "consult.md", "article-plan.md")
+_DOC_DIRS = ("content", "site-changes", "drafts")
+_DOC_KIND = {".pdf": "report (PDF)", ".html": "report (web)", ".md": "document", ".json": "change file"}
+
+
+def _docs_list(cfg):
+    out = []
+    root = Path.cwd()
+    for f in _DOC_FILES:
+        p = root / f
+        if p.exists():
+            out.append({"path": f, "kind": _DOC_KIND.get(p.suffix, "document"),
+                        "modified": time.strftime("%m-%d %H:%M", time.localtime(p.stat().st_mtime))})
+    for d in _DOC_DIRS:
+        dp = root / d
+        if dp.is_dir():
+            for p in sorted(dp.iterdir(), key=lambda x: -x.stat().st_mtime)[:6]:
+                if p.suffix in (".md", ".json", ".html"):
+                    out.append({"path": f"{d}/{p.name}", "kind": "draft" if d == "content" else _DOC_KIND.get(p.suffix, "file"),
+                                "modified": time.strftime("%m-%d %H:%M", time.localtime(p.stat().st_mtime)),
+                                "note": "awaiting review" if d == "site-changes" else ""})
+    out.sort(key=lambda d: d["modified"], reverse=True)
+    return out
+
+
+def _doc_path(f):
+    """Whitelist + traversal guard for /doc — only known files/dirs under the workspace."""
+    if not f or f.startswith(("/", "~")) or ".." in f or "\\" in f:
+        return None
+    parts = Path(f).parts
+    ok = (f in _DOC_FILES) or (len(parts) == 2 and parts[0] in _DOC_DIRS
+                               and Path(f).suffix in (".md", ".json", ".html"))
+    if not ok:
+        return None
+    p = (Path.cwd() / f).resolve()
+    if Path.cwd().resolve() not in p.parents or not p.exists():
+        return None
+    return p
+
+
 def _make_handler(cfg):
     class H(BaseHTTPRequestHandler):
         def log_message(self, *a):
@@ -163,11 +290,26 @@ def _make_handler(cfg):
             self.send_response(code)
             self.send_header("Content-Type", ctype)
             self.end_headers()
-            self.wfile.write(body.encode())
+            self.wfile.write(body.encode() if isinstance(body, str) else body)
 
         def do_GET(self):
             if self.path.startswith("/api/state"):
                 self._send(json.dumps(state.summary(cfg), indent=1), "application/json")
+            elif self.path.startswith("/doc"):
+                q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+                p = _doc_path((q.get("f") or [""])[0])
+                if not p:
+                    self._send("<p>not found</p>", code=404)
+                elif p.suffix == ".pdf":
+                    self._send(p.read_bytes(), "application/pdf")
+                elif p.suffix == ".html":
+                    self._send(p.read_text(errors="ignore"))
+                else:  # md / json — readable, styled, back-linked
+                    body = html.escape(p.read_text(errors="ignore"))
+                    self._send(f'<!doctype html><meta charset=utf-8><title>{html.escape(p.name)}</title>'
+                               f'<style>{_CSS}</style><div class="wrap" style="grid-template-columns:1fr">'
+                               f'<div class="card wide"><h2><a href="/">← dashboard</a> · {html.escape(p.name)}</h2>'
+                               f'<pre style="white-space:pre-wrap;font-size:13px">{body}</pre></div></div>')
             else:
                 self._send(_page(cfg))
 
@@ -175,6 +317,7 @@ def _make_handler(cfg):
             n = int(self.headers.get("Content-Length", 0))
             form = urllib.parse.parse_qs(self.rfile.read(n).decode())
             g = lambda k: (form.get(k) or [""])[0]
+            _CACHE.clear()  # any action can change setup/practices state — refresh next render
             if self.path == "/approve":
                 review.respond(cfg, int(g("id")), "approve")
             elif self.path == "/changes":
@@ -187,9 +330,12 @@ def _make_handler(cfg):
     return H
 
 
-def serve(cfg, port=8787):
+def serve(cfg, port=8787, open_browser=True):
     httpd = HTTPServer(("127.0.0.1", port), _make_handler(cfg))
-    print(f"SEO autopilot dashboard → http://127.0.0.1:{port}   (Ctrl-C to stop)")
+    url = f"http://127.0.0.1:{port}"
+    print(f"SEO autopilot dashboard → {url}   (Ctrl-C to stop)")
+    if open_browser:  # the hand-holding default: the web page opens and guides you
+        threading.Timer(0.6, lambda: webbrowser.open(url)).start()
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

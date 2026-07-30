@@ -396,9 +396,13 @@ class Dashboard(unittest.TestCase):
     def test_page_renders(self):
         from seo_agent import serve
         d = _workspace(); os.chdir(d)
+        serve._CACHE.clear()
         page = serve._page(dict(CFG, state_dir="state"))
         self.assertIn("Review queue", page)
         self.assertIn("Run cycle", page)
+        self.assertIn("Getting started", page)       # the hand-holding layer
+        self.assertIn("Best practices", page)        # learned + applied, with numbers
+        self.assertIn("Documents to review", page)   # deliverables visible in the dashboard
 
 
 class Learn(unittest.TestCase):
@@ -568,6 +572,40 @@ class Deliver(unittest.TestCase):
         m = review._FEEDBACK.search("FEEDBACK: the intro was too long, cut to 3 lines")
         self.assertTrue(m)
         self.assertIn("too long", m.group(1))
+
+
+class Practices(unittest.TestCase):
+    """W9: the dashboard must SHOW learned best practices with this-site numbers."""
+
+    def test_found_fixed_measured_tiers(self):
+        from seo_agent import ledger, practices
+        d = tempfile.mkdtemp(); os.chdir(d)
+        cfg = {"state_dir": "state", "store_path": os.path.join(d, "seo.db"),
+               "history_dir": os.path.join(d, "hist"), "site": "https://demo.com",
+               "global_lessons_path": os.path.join(d, "g.json")}
+        corpus = [{"url": "https://demo.com/a", "status": 200, "title": "Best tools in 2024",
+                   "h1": [], "text": "short text", "words": 100, "headings": []},
+                  {"url": "https://demo.com/b", "status": 200, "title": "Guide", "h1": [],
+                   "text": "no description here", "words": 100, "headings": []}]
+        Path("corpus.json").write_text(json.dumps(corpus))
+        r = practices.report(cfg)
+        fresh = next(p for p in r["rows"] if "years in titles" in p["practice"])
+        self.assertEqual(fresh["found"], 1)
+        self.assertEqual(fresh["tier"], "encoded")          # nothing shipped yet
+        ledger.record(cfg, "https://demo.com/a", "retitle", "2024→now")
+        r = practices.report(cfg)
+        fresh = next(p for p in r["rows"] if "years in titles" in p["practice"])
+        self.assertEqual(fresh["fixed"], 1)
+        self.assertEqual(fresh["tier"], "applied")          # shipped → measuring
+        self.assertGreater(r["encoded_rules"], 15)          # LEARNINGS rules ship with the tool
+
+    def test_doc_route_blocks_traversal(self):
+        from seo_agent import serve
+        d = tempfile.mkdtemp(); os.chdir(d)
+        Path("plan.md").write_text("# plan")
+        self.assertIsNotNone(serve._doc_path("plan.md"))
+        for bad in ("../etc/passwd", "/etc/passwd", "content/../../x.md", ".env", "config.json"):
+            self.assertIsNone(serve._doc_path(bad), bad)
 
 
 class Freshness(unittest.TestCase):

@@ -176,6 +176,8 @@ and learns** — with a human gate you can operate from anywhere.
 | `deliver <files…>` | **Client delivery** — email the files and/or upload to their **Google Drive folder** (service account or rclone). Every delivery is logged for the feedback loop | SMTP/Resend/SendGrid and/or drive.folder_id | delivery log + links |
 | `feedback "…"` | Record the client's reaction to delivered work (or let `review --poll` catch email replies starting `FEEDBACK`). Distills into the brain as **taste** so the next deliverable matches how they work | — | learned preference |
 | `explain <url>` | **"Why did /x change?"** — correlates the decline against our change log + GSC trend + Google-update timeline | GSC history | ranked, evidenced causes |
+| `start` | **The hand-held entry point** — shows setup status, then opens the guided web dashboard (getting-started steps, best practices learned here, documents to review, inline approvals). `serve --no-open` for headless | — | guided dashboard |
+| `practices` | **Best practices learned & applied on this site** — every practice with live numbers: found → fixed (ledger) → measured (holdout follow-ups), plus the field-tested rules that ship with the tool | corpus | show-don't-tell report |
 | `audit --fix` | Audit + the PR-ready remediation plan (triaged) | corpus | fixes to ship |
 | `anomaly [--alert]` | Regression radar — indexation drops, traffic cliffs, rank drops, **AI-Overview appearance**; `--alert` pushes to channels | GSC/rank history | alerts |
 | `competitors` | **Competitor sitemap-delta** — what each competitor newly published since last run | competitors set | new URLs |

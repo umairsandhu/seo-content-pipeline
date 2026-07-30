@@ -23,6 +23,7 @@ clean cycles, full case study at 90 days.
 | G6 | Cross-site learning is opt-in with clear disclosure (W7) | ⬜ 🔒 |
 | G7 | One public case study with real ledger numbers (≥30d) | ⬜ 🔒 |
 | G8 | README claims audited — no superlative we can't screenshot | ⬜ |
+| G9 | Hand-held first run: `start` → guided web dashboard showing steps, learned best practices, and documents to review (W9) | 🟨 built — polish during pilots 🔒 |
 | — | *Nice-to-have, not gating:* experiment engine v1 (W5) | ⬜ |
 
 ---
@@ -113,6 +114,22 @@ python -m seo_agent onboard         # baseline
 - [ ] `learn.update_global` no-ops unless opted in; `learn` output shows share status
 - [ ] Journey Stage D shows the setting; README + docs disclosure section
 - [ ] Test: no global write without consent
+
+## W9 · Hand-held first run + guided dashboard (Gate G9)
+
+*Why: install must hold your hand the way Hermes/Claude Code do — CLI useful, but a web
+page opens, guides you, and shows everything: done work, learned best practices with real
+examples, and every document to review. Strategy note (2026-07-30): keep working in the
+trellus workspace first; the big standalone-install/workspace test comes after the loops
+are proven.*
+
+- [x] `start` command — one hand-held entry: setup status → guided dashboard, auto-opens the browser (helpful message in an empty folder)
+- [x] Dashboard **Getting-started panel** — wizard steps ✅/▶/○, readiness score, the exact next command
+- [x] Dashboard **Best-practices panel** — practices learned & applied HERE with live numbers (found → fixed → measured); `practices` CLI + MCP tool. Live on trellus: 400 lack answer-first, 43 stale titles, 23 encoded rules
+- [x] Dashboard **Documents-to-review panel** — reports/drafts/change files viewable in-browser (`/doc`, whitelisted + traversal-guarded) + last-delivery/feedback status
+- [x] `serve` auto-opens the browser (`--no-open` to skip)
+- [ ] Polish during pilots: every rough edge P1–P3 hit goes here (this is the G9 burn-down)
+- [ ] First-time-user test (part of G5's <5-min run): they never need the docs to know what to do next
 
 ## W8 · Launch execution (Gate G7, G8)
 

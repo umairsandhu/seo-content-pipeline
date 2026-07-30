@@ -251,6 +251,11 @@ def _learn(a):
     return learn.render_md(_cfg())
 
 
+def _practices(a):
+    from . import practices
+    return practices.render_md(_cfg())
+
+
 def _brain(a):
     from . import brain
     if a.get("add"):
@@ -336,6 +341,8 @@ TOOLS = [
      {"type": "object", "properties": {}}, _ledger),
     ("learn", "What's working — impact of changes by day/week/month + cross-site 'best change types'.",
      {"type": "object", "properties": {}}, _learn),
+    ("practices", "Best practices learned & applied on this site — found → fixed → measured, with live numbers.",
+     {"type": "object", "properties": {}}, _practices),
     ("brain", "Continuous self-learning memory: client taste, proven playbooks, lessons (auto-injected into every persona).",
      {"type": "object", "properties": {"add": {"type": "string"},
                                        "kind": {"type": "string", "enum": ["fact", "lesson", "preference", "playbook"]}}}, _brain),
