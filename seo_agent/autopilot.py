@@ -194,4 +194,11 @@ def render_md(cfg, r):
             L.append(f"- **{r['type']}** — {r['mean_lift']:+g} avg lift/page ({int(r['win_rate']*100)}% win, {r['source']})")
     L.append("\n_Watch it live with `serve`; approve dispatched changes there or via `review`. "
              "Impact by day/week/month + what works: `learn`._")
+    try:
+        from . import tips
+        if tips._enabled(cfg):
+            t = tips.pick(cfg, context="autopilot", advance=False)
+            L.append(f"\n💡 _{t['text']}_ — {t['source']}")
+    except Exception:
+        pass
     return "\n".join(L)

@@ -879,6 +879,38 @@ class ZeroClick(unittest.TestCase):
         self.assertIn("LinkedIn post", r["packet"])
 
 
+class Tips(unittest.TestCase):
+    """The tool teaches while it works — one sourced tidbit/day, context-matched."""
+
+    def setUp(self):
+        from seo_agent import tips
+        self._orig = tips._STATE
+        tips._STATE = Path(tempfile.mkdtemp()) / "tips.json"
+
+    def tearDown(self):
+        from seo_agent import tips
+        tips._STATE = self._orig
+
+    def test_every_tip_is_sourced_and_tagged(self):
+        from seo_agent import tips
+        valid = {"technical", "content", "geo", "measurement", "social", "strategy"}
+        for t in tips.TIPS:
+            self.assertTrue(len(t["text"]) > 40)
+            self.assertTrue(t["source"])                      # no folklore — every tip cites
+            self.assertTrue(set(t["tags"]) & valid)
+
+    def test_context_match_and_daily_gate(self):
+        from seo_agent import tips
+        t = tips.pick({}, context="audit")
+        self.assertIn("technical", t["tags"])                  # audit day → technical tip
+        self.assertIsNone(tips.maybe({}, "audit"))             # already shown today → quiet
+        self.assertEqual(tips.pick({}, context="brief")["text"], t["text"])  # same tip all day
+
+    def test_disable_switch(self):
+        from seo_agent import tips
+        self.assertIsNone(tips.maybe({"tips": False}, "audit"))
+
+
 class RequirementsLoop(unittest.TestCase):
     """The loop that keeps checking we're 'there': standing rules must stay wired."""
 

@@ -112,6 +112,7 @@ def main():
     sub.add_parser("voice")   # measure the site's existing voice → brain → every future draft matches it
     sub.add_parser("sitediff")  # what changed on YOUR site between crawls (ContentKing-style, local)
     sub.add_parser("zeroclick")  # alligator + branded-demand trend + correlation view (the post-click KPIs)
+    sub.add_parser("tip")        # today's sourced SEO tidbit (the tool teaches while it works)
     sub.add_parser("repurpose").add_argument("url")  # one article → zero-click derivatives (LinkedIn/X/newsletter/quotable)
     sub.add_parser("edition")   # show edition + entitlements
     sub.add_parser("webtask").add_argument("task_json", help="a web task JSON: {name, steps:[...]}")
@@ -375,6 +376,9 @@ def main():
     elif a.cmd == "zeroclick":
         from . import zeroclick
         print(zeroclick.render_md(cfg))
+    elif a.cmd == "tip":
+        from . import tips
+        print(tips.render_md(cfg))
     elif a.cmd == "repurpose":
         r = produce.repurpose(cfg, a.url)
         print(r.get("derivatives") or r.get("packet") or r.get("error"))
@@ -468,6 +472,16 @@ def main():
         dump(publish.publish(cfg, json.load(open(a.post_json))))
     elif a.cmd == "mcp":
         mcp_server.serve()
+
+    # the tool teaches while it works: one sourced tidbit per day, context-matched
+    try:
+        from . import tips
+        if a.cmd not in ("serve", "start", "mcp", "tip", "safety", "init"):
+            t = tips.maybe(cfg, a.cmd)
+            if t:
+                print("\n" + t)
+    except Exception:
+        pass
 
 
 if __name__ == "__main__":

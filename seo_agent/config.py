@@ -48,6 +48,7 @@ TEMPLATE = {
     "report": {"email_to": [], "from": ""},
     "drive": {"folder_id": "", "credentials": "", "rclone_remote": ""},
     "learning": {"share_cross_site": False},
+    "tips": True,
     "review": {"channels": []},
     "rank": {"keywords": [], "max": 50},
     "logs": {"path": ""},
@@ -71,6 +72,7 @@ HINTS = {
              "account email); credentials falls back to gsc_credentials; or an rclone_remote",
     "learning": "share_cross_site: true = contribute anonymized change-type stats to your own "
                 "machine-wide store so every workspace learns from the others (opt-in)",
+    "tips": "one sourced SEO tidbit per day after commands / on the dashboard — false to disable",
     "review": 'extra approval channels, e.g. ["slack"] (SLACK_WEBHOOK_URL in .env) — CLI/dashboard always work',
     "rank": "keywords to track daily/weekly, e.g. {\"keywords\": [\"best crm\"], \"max\": 50}",
     "logs": "path to a server access log (crawl-budget + AI-crawler analysis)",

@@ -232,9 +232,20 @@ def _page(cfg):
     else:
         P.append('<p class="empty">nothing awaiting review</p>')
     P.append('</div>')
+    tipline = ""
+    try:
+        from . import tips as _tips
+        if _tips._enabled(cfg):
+            t = _tips.pick(cfg, advance=False)
+            tipline = (f'<div style="max-width:1080px;margin:10px auto 0;padding:0 20px;font-size:12.5px;'
+                       f'color:#5a6474">💡 {html.escape(t["text"])} '
+                       f'<span style="opacity:.7">— {html.escape(t["source"])}</span></div>')
+    except Exception:
+        pass
     head = (f'<header><b>SEO <span class="g">autopilot</span></b> · {site} '
             f'<span class="mut" style="color:#8ea0bd">{html.escape(rep.get("date",""))}</span>'
-            f'<form method="post" action="/cycle"><button class="g">▶ Run cycle</button></form></header>')
+            f'<form method="post" action="/cycle"><button class="g">▶ Run cycle</button></form></header>'
+            f'{tipline}')
     return (f'<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">'
             f'<meta http-equiv=refresh content=25><title>SEO autopilot — {site}</title><style>{_CSS}</style>'
             f'{head}<div class="wrap">{"".join(P)}</div>')
