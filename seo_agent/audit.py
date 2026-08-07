@@ -347,6 +347,17 @@ def _heading_skip(levels):
     return False
 
 
+def mobile(corpus, F):
+    """Mobile-first index basics measurable from raw HTML. Deeper signals (tap targets,
+    font legibility) come from PSI's accessibility audit in `speed`."""
+    idx = [c for c in corpus if _indexable(c) and "viewport" in c]  # field exists on fresh crawls
+    no_vp = [c for c in idx if not c.get("viewport")]
+    if no_vp:
+        F.append({"cat": "mobile", "sev": "med", "url": no_vp[0]["url"],
+                  "msg": f"{len(no_vp)} pages missing <meta name=viewport> — mobile-first indexing "
+                         "renders them desktop-width (re-run `speed` for tap-target/legibility depth)"})
+
+
 def accessibility(corpus, F):
     """WCAG-adjacent checks Google's parser also values (alt text, lang, heading order).
     Not a direct ranking factor, but the structure it rewards — and image SEO."""
@@ -378,6 +389,12 @@ def report(cfg, corpus_path="corpus.json"):
     metadata(corpus, F, t)
     freshness(corpus, F)
     headings(corpus, F)
+    mobile(corpus, F)
+    try:  # indexability decision matrix + redirect health (bounded live trace)
+        from . import indexability
+        F.extend(indexability.check(cfg, corpus))
+    except Exception:
+        pass
     canonicals(corpus, F)
     content_depth(corpus, F, t)
     redirects_broken(corpus, F)

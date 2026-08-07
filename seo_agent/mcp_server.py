@@ -256,6 +256,11 @@ def _practices(a):
     return practices.render_md(_cfg())
 
 
+def _voice(a):
+    from . import voice
+    return voice.render_md(_cfg())
+
+
 def _brain(a):
     from . import brain
     if a.get("add"):
@@ -343,6 +348,8 @@ TOOLS = [
      {"type": "object", "properties": {}}, _learn),
     ("practices", "Best practices learned & applied on this site — found → fixed → measured, with live numbers.",
      {"type": "object", "properties": {}}, _practices),
+    ("voice", "Measure the site's existing brand voice → stored in the brain → every future draft matches it.",
+     {"type": "object", "properties": {}}, _voice),
     ("brain", "Continuous self-learning memory: client taste, proven playbooks, lessons (auto-injected into every persona).",
      {"type": "object", "properties": {"add": {"type": "string"},
                                        "kind": {"type": "string", "enum": ["fact", "lesson", "preference", "playbook"]}}}, _brain),

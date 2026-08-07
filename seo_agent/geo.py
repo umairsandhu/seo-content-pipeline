@@ -31,6 +31,16 @@ def _ai_blocked(cfg):
     return any(a in b for b in blocked for a in AI_BOTS)
 
 
+# Signals are NOT equal: a page AI engines can't crawl or render is invisible no matter
+# how good its byline is. Weights encode the mechanism: access gates everything,
+# extractability decides what gets quoted, trust breaks ties.
+WEIGHTS = {"ai_crawlable": 2.0, "renderable": 2.0,          # access — hard gates
+           "qa_headings": 1.5, "schema": 1.5,               # extraction levers
+           "lists_or_tables": 1.25, "structured_headings": 1.0,
+           "dated": 0.75, "author": 0.75,                   # trust signals
+           "citations": 0.5, "h1": 0.5}
+
+
 def page_score(c, ai_blocked):
     hs = [h.lower() for h in c.get("headings", [])]
     sig = {
@@ -45,7 +55,8 @@ def page_score(c, ai_blocked):
         "ai_crawlable": not ai_blocked,
         "renderable": not c.get("csr"),
     }
-    return round(100 * sum(sig.values()) / len(sig)), sig
+    tot = sum(WEIGHTS.values())
+    return round(100 * sum(WEIGHTS[k] for k, v in sig.items() if v) / tot), sig
 
 
 def report(cfg, corpus_path="corpus.json"):
@@ -53,14 +64,17 @@ def report(cfg, corpus_path="corpus.json"):
     ai_blocked = _ai_blocked(cfg)
     scored = [(c, *page_score(c, ai_blocked)) for c in corpus]
     avg = round(sum(s for _, s, _ in scored) / len(scored)) if scored else 0
-    # which signals are most often missing (site-wide fix priorities)
+    # site-wide fix priorities = how often missing × how much it matters (weight)
     keys = scored[0][2].keys() if scored else []
     missing = {k: sum(1 for _, _, sig in scored if not sig[k]) for k in keys}
+    priority = {k: round(missing[k] * WEIGHTS[k], 1) for k in missing}
     worst = sorted(scored, key=lambda x: x[1])[:15]
     return {"pages": len(scored), "avg_score": avg, "ai_blocked": ai_blocked,
-            "missing": dict(sorted(missing.items(), key=lambda kv: -kv[1])),
+            "missing": dict(sorted(missing.items(), key=lambda kv: -priority[kv[0]])),
+            "priority": dict(sorted(priority.items(), key=lambda kv: -kv[1])),
             "worst": [{"url": c["url"], "score": s,
-                       "gaps": [k for k, v in sig.items() if not v]} for c, s, sig in worst]}
+                       "gaps": sorted([k for k, v in sig.items() if not v],
+                                      key=lambda k: -WEIGHTS[k])} for c, s, sig in worst]}
 
 
 def render_md(cfg, r):
@@ -74,7 +88,8 @@ def render_md(cfg, r):
               "ai_crawlable": "AI-crawler access", "renderable": "server-rendered (not CSR)"}
     for k, n in r["missing"].items():
         if n:
-            L.append(f"- {labels.get(k, k)} — missing on {n}/{r['pages']} pages")
+            L.append(f"- {labels.get(k, k)} — missing on {n}/{r['pages']} pages "
+                     f"(weight ×{WEIGHTS[k]:g} — priority {r.get('priority', {}).get(k, '')})")
     L += ["", "## Lowest-readiness pages"]
     for p in r["worst"][:10]:
         L.append(f"- {p['score']}/100 — {p['url'].rsplit('/', 1)[-1] or p['url']}  (missing: {', '.join(p['gaps'][:4])})")

@@ -66,12 +66,76 @@ def crux(url, key, origin=False, timeout=60):
                         "cls": _verdict("cls", cls)}}
 
 
-def check(cfg, urls):
+def sample_urls(cfg, corpus, n=None):
+    """Representative sampling instead of 'first N crawled': homepage + the top
+    GSC-traffic pages + one page per top-level template/section. On a 10k-page site a
+    blind sample misses the templates that matter; this covers money pages + one of
+    each layout (pages sharing a template share their CWV)."""
+    n = n or cfg.get("speed", {}).get("max_urls", 10)
+    site = (cfg.get("site") or "").rstrip("/")
+    picked, seen = [], set()
+
+    def add(u):
+        u = (u or "").rstrip("/")
+        if u and u not in seen:
+            seen.add(u)
+            picked.append(u)
+    add(site)
+    try:  # money pages first — where CWV impact is largest
+        from . import history
+        snap = history.latest(cfg, "gsc_pages") or {}
+        for r in sorted(snap.get("data", []), key=lambda r: -r.get("clicks", 0))[: n // 2]:
+            add(r.get("page"))
+    except Exception:
+        pass
+    sections = {}
+    for c in corpus:  # one representative per top-level section (template coverage)
+        path = c.get("url", "").replace(site, "").strip("/")
+        sec = path.split("/")[0] if path else ""
+        if sec and sec not in sections:
+            sections[sec] = c["url"]
+    for u in sections.values():
+        if len(picked) >= n:
+            break
+        add(u)
+    for c in corpus:  # fill any remainder
+        if len(picked) >= n:
+            break
+        add(c.get("url"))
+    return picked[:n]
+
+
+def check(cfg, urls, snapshot=True):
     key = os.environ.get("PAGESPEED_API_KEY")
     strat = cfg.get("speed", {}).get("strategy", "mobile")
     out = []
     for u in urls[: cfg.get("speed", {}).get("max_urls", 10)]:
         out.append({"url": u, **psi(u, key, strat), **crux(u, key)})
     origin = (cfg.get("site") or "").rstrip("/")
-    return {"origin": {"url": origin, **crux(origin, key, origin=True)} if origin else {},
-            "pages": out, "has_key": bool(key)}
+    res = {"origin": {"url": origin, **crux(origin, key, origin=True)} if origin else {},
+           "pages": out, "has_key": bool(key)}
+    if snapshot and out:  # CWV history — trend, not point-in-time (critique fix)
+        try:
+            from . import history
+            history.snapshot(cfg, "cwv", [{"url": p["url"], "perf": p.get("performance"),
+                                           "lcp": p.get("lcp"), "inp": p.get("inp"),
+                                           "cls": p.get("cls")} for p in out])
+            res["trend"] = trend(cfg)
+        except Exception:
+            pass
+    return res
+
+
+def trend(cfg):
+    """Origin-level CWV movement across the two most recent snapshots."""
+    import json as _json
+    from . import history
+    files = history.snapshots(cfg, "cwv")
+    if len(files) < 2:
+        return None
+    prev, curr = _json.load(open(files[-2])), _json.load(open(files[-1]))
+    avg = lambda s, k: (lambda v: round(sum(v) / len(v), 1) if v else None)(
+        [r[k] for r in s.get("data", []) if isinstance(r.get(k), (int, float))])
+    return {"from": prev.get("date"), "to": curr.get("date"),
+            "perf": (avg(prev, "perf"), avg(curr, "perf")),
+            "lcp": (avg(prev, "lcp"), avg(curr, "lcp"))}

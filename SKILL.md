@@ -136,6 +136,7 @@ python -m seo_agent practices                  # best practices learned & applie
 python -m seo_agent ledger                      # every change → holdout-adjusted attribution
 python -m seo_agent learn [--notify]           # what worked best by day/week/month + cross-site knowledge (auto-runs each cycle)
 python -m seo_agent brain [--add "…" --kind fact|lesson|preference|playbook]  # self-learning memory: client taste + proven playbooks (auto-injected into every persona)
+python -m seo_agent voice                      # measure the site's existing brand voice → every future draft matches it from day one
 python -m seo_agent explain <url>              # why did this page's traffic change?
 
 # Client delivery + the feedback (taste) loop

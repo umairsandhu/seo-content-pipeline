@@ -109,6 +109,7 @@ def main():
     sub.add_parser("demo").add_argument("--dir", default="seo-demo")  # 5-min zero-key demo workspace
     pcf = sub.add_parser("config")  # show every setting slot + what's filled; --fix adds missing slots
     pcf.add_argument("--fix", action="store_true", help="add any missing slots to config.json (values kept)")
+    sub.add_parser("voice")   # measure the site's existing voice → brain → every future draft matches it
     sub.add_parser("edition")   # show edition + entitlements
     sub.add_parser("webtask").add_argument("task_json", help="a web task JSON: {name, steps:[...]}")
     pe = sub.add_parser("email"); pe.add_argument("--pdf", default="report.pdf")
@@ -209,7 +210,7 @@ def main():
         dump({"summary": info, "findings": f})
     elif a.cmd == "speed":
         corpus = load_corpus()
-        urls = [c.get("final_url") or c["url"] for c in corpus][:8] or [cfg.get("site")]
+        urls = speed.sample_urls(cfg, corpus) or [cfg.get("site")]
         dump(speed.check(cfg, urls))
     elif a.cmd == "gap":
         dump(analyze.competitor_gap(cfg, Index(load_corpus())))
@@ -230,8 +231,14 @@ def main():
         if a.url:
             print(schema.generate(cfg, a.url))
         else:
+            cov = schema.coverage(cfg)
+            if cov["pages"]:
+                print(f"structured data: {cov['typed_pages']}/{cov['pages']} pages typed · "
+                      + (", ".join(f"{t}×{n}" for t, n in list(cov["types"].items())[:8]) or "no @types found"))
+                for g in cov["gaps"][:6]:
+                    print(f"  ⚠ {g['section']} — {g['pages_missing']}/{g['of']} pages missing {g['expected']}")
             m = schema.missing(cfg)
-            print(f"{len(m)} indexable pages missing JSON-LD (pass a URL to generate):")
+            print(f"{len(m)} indexable pages missing JSON-LD entirely (pass a URL to generate):")
             for u in m[:30]:
                 print(" ", u)
     elif a.cmd == "score":
@@ -356,6 +363,9 @@ def main():
     elif a.cmd == "practices":
         from . import practices
         print(practices.render_md(cfg))
+    elif a.cmd == "voice":
+        from . import voice
+        print(voice.render_md(cfg))
     elif a.cmd == "demo":
         from . import demo
         print(demo.render_md(demo.build(a.dir)))

@@ -699,6 +699,81 @@ class Demo(unittest.TestCase):
         self.assertIn("error", demo.build("busy"))                # never clobbers a non-demo dir
 
 
+class Depth(unittest.TestCase):
+    """GLM-critique fixes: weighted GEO, indexability matrix, forecast scenarios,
+    intent-classified briefs, schema coverage, proactive brand voice."""
+
+    def test_geo_weighting_renderability_beats_author(self):
+        from seo_agent import geo
+        base = {"url": "u", "status": 200, "h1": ["x"], "headings": ["a?", "b", "c"], "lists": 1,
+                "jsonld": True, "author": "a", "published": "2026", "ext_links": 3, "csr": False}
+        full, _ = geo.page_score(dict(base), False)
+        no_author, _ = geo.page_score(dict(base, author=""), False)
+        csr_page, _ = geo.page_score(dict(base, csr=True), False)
+        self.assertGreater(full - csr_page, full - no_author)   # access outweighs trust
+
+    def test_indexability_matrix(self):
+        from seo_agent import indexability
+        corpus = [
+            {"url": "https://d.com/a", "status": 200, "canonical": "https://d.com/b", "robots": "", "links": []},
+            {"url": "https://d.com/b", "status": 200, "canonical": "https://d.com/c", "robots": "", "links": []},
+            {"url": "https://d.com/d", "status": 200, "canonical": "https://d.com/gone", "robots": "", "links": []},
+            {"url": "https://d.com/gone", "status": 404, "canonical": "", "robots": "", "links": []},
+            {"url": "https://d.com/soft", "status": 200, "words": 10, "title": "Page Not Found",
+             "canonical": "", "robots": "", "links": []},
+        ]
+        F = indexability.check({"site": "https://d.com"}, corpus, trace=False)
+        msgs = " | ".join(f["msg"] for f in F)
+        self.assertIn("CHAIN", msgs)
+        self.assertIn("NON-INDEXABLE", msgs)
+        self.assertIn("soft-404", msgs)
+
+    def test_consult_forecast_scenarios(self):
+        from seo_agent import consult
+        f = consult.forecast({}, {"striking": [{"query": "q", "position": 9.0, "impressions": 10000}]})
+        g = f["monthly_clicks_gain"]
+        self.assertTrue(0 < g["conservative"] < g["expected"] < g["upside"])
+        self.assertTrue(f["assumptions"])
+
+    def test_intent_classification(self):
+        from seo_agent import produce
+        self.assertEqual(produce.classify_intent("best crm software"), "commercial")
+        self.assertEqual(produce.classify_intent("how to cold call"), "informational")
+        self.assertEqual(produce.classify_intent("buy power dialer"), "transactional")
+
+    def test_schema_new_types_and_coverage(self):
+        from seo_agent import schema
+        d = tempfile.mkdtemp(); os.chdir(d)
+        Path("corpus.json").write_text(json.dumps([
+            {"url": "https://d.com/blog/a", "status": 200, "robots": "", "jsonld_types": ["BlogPosting"]},
+            {"url": "https://d.com/product/w", "status": 200, "robots": "", "jsonld_types": []}]))
+        cov = schema.coverage({})
+        self.assertEqual(cov["types"].get("BlogPosting"), 1)
+        self.assertTrue(any(g["expected"] == "Product" for g in cov["gaps"]))
+        self.assertEqual(schema.validate(json.dumps(schema.howto("Do X", ["s1", "s2"]))), [])
+        for t in ("HowTo", "Product", "LocalBusiness", "Event", "VideoObject", "QAPage", "Review"):
+            self.assertIn(t, schema.REQUIRED)
+
+    def test_voice_profile_reaches_writer(self):
+        from seo_agent import personas, voice
+        d = tempfile.mkdtemp(); os.chdir(d)
+        text = "You'll want the numbers first. We tested 14 tents and you can see all 47 results here. " * 30
+        Path("corpus.json").write_text(json.dumps([
+            {"url": "https://d.com/a", "status": 200, "title": "10 Best Tents", "words": 500,
+             "text": text, "headings": ["How did we test?"], "lists": 2}]))
+        cfg = {"state_dir": os.path.join(d, "state"), "site": "https://d.com"}
+        self.assertTrue(voice.apply(cfg)["ok"])
+        self.assertIn("Voice profile", personas.system("writer", cfg=cfg))  # proactive, day-one
+
+    def test_speed_sampling_covers_templates(self):
+        from seo_agent import speed
+        cfg = {"site": "https://d.com", "speed": {"max_urls": 4}, "history_dir": tempfile.mkdtemp()}
+        corpus = [{"url": f"https://d.com/blog/{i}"} for i in range(5)] + [{"url": "https://d.com/product/x"}]
+        urls = speed.sample_urls(cfg, corpus)
+        self.assertEqual(urls[0], "https://d.com")                       # homepage always
+        self.assertTrue(any("/product/" in u for u in urls))             # one per template
+
+
 class RequirementsLoop(unittest.TestCase):
     """The loop that keeps checking we're 'there': standing rules must stay wired."""
 

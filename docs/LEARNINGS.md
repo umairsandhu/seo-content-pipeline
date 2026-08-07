@@ -152,6 +152,15 @@ delivery and becomes a preference. Two or three cycles in, drafts/reports read l
 client wrote the spec themselves. Ask for feedback explicitly in the delivery note — silence
 teaches nothing.
 
+**24. "Shipped" must mean deep enough for the role that depends on it.** An external
+audit (docs/CRITIQUE-TRIAGE.md) found 4 of 8 "✅ shipped" roadmap items were thin —
+binary scoring, truncated evidence, first-N sampling. The failure mode: measuring
+capability by existence ("a module exists") instead of by role-readiness ("a consultant
+could defend this to a paying client"). Rule: when marking anything shipped, name the
+professional who depends on it and check THEIR bar — and when an external critique
+lands, triage every claim against the code (ours was ~60% right, ~25% already built,
+~15% wrong for our design) and build the correct fast items the same day.
+
 **23. A per-page instrument is not a sitewide check — sweep everything the audit should own.**
 `refresh <url>` detected stale year references from day one, but the sitewide `audit` never
 ran that scan across the corpus — so **44 "… in 2025" titles sailed through a 400-page audit**

@@ -131,6 +131,28 @@ are proven.*
 - [ ] Polish during pilots: every rough edge P1–P3 hit goes here (this is the G9 burn-down)
 - [ ] First-time-user test (part of G5's <5-min run): they never need the docs to know what to do next
 
+## W10 · Depth hardening (from the external critique — docs/CRITIQUE-TRIAGE.md)
+
+*An external audit (GLM, 2026-07-30) judged us "70% of a standalone agency — breadth
+over depth." The correct fast items were built same-day (weighted GEO, indexability
+matrix, 24k evidence + forecast, schema expansion, intent briefs, voice profile,
+speed sampling/history — see triage doc). These are the remaining accepted items,
+ordered by role impact. Non-gating, but each closes a named professional gap.*
+
+- [ ] **Migration monitor** — `migrate baseline` / `migrate check`: pre/post URL inventory diff, redirect mapping validation, indexation + traffic alerting (highest-risk SEO events)
+- [ ] **Post-apply verification** (→ merge into W3): after `apply`, re-fetch the page and confirm the change actually landed (title/meta/schema present) before the ledger logs it
+- [ ] **Real AI-Overview citation tracking** — DataForSEO SERP AIO item extraction per tracked keyword (beyond synthetic prompt testing); correlate citations with citability signals
+- [ ] **Entity coverage gaps** — topic → expected entity set (from SERP/Wikidata) vs entities the corpus actually mentions; feeds briefs
+- [ ] **Refresh-why depth** — decaying page → diagnose cause (SERP intent shift, staleness, lost links, cannibalization) → specific update list, not just "refresh it"
+- [ ] **Editorial calendar** — planned/in-production/review/published pipeline over the content queue, visible in `serve`
+- [ ] **Multi-format briefs** — landing page, product page, comparison table templates alongside articles
+- [ ] **API quota + cost tracker** — per-provider call counts, spend, backoff; surface in `serve` (LEARNINGS #13 generalized)
+- [ ] **Competitor reverse-engineering** — sample competitor pages: structure, schema types, word depth, E-E-A-T signals vs ours
+- [ ] **Gate v2: quality scoring** — readability + topical-completeness vs top SERP results (beyond pass/fail safety)
+- [ ] **Portfolio depth** — cross-site prioritization + roll-up report in `projects`
+- [ ] **Issue-tracker handoff** — export dispatched plan items to GitHub Issues/Jira/Linear
+- [ ] **hreflang + pagination/parameter audits** — return-tag reciprocity, x-default, canonical-on-paginated, facet bloat
+
 ## W8 · Launch execution (Gate G7, G8)
 
 - [ ] Case study from the 3 pilots (real ledger screenshots, honest wins AND flat results)

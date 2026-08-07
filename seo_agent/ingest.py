@@ -208,9 +208,12 @@ def extract(url, doc):
     # CSR heuristic: near-empty raw body + a SPA mount marker → likely client-rendered.
     csr = words < 50 and bool(re.search(
         r'id=["\'](root|app|__next|__nuxt)["\']|__NEXT_DATA__|ng-version|data-reactroot', doc, re.I))
+    viewport = bool(re.search(r'<meta[^>]+name=["\']viewport["\']', doc, re.I))
+    jsonld_types = sorted(set(re.findall(r'"@type"\s*:\s*"([A-Za-z]+)"', doc)))[:12]
     return {"url": url, "title": title, "description": desc,
             "headings": headings, "h1": h1, "canonical": canonical, "robots": robots,
             "links": links, "hreflang": hreflang, "words": words, "jsonld": jsonld,
+            "jsonld_types": jsonld_types, "viewport": viewport,
             "csr": csr, "lang": lang, "img_total": len(imgs), "img_alt": img_alt,
             "ext_links": ext_links, "author": author, "published": published,
             "modified": modified, "heading_levels": heading_levels,
