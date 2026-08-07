@@ -261,6 +261,10 @@ def build(cfg, out="corpus.json", delay=0.15):
         rec["status"], rec["final_url"] = status, final
         return rec
 
+    prevp = Path(out)
+    if prevp.exists() and prevp.stat().st_size > 2:  # keep last crawl → `sitediff` change tracking
+        Path(out.replace(".json", ".prev.json")).write_text(prevp.read_text())
+
     def checkpoint(n):                          # interrupt-safe: partial crawls stay usable
         Path(out).write_text(json.dumps(corpus, ensure_ascii=False, indent=1))
         print(f"  …{n}/{len(urls)} (checkpointed)")

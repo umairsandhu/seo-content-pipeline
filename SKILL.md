@@ -68,6 +68,7 @@ python -m seo_agent preflight               # onboarding readiness gate: staged 
 python -m seo_agent onboard                 # gated first-run baseline → BASELINE.md (--degraded to skip the gate)
 python -m seo_agent audit                   # Site Doctor → audit.md
 python -m seo_agent sitemap                 # sitemap doctor only
+python -m seo_agent sitediff                # what changed on YOUR site between crawls (noindex regressions, meta/schema drift) — cron = 24/7 monitoring
 python -m seo_agent speed                   # Core Web Vitals (PageSpeed lab + CrUX field)
 python -m seo_agent logs access.log[.gz]    # log-file analysis: crawl waste + AI-crawler coverage
 python -m seo_agent aio                      # re-rank striking-distance by AI-Overview-adjusted CTR

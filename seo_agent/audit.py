@@ -22,8 +22,40 @@ from .index import Index, load_corpus
 DEF = {"title_min": 30, "title_max": 60, "meta_min": 70, "meta_max": 160,
        "thin_words": 300, "min_inbound": 3, "max_depth": 4}
 ISO = re.compile(r"^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}.*)?$")
-CATS = ["sitemap", "crawl", "index", "meta", "headings", "canonical",
-        "duplicate", "content", "links", "structured", "a11y"]
+CATS = ["sitemap", "crawl", "index", "indexability", "meta", "freshness", "mobile",
+        "headings", "canonical", "duplicate", "content", "links", "structured", "a11y"]
+
+# Sitebulb-style hints: per category, WHY it matters + HOW to fix — so every finding
+# in the report teaches, not just flags.
+HINTS = {
+    "sitemap": ("Google discovers + prioritizes via the sitemap; a broken one wastes crawl budget",
+                "fix the sitemap source (CMS/plugin), keep only 200-status indexable URLs, resubmit in GSC"),
+    "crawl": ("if crawlers can't reach or render it, nothing else matters",
+              "unblock robots.txt, fix 5xx, enable rendering for CSR pages (`render.enabled`)"),
+    "indexability": ("conflicting index signals make Google guess — it often guesses wrong",
+                     "one clear signal per page: fix canonical chains at the source, never pair noindex "
+                     "with a robots.txt disallow, return real 404s (`pr`/`control` ship these)"),
+    "meta": ("titles/descriptions are your SERP ad copy — CTR moves 2-3× on the same ranking",
+             "unique, benefit-led title ≤60 chars + meta ≤155 with one CTA (`retitle <url>` drafts them)"),
+    "freshness": ("a stale year in a title tells users AND models the content is old",
+                  "bump titles to the current year only WITH a real content refresh (`refresh <url>`)"),
+    "mobile": ("Google indexes the mobile rendering of your page, full stop",
+               "add the viewport meta; verify tap targets/legibility via `speed` (PSI accessibility)"),
+    "headings": ("heading structure is the content's API for crawlers and AI extraction",
+                 "one H1, logical H2/H3 nesting, question-form headings where they match PAA"),
+    "canonical": ("wrong canonicals silently deindex the pages you care about",
+                  "self-canonical by default; cross-canonicals only for true duplicates"),
+    "duplicate": ("near-duplicates split ranking signals across URLs (cannibalization)",
+                  "`consolidate` — merge + 301 the weaker page into the stronger"),
+    "content": ("thin pages drag sitewide quality scores (Google's scaled-content policies)",
+                "expand with first-hand specifics or consolidate; the safety gate blocks new thin pages"),
+    "links": ("orphans get crawled late and rank worse; internal links are free authority",
+              "`autolink` + `pagerank` — link every page from ≥3 relevant pages, pillars from many"),
+    "structured": ("schema unlocks rich results and feeds AI answer extraction",
+                   "`schema <url>` generates ready-to-paste JSON-LD; `schema` shows sitewide coverage"),
+    "a11y": ("alt text + lang + heading order are ranking-adjacent AND legally prudent",
+             "batch-fix alt text, set <html lang>, repair skipped heading levels"),
+}
 
 
 def _norm(base, href=""):
@@ -428,6 +460,14 @@ def render_md(cfg, a):
         L.append("")
     if not a["findings"]:
         L.append("_No issues found — clean bill of health._")
+    present = [c for c in CATS if any(f["cat"] == c for f in a["findings"])]
+    if present:
+        L.append("## Why it matters & how to fix (per category)")
+        for c in present:
+            why, fix = HINTS.get(c, ("", ""))
+            if why:
+                L.append(f"- **{c}** — {why}. → {fix}")
+        L.append("")
     L.append("_Fixes are proposed, not applied. Review, then apply as PRs (human merge gate)._")
     return "\n".join(L)
 

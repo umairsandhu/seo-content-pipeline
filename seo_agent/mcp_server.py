@@ -261,6 +261,11 @@ def _voice(a):
     return voice.render_md(_cfg())
 
 
+def _sitediff(a):
+    from . import sitediff
+    return sitediff.render_md(_cfg())
+
+
 def _brain(a):
     from . import brain
     if a.get("add"):
@@ -350,6 +355,8 @@ TOOLS = [
      {"type": "object", "properties": {}}, _practices),
     ("voice", "Measure the site's existing brand voice → stored in the brain → every future draft matches it.",
      {"type": "object", "properties": {}}, _voice),
+    ("sitediff", "What changed on YOUR site between crawls — noindex regressions, meta/schema/content drift (24/7 monitoring via cron).",
+     {"type": "object", "properties": {}}, _sitediff),
     ("brain", "Continuous self-learning memory: client taste, proven playbooks, lessons (auto-injected into every persona).",
      {"type": "object", "properties": {"add": {"type": "string"},
                                        "kind": {"type": "string", "enum": ["fact", "lesson", "preference", "playbook"]}}}, _brain),

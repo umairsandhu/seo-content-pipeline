@@ -774,6 +774,54 @@ class Depth(unittest.TestCase):
         self.assertTrue(any("/product/" in u for u in urls))             # one per template
 
 
+class SiteDiff(unittest.TestCase):
+    """ContentKing-style change tracking: crawl-to-crawl regressions must surface."""
+
+    def _write(self, prev, curr):
+        d = tempfile.mkdtemp(); os.chdir(d)
+        Path("corpus.prev.json").write_text(json.dumps(prev))
+        Path("corpus.json").write_text(json.dumps(curr))
+
+    def test_regressions_detected_and_ranked(self):
+        from seo_agent import sitediff
+        base = {"status": 200, "robots": "", "canonical": "", "title": "T", "description": "D",
+                "h1": ["T"], "jsonld_types": ["Article"], "words": 800}
+        self._write(
+            prev=[dict(base, url="https://d.com/a"), dict(base, url="https://d.com/b"),
+                  dict(base, url="https://d.com/gone")],
+            curr=[dict(base, url="https://d.com/a", robots="noindex"),          # silent disaster
+                  dict(base, url="https://d.com/b", jsonld_types=[], words=200),  # schema + content drop
+                  dict(base, url="https://d.com/new")])
+        d = sitediff.diff({})
+        self.assertEqual(d["counts"]["high"], 1)                    # noindex appeared
+        fields = [c["field"] for c in d["changes"]]
+        self.assertIn("schema types dropped", fields)
+        self.assertIn("word count", fields)
+        self.assertEqual(d["added"], ["https://d.com/new"])
+        self.assertEqual(d["removed"], ["https://d.com/gone"])
+        al = sitediff.alerts({})
+        self.assertTrue(any("robots" in a["msg"] for a in al))      # feeds the anomaly radar
+        self.assertTrue(all(a["sev"] in ("high", "med") for a in al))
+
+    def test_graceful_without_previous_crawl(self):
+        from seo_agent import sitediff
+        d = tempfile.mkdtemp(); os.chdir(d)
+        Path("corpus.json").write_text("[]")
+        self.assertIn("SECOND", sitediff.diff({})["error"])
+
+    def test_audit_renders_all_categories_with_hints(self):
+        from seo_agent import audit
+        for cat in ("freshness", "mobile", "indexability"):          # the CATS bug regression guard
+            self.assertIn(cat, audit.CATS)
+            self.assertIn(cat, audit.HINTS)
+        fake = {"pages": 1, "counts": {"high": 1, "med": 0, "low": 0}, "sitemap": {}, "links": {},
+                "findings": [{"cat": "indexability", "sev": "high", "url": "https://d.com/x",
+                              "msg": "canonical target is NON-INDEXABLE"}]}
+        md = audit.render_md({"site": "https://d.com"}, fake)
+        self.assertIn("indexability", md)
+        self.assertIn("how to fix", md)
+
+
 class RequirementsLoop(unittest.TestCase):
     """The loop that keeps checking we're 'there': standing rules must stay wired."""
 

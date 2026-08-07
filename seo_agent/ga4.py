@@ -64,10 +64,54 @@ def organic(cfg, days=90):
             "revenue": round(float(v[2]), 2)}
 
 
+# assistant/agent referral sources — the traffic AI answers actually send
+_AI_SOURCES = ("chatgpt", "openai", "perplexity", "gemini", "bard", "copilot", "bing",
+               "claude", "anthropic", "poe.com", "you.com", "phind", "kagi")
+
+
+def ai_referrals(cfg, days=90):
+    """Sessions referred BY AI assistants (chatgpt.com, perplexity.ai, gemini, copilot…) —
+    the Profound-style 'agent analytics' question answered from your own GA4: not just
+    'are we cited?' (aivis) but 'do the citations send anyone?'."""
+    prop, token = _property(cfg), _token(cfg)
+    if not (prop and token):
+        return {"error": "needs GA4 (ga4_property_id + service account)"}
+    end = datetime.date.today()
+    start = end - datetime.timedelta(days=days)
+    body = {"dateRanges": [{"startDate": str(start), "endDate": str(end)}],
+            "dimensions": [{"name": "sessionSource"}],
+            "metrics": [{"name": "sessions"}], "limit": 1000}
+    req = urllib.request.Request(
+        f"https://analyticsdata.googleapis.com/v1beta/properties/{prop}:runReport",
+        data=json.dumps(body).encode(), method="POST",
+        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=40) as r:
+            data = json.load(r)
+    except Exception as e:
+        return {"error": f"GA4 request failed: {e}"}
+    out = {}
+    for row in data.get("rows", []):
+        src = row["dimensionValues"][0]["value"].lower()
+        if any(a in src for a in _AI_SOURCES):
+            out[src] = out.get(src, 0) + int(row["metricValues"][0]["value"])
+    return {"days": days, "sources": dict(sorted(out.items(), key=lambda kv: -kv[1])),
+            "total": sum(out.values())}
+
+
 def render_md(cfg, r):
     if r.get("error"):
         return f"# GA4 organic outcomes\n\n_{r['error']}_"
-    return (f"# GA4 — organic outcomes (last {r['days']}d)\n\n"
-            f"- sessions: **{r['sessions']:,}**\n- conversions: **{r['conversions']:,}**\n"
-            f"- revenue: **${r['revenue']:,.2f}**\n\n"
-            "_Pair with GSC clicks/position for change-level revenue attribution in the ledger._")
+    L = [f"# GA4 — organic outcomes (last {r['days']}d)", "",
+         f"- sessions: **{r['sessions']:,}**", f"- conversions: **{r['conversions']:,}**",
+         f"- revenue: **${r['revenue']:,.2f}**"]
+    ai = ai_referrals(cfg, days=r["days"])
+    if not ai.get("error"):
+        L += ["", f"## 🤖 AI-assistant referrals ({ai['total']:,} sessions)"]
+        if ai["sources"]:
+            L += [f"- {src}: **{n:,}**" for src, n in list(ai["sources"].items())[:8]]
+            L.append("_Citations (`aivis`) → visits: this is the AI-search channel becoming real traffic._")
+        else:
+            L.append("_None yet — pair with `aivis` + `citability` to earn assistant citations._")
+    L += ["", "_Pair with GSC clicks/position for change-level revenue attribution in the ledger._"]
+    return "\n".join(L)

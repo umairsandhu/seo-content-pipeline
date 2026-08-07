@@ -181,7 +181,8 @@ and learns** — with a human gate you can operate from anywhere.
 | `demo [--dir]` | **The 5-minute try-out** — builds a complete synthetic workspace (17-page corpus with realistic flaws, 3 months of search history, 4 measured changes incl. one honest loss, a seeded brain) so everything works with zero keys and zero network. Its lesson store stays inside the demo folder | — | working demo workspace |
 | `practices` | **Best practices learned & applied on this site** — every practice with live numbers: found → fixed (ledger) → measured (holdout follow-ups), plus the field-tested rules that ship with the tool | corpus | show-don't-tell report |
 | `audit --fix` | Audit + the PR-ready remediation plan (triaged) | corpus | fixes to ship |
-| `anomaly [--alert]` | Regression radar — indexation drops, traffic cliffs, rank drops, **AI-Overview appearance**; `--alert` pushes to channels | GSC/rank history | alerts |
+| `anomaly [--alert]` | Regression radar — indexation drops, traffic cliffs, rank drops, **AI-Overview appearance**, and **on-page regressions from `sitediff`**; `--alert` pushes to channels | GSC/rank history | alerts |
+| `sitediff` | **Site change tracking** (ContentKing-style, local) — diffs the current crawl vs the previous one: pages added/removed, **noindex appearing**, status flips, canonical/title/meta/H1 drift, schema types dropped, content shrinking >30%. Daily cron = 24/7 monitoring; run after every deploy | 2+ crawls | change report + alerts |
 | `competitors` | **Competitor sitemap-delta** — what each competitor newly published since last run | competitors set | new URLs |
 | `ga4` | Organic **sessions / conversions / revenue** — business outcomes for the exec one-pager | GA4 property + service account | outcomes |
 

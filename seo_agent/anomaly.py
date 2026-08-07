@@ -41,6 +41,11 @@ def detect(cfg):
                                "msg": f"AI Overview now appears on '{c['keyword']}' — CTR will drop; "
                                       "adapt the page for citation (entity + citability)"})
     alerts.sort(key=lambda a: {"high": 0, "med": 1}.get(a["sev"], 2))
+    try:  # on-page regressions between crawls (sitediff): noindex appeared, schema dropped…
+        from . import sitediff
+        alerts += sitediff.alerts(cfg)
+    except Exception:
+        pass
     return alerts
 
 
