@@ -12,8 +12,8 @@ your work delivered. Human-gated at every step.
 ![python](https://img.shields.io/badge/python-%E2%89%A53.9-blue)
 ![deps](https://img.shields.io/badge/core%20deps-numpy%20%2B%20scikit--learn-orange)
 ![storage](https://img.shields.io/badge/storage-file--based%20(no%20DB%2C%20no%20server)-lightgrey)
-![mcp](https://img.shields.io/badge/MCP-57%20tools-purple)
-![tests](https://img.shields.io/badge/tests-56%20passing-brightgreen)
+![mcp](https://img.shields.io/badge/MCP-59%20tools-purple)
+![tests](https://img.shields.io/badge/tests-71%20passing-brightgreen)
 
 **No hosting, no SaaS, no database.** Stdlib + `numpy`/`scikit-learn` at the core; every API is
 optional and the whole thing **degrades gracefully** — the audit, strategy, drafts, AI-search
@@ -74,6 +74,42 @@ python -m seo_agent serve               # live local dashboard at http://127.0.0
 > **One directory = one site.** `init` scaffolds a clean workspace (`config.json` + `.env` +
 > hardened `.gitignore`) and runs fork-safety so keys can never leak. Everything — data, keys,
 > reports, the change ledger — stays on your machine.
+
+## How you actually use it — three modes
+
+**1 · Try it (5 minutes, zero keys).** `python -m seo_agent demo` builds a synthetic
+workspace with measured wins and one honest loss, then `start` opens the guided dashboard.
+You'll see exactly what the loop does before connecting anything real.
+
+**2 · Point it at your site (~20 minutes).** In an empty folder:
+```bash
+python -m seo_agent init --site https://your-site.com
+python -m seo_agent start        # the dashboard opens and walks you through every step
+```
+The dashboard's **Getting-started panel** shows your setup as numbered steps with the exact
+next command; `config` shows every setting slot with a hint (drop your GSC key file in the
+folder and it's auto-detected — preflight even tells you which service-account email to
+invite). No Search Console API? `gsc --csv <export.zip>` imports a normal export.
+
+**3 · Let it run (15 min of your attention per day).** Two cron lines make it a local,
+self-improving agent:
+```cron
+30 8 * * *  cd ~/sites/your-site && python3 -m seo_agent gsc && python3 -m seo_agent autopilot --daily
+0  9 * * 5  cd ~/sites/your-site && python3 -m seo_agent report --pdf && python3 -m seo_agent deliver report.pdf
+```
+Every morning it audits, plans, and queues changes **behind your approval**; you approve or
+decline in the dashboard (your notes teach it your taste); the ledger measures every shipped
+change against a holdout at +7/+28/+90 days; `learn` and `practices` show what's actually
+working. What it looks like two weeks in:
+
+```
+| change type | day (+7) | week (+28) | month (+90) | wins |
+|-------------|---------:|-----------:|------------:|-----:|
+| retitle     | +11 (n2) |   +36 (n2) |          —  | 100% |
+| update_meta |  +5 (n1) |   +12 (n1) |          —  | 100% |
+| refresh     |  -9 (n1) |   -18 (n1) |          —  |   0% |
+▶ Do more of: retitle (+36, this-site) · Rethink: refresh (measurably not working here)
+```
 
 ## The onboarding journey (gated, hand-held)
 
@@ -167,6 +203,47 @@ skill — on *your* machine. See **[docs/AGENT-LOOP-PLAN.md](docs/AGENT-LOOP-PLA
 - **[Agent Loop](docs/AGENT-LOOP-PLAN.md)** · **[Distribution & Runtimes](docs/APP-PLAN.md)** (local-only)
 - Commercial: **[Pricing](docs/PRICING.md)** · **[Commercial license](COMMERCIAL.md)** · **[Product strategy](docs/PRODUCT-STRATEGY.md)**
 - For the operator: **[Learnings](docs/LEARNINGS.md)** · **[Roadmap](docs/ROADMAP.md)** · **[Playbook](PLAYBOOK.md)** · **[Build loop](BUILDLOOP.md)**
+
+## FAQ — the questions that decide whether you'll trust it
+
+**Where does my data go?** Nowhere. No server, no telemetry, no SaaS — corpus, keys,
+history, and the change ledger live in a folder on your machine. Cross-workspace learning
+(anonymized change-type stats) is **opt-in** and stays on your disk too.
+
+**Do I need API keys?** No — the audit, GEO score, plan, drafts, and dashboard run with
+zero credentials. Keys add depth: GSC (or just a CSV export) for real demand data,
+DataForSEO (~sub-cent per call, bring-your-own) for volumes/SERPs.
+
+**Does it publish AI slop?** It can't, by design: a safety gate hard-blocks thin/duplicate/
+boilerplate content, every change routes through your **approval queue**, and the ledger
+measures each shipped change against a holdout — negative patterns become explicit
+"rethink" guidance instead of being repeated.
+
+**Will it work on my JS-heavy site?** The crawler detects client-side rendering and tells
+you; enable Playwright rendering (`render.enabled`) for full CSR sites.
+
+**What does it cost to run?** The engine is free. Typical real-world spend is a few
+dollars/month of DataForSEO for a small site — you pay them directly.
+
+**Is it production-ready?** Beta — a 3-site pilot is running now and the measured case
+study ships with v1. The [launch plan](docs/LAUNCH-PLAN.md) with its gates is public.
+
+## 💰 Pricing — free engine, paid commercial license
+
+The **entire engine is free** (every command, the autopilot, the dashboard). Paid tiers are
+**local licenses** for professional use — nothing is ever locked in the core:
+
+| | Open | Pro $149/yr | Agency $599/yr | Enterprise |
+|---|---|---|---|---|
+| Full engine, autopilot, dashboard, 59 MCP tools | ✅ | ✅ | ✅ | ✅ |
+| Sites | 1 (personal) | 10 | unlimited | unlimited |
+| White-label reports · commercial/client use | — | ✅ | ✅ | ✅ |
+| Reseller rights (deliver under your brand) | — | — | ✅ | ✅ |
+| Priority support · custom connectors · done-for-you | — | — | — | ✅ |
+
+Details + how to buy: **[docs/PRICING.md](docs/PRICING.md)** · license terms:
+[COMMERCIAL.md](COMMERCIAL.md). Agencies: the demo is the sales pitch — run `demo`, then
+imagine the ledger on your client's site.
 
 ## ☕ Support this project
 
