@@ -69,6 +69,8 @@ python -m seo_agent onboard                 # gated first-run baseline → BASEL
 python -m seo_agent audit                   # Site Doctor → audit.md
 python -m seo_agent sitemap                 # sitemap doctor only
 python -m seo_agent sitediff                # what changed on YOUR site between crawls (noindex regressions, meta/schema drift) — cron = 24/7 monitoring
+python -m seo_agent zeroclick               # zero-click KPIs: impressions-vs-clicks alligator, branded-demand trend, shipped-vs-moved correlation
+python -m seo_agent repurpose <url>         # one article → no-link LinkedIn post + X thread + newsletter section + quotable stat (voice-aware)
 python -m seo_agent speed                   # Core Web Vitals (PageSpeed lab + CrUX field)
 python -m seo_agent logs access.log[.gz]    # log-file analysis: crawl waste + AI-crawler coverage
 python -m seo_agent aio                      # re-rank striking-distance by AI-Overview-adjusted CTR

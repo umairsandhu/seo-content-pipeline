@@ -51,13 +51,33 @@ def classify_intent(keyword, serp_titles=None):
     return "informational"
 
 
+_UGC_DOMAINS = ("reddit.com", "quora.com", "stackexchange", "stackoverflow", "news.ycombinator",
+                "facebook.com/groups", "tripadvisor", "trustpilot", "g2.com", "capterra")
+
+# content-as-a-service defaults per intent: every asset has a job + an internal client
+# + a success metric — "if content can't say what job it does, it isn't ready to ship"
+_JOB = {
+    "informational": ("customer success / brand", "answer it better than anyone → topical authority",
+                      "ticket deflection · branded search lift · AI-answer citations"),
+    "commercial": ("sales", "help an in-market buyer choose (and shortlist us)",
+                   "demo/signup assists · SERP + AI-answer share for the category"),
+    "transactional": ("sales", "remove the last friction before purchase",
+                      "conversion rate · revenue (GA4)"),
+    "local": ("ops / local", "win the nearby decision moment", "calls · direction requests · visits"),
+}
+
+
 def brief(cfg, keyword):
     dfs = cfg.get("dataforseo", {})
     s = providers.serp(keyword, dfs.get("location_name"), dfs.get("language_name"))
     organic = s.get("organic", [])[:10]
     intent = classify_intent(keyword, [o.get("title", "") for o in organic])
+    ugc = [o.get("url", "") for o in organic
+           if any(d in (o.get("url") or "") for d in _UGC_DOMAINS)]
     return {"keyword": keyword, "intent": intent,
             "intent_play": dict(zip(("reader_state", "must_have", "word_target"), _INTENT_PLAY[intent])),
+            "job": dict(zip(("client", "job_to_be_done", "success_metric"), _JOB[intent])),
+            "ugc_serp": ugc,
             "serp": organic,
             "questions": s.get("paa", []),
             "related": s.get("related", [])}
@@ -88,8 +108,25 @@ def _assignment_md(cfg, kw, b, links):
             voice_note = f"\n## Voice (measured from this site's existing content)\n{vp[0]['text']}\n"
     except Exception:
         pass
+    job = b.get("job", {})
+    ugc_note = ""
+    if b.get("ugc_serp"):
+        ugc_note = (f"\n## ⚠ UGC ranks on this SERP ({len(b['ugc_serp'])} community results — "
+                    f"e.g. {b['ugc_serp'][0][:60]})\n"
+                    "Buyers are forming opinions in threads before they see any vendor. Two implications: "
+                    "(1) this article must be the honest, specific answer a thread would upvote — not a "
+                    "brochure; (2) distribution step: participate in those communities authentically "
+                    "(disclose affiliation, be useful, never spam).\n")
     return (f"# Writing assignment — target keyword: \"{kw}\"\n\n"
             f"Site/brand: {brand} · {cfg.get('site','')}\n\n"
+            f"## Intake (content-as-a-service — every asset has a job and a client)\n"
+            f"- Internal client: {job.get('client', '—')}\n"
+            f"- Job to be done: {job.get('job_to_be_done', '—')}\n"
+            f"- Success metric to watch: {job.get('success_metric', '—')} (not raw traffic — see `zeroclick`)\n"
+            f"- Shelf life: refresh when the newest year/stat ages or SERP intent shifts — the "
+            f"`freshness` audit + `refresh <url>` flag it automatically\n"
+            f"- After publishing: create the zero-click derivatives (`repurpose <url>`)\n"
+            f"{ugc_note}\n"
             f"## Search intent: {b.get('intent', 'informational').upper()}\n"
             f"- Reader state: {play.get('reader_state', 'wants to understand')}\n"
             f"- This page's ONE job: satisfy that intent better than every result below.\n"
@@ -126,6 +163,63 @@ def draft(cfg, keyword, corpus_path="corpus.json"):
             "brief": b, "assignment": assignment,
             "instruction": ("Write the full article now in your own output using this "
                             "assignment. You are the writer — do not call an external API.")}
+
+
+def repurpose(cfg, url, corpus_path="corpus.json"):
+    """One article → zero-click derivatives. The playbook for a web where platforms
+    suppress links (no-link posts reach ~10× further) and ~58% of searches end
+    without a click: publish standalone value IN the feed, capture demand with
+    branded search + email, and keep a ~5:1 deposits-to-withdrawals ratio.
+    Returns an agent packet (the agent writes; voice-profile-aware)."""
+    page = None
+    try:
+        from .index import load_corpus
+        for c in load_corpus(corpus_path):
+            if url in (c.get("url"), c.get("final_url")):
+                page = c
+                break
+    except Exception:
+        pass
+    if not page:
+        return {"error": f"{url} not in corpus — run `ingest` first"}
+    voice_note = ""
+    try:
+        from . import brain
+        vp = [e for e in brain.load(cfg)["entries"] if e.get("tag") == "voice-profile"]
+        if vp:
+            voice_note = f"\n## Voice (measured)\n{vp[0]['text']}\n"
+    except Exception:
+        pass
+    brand = cfg.get("brand", {}).get("name", "the brand")
+    packet = (
+        f"# Zero-click repurposing — {page.get('title', url)}\n\n"
+        f"Source: {url} · {page.get('words', '?')} words\n\n"
+        f"## The rules (why these formats look like this)\n"
+        f"- Platforms suppress outbound links: value must land IN the feed, no click required.\n"
+        f"- Ratio ≈ 5 value deposits : 1 ask (withdrawal). These are deposits — NO links in the "
+        f"body; if a link is essential, note it for the first comment.\n"
+        f"- The goal is branded demand: someone sees this, later Googles \"{brand}\" — that's the "
+        f"win `zeroclick` measures.\n"
+        f"- LinkedIn: text-first (text posts out-reach embedded video ~8–10×), ≤3 posts/week, "
+        f"never 2 posts within 24h, personal voice beats company page.\n"
+        f"{voice_note}\n"
+        f"## Produce these from the source article\n"
+        f"1. **LinkedIn post** (120–220 words): open with the sharpest insight/number, one concrete "
+        f"story or example from the article, end with a question — not a link.\n"
+        f"2. **X/Threads thread** (5–8 posts): the article's argument as a sequence; each post "
+        f"stands alone; numbers and specifics over adjectives.\n"
+        f"3. **Newsletter section** (100–150 words): the insight + one 'try this next week' action "
+        f"(email is the owned channel — this one MAY link to the article).\n"
+        f"4. **One quotable stat/claim** (≤200 chars) formatted for reuse — the passage an AI answer "
+        f"or a person would lift verbatim.\n\n"
+        f"## Source material (write from THIS, not from memory)\n"
+        f"{(page.get('text') or '')[:4000]}\n")
+    body = providers.complete(packet, system=personas.system("writer", cfg=cfg, query=page.get("title", "")),
+                              cfg_llm=cfg.get("llm", {}), max_tokens=3000)
+    if body:
+        return {"url": url, "mode": "generated", "derivatives": body}
+    return {"url": url, "mode": "agent", "packet": packet,
+            "instruction": "Write all 4 derivatives now in your own output — you are the writer."}
 
 
 def retitle(cfg, page, keyword="", current_title="", current_meta=""):

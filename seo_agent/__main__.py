@@ -111,6 +111,8 @@ def main():
     pcf.add_argument("--fix", action="store_true", help="add any missing slots to config.json (values kept)")
     sub.add_parser("voice")   # measure the site's existing voice → brain → every future draft matches it
     sub.add_parser("sitediff")  # what changed on YOUR site between crawls (ContentKing-style, local)
+    sub.add_parser("zeroclick")  # alligator + branded-demand trend + correlation view (the post-click KPIs)
+    sub.add_parser("repurpose").add_argument("url")  # one article → zero-click derivatives (LinkedIn/X/newsletter/quotable)
     sub.add_parser("edition")   # show edition + entitlements
     sub.add_parser("webtask").add_argument("task_json", help="a web task JSON: {name, steps:[...]}")
     pe = sub.add_parser("email"); pe.add_argument("--pdf", default="report.pdf")
@@ -370,6 +372,12 @@ def main():
     elif a.cmd == "sitediff":
         from . import sitediff
         print(sitediff.render_md(cfg))
+    elif a.cmd == "zeroclick":
+        from . import zeroclick
+        print(zeroclick.render_md(cfg))
+    elif a.cmd == "repurpose":
+        r = produce.repurpose(cfg, a.url)
+        print(r.get("derivatives") or r.get("packet") or r.get("error"))
     elif a.cmd == "demo":
         from . import demo
         print(demo.render_md(demo.build(a.dir)))

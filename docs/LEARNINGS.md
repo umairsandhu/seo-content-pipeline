@@ -152,6 +152,35 @@ delivery and becomes a preference. Two or three cycles in, drafts/reports read l
 client wrote the spec themselves. Ask for feedback explicitly in the delivery note — silence
 teaches nothing.
 
+**25. Measure the zero-click layers — traffic is a secondary metric.** ~58% of searches
+end without a click; platforms suppress outbound links (no-link posts reach ~10× further);
+impressions rise while clicks fall (the "alligator"). A site can lose 80% of its organic
+traffic while revenue hits records (HubSpot, 2025) — because the demand moved to surfaces
+analytics can't see. Encoded: `zeroclick` measures the alligator on YOUR GSC data, the
+**branded-search trend** (the honest proxy for demand your off-site presence creates), and
+a shipped-vs-moved correlation table. Never let a report treat clicks as the primary KPI;
+report the layers: Reach → Interest (branded, AI citations) → Visits → Outcomes.
+
+**26. Correlation over attribution — and distrust platform-reported ROAS.** Cookie consent
+(~30%), blockers (20–60%), multi-device (~3.6/person), and dark social (TikTok/Slack/
+Discord/WhatsApp report as "direct" ~100% of the time) make single-touch attribution
+fiction; platforms overclaim causal impact 2–10× (Dropbox blackout study: attributed ROAS
+1.5–2.0, causal 0.7–0.9). Our holdout ledger IS the right epistemology — extend it to
+reporting language: "we shipped X, branded demand moved Y 2–4 weeks later," never "channel
+Z drove N sales." The buyer journey (LinkedIn post → podcast → Slack mention → branded
+Google search → convert) credits Google for demand that four invisible surfaces created.
+
+**27. The public record is the homepage — publish counter-evidence, keep it fresh.** Buyers
+form opinions on SERP snippets, AI answers, Reddit threads (Reddit outranks every vendor on
+50–66% of B2B SaaS keywords), and reviews before any visit. AI systems amplify sparse data:
+ONE negative review theme surfaced 67× in branded AI outputs — and publishing real
+counter-data displaced it after ~2 citations, *but decayed within weeks without refreshing*.
+Encoded: `brief` flags UGC-dominated SERPs (write the thread-worthy answer + participate
+authentically); `repurpose` produces the no-link feed assets (≈5 value deposits : 1 ask);
+narrative monitoring (recurring negative themes in `aivis` outputs → counter-evidence page →
+refresh cadence) is on the roadmap. If your strongest proof lives in Slack or your head,
+it isn't helping you.
+
 **24. "Shipped" must mean deep enough for the role that depends on it.** An external
 audit (docs/CRITIQUE-TRIAGE.md) found 4 of 8 "✅ shipped" roadmap items were thin —
 binary scoring, truncated evidence, first-N sampling. The failure mode: measuring

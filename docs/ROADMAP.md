@@ -38,6 +38,10 @@ until these hold.*
    our agent-mode makes engines nearly free to add).
 5. **Entity coverage gaps** — topic → expected entities (SERP/Wikidata) vs what the corpus
    mentions; feeds briefs. The GEO gap nobody's tooling closes well yet.
+5b. **Narrative monitoring & defense** — recurring themes (esp. negative) across `aivis`
+   outputs → alert → counter-evidence page brief (real data) → refresh cadence (AI systems
+   amplify sparse data; counter-citations displace it but decay without refreshing —
+   LEARNINGS #27). Pairs with `zeroclick` branded-demand tracking.
 6. **Refresh-why + editorial calendar** — decay diagnosis (intent shift vs staleness vs
    lost links) and a content pipeline view in `serve`.
 7. **Quota + cost tracker** — per-provider spend/backoff surfaced in the dashboard.

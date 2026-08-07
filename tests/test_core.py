@@ -822,6 +822,63 @@ class SiteDiff(unittest.TestCase):
         self.assertIn("how to fix", md)
 
 
+class ZeroClick(unittest.TestCase):
+    """LEARNINGS #25-27: measure the zero-click layers, not just traffic."""
+
+    def _cfg(self):
+        d = tempfile.mkdtemp(); os.chdir(d)
+        cfg = {"history_dir": os.path.join(d, "hist"), "site": "https://demo-outdoors.example",
+               "brand": {"name": "Demo Outdoors"}, "store_path": os.path.join(d, "seo.db")}
+        from seo_agent import history
+        history.snapshot(cfg, "gsc_queries", [
+            {"query": "demo outdoors", "clicks": 100, "impressions": 500},
+            {"query": "best tents", "clicks": 200, "impressions": 5000}], date="2026-06-01")
+        history.snapshot(cfg, "gsc_queries", [
+            {"query": "demo outdoors", "clicks": 130, "impressions": 900},
+            {"query": "best tents", "clicks": 205, "impressions": 9000}], date="2026-07-01")
+        return cfg
+
+    def test_alligator_opens_when_impressions_outrun_clicks(self):
+        from seo_agent import zeroclick
+        a = zeroclick.alligator(self._cfg())
+        self.assertEqual(a["verdict"], "opening")     # impr +80%, clicks +9%
+        self.assertGreater(a["impressions"]["pct"], a["clicks"]["pct"])
+
+    def test_branded_demand_trend(self):
+        from seo_agent import zeroclick
+        b = zeroclick.branded_trend(self._cfg())
+        self.assertIn("demo", b["terms"])
+        self.assertEqual(b["series"][0]["branded_impressions"], 500)
+        self.assertEqual(b["series"][-1]["branded_impressions"], 900)
+        self.assertEqual(b["branded_impressions_pct"], 80.0)  # demand creation, measured
+        md = zeroclick.render_md(self._cfg())
+        self.assertIn("alligator", md.lower())
+        self.assertIn("Branded demand", md)
+
+    def test_brief_carries_job_and_ugc_flag(self):
+        from seo_agent import produce
+        b = {"keyword": "best crm", "intent": "commercial",
+             "intent_play": {"reader_state": "comparing", "must_have": "table", "word_target": "2000"},
+             "job": {"client": "sales", "job_to_be_done": "help choose", "success_metric": "demos"},
+             "ugc_serp": ["https://www.reddit.com/r/sales/x"], "serp": [], "questions": [], "related": []}
+        md = produce._assignment_md({"brand": {"name": "X"}}, "best crm", b, [])
+        self.assertIn("Internal client: sales", md)
+        self.assertIn("UGC ranks on this SERP", md)
+        self.assertIn("zero-click derivatives", md)
+
+    def test_repurpose_packet_is_no_link_and_voice_aware(self):
+        from seo_agent import produce
+        d = tempfile.mkdtemp(); os.chdir(d)
+        Path("corpus.json").write_text(json.dumps([
+            {"url": "https://d.com/a", "title": "Best Tents", "words": 900,
+             "text": "We tested 14 tents across 47 nights. The winner costs $189." * 20}]))
+        r = produce.repurpose({"state_dir": "state", "brand": {"name": "D"}}, "https://d.com/a")
+        self.assertEqual(r["mode"], "agent")
+        self.assertIn("NO links in the body", r["packet"])
+        self.assertIn("5 value deposits", r["packet"])
+        self.assertIn("LinkedIn post", r["packet"])
+
+
 class RequirementsLoop(unittest.TestCase):
     """The loop that keeps checking we're 'there': standing rules must stay wired."""
 

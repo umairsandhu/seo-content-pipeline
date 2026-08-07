@@ -266,6 +266,16 @@ def _sitediff(a):
     return sitediff.render_md(_cfg())
 
 
+def _zeroclick(a):
+    from . import zeroclick
+    return zeroclick.render_md(_cfg())
+
+
+def _repurpose(a):
+    r = produce.repurpose(_cfg(), a["url"])
+    return r.get("derivatives") or r.get("packet") or r.get("error", "")
+
+
 def _brain(a):
     from . import brain
     if a.get("add"):
@@ -357,6 +367,10 @@ TOOLS = [
      {"type": "object", "properties": {}}, _voice),
     ("sitediff", "What changed on YOUR site between crawls — noindex regressions, meta/schema/content drift (24/7 monitoring via cron).",
      {"type": "object", "properties": {}}, _sitediff),
+    ("zeroclick", "Zero-click KPIs: the impressions-vs-clicks alligator, branded-demand trend, and the shipped-vs-moved correlation view.",
+     {"type": "object", "properties": {}}, _zeroclick),
+    ("repurpose", "One article → zero-click derivatives: no-link LinkedIn post, X thread, newsletter section, quotable stat (voice-aware).",
+     {"type": "object", "properties": {"url": {"type": "string"}}, "required": ["url"]}, _repurpose),
     ("brain", "Continuous self-learning memory: client taste, proven playbooks, lessons (auto-injected into every persona).",
      {"type": "object", "properties": {"add": {"type": "string"},
                                        "kind": {"type": "string", "enum": ["fact", "lesson", "preference", "playbook"]}}}, _brain),
