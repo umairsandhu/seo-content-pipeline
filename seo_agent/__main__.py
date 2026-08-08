@@ -114,7 +114,12 @@ def main():
     sub.add_parser("zeroclick")  # alligator + branded-demand trend + correlation view (the post-click KPIs)
     sub.add_parser("tip")        # today's sourced SEO tidbit (the tool teaches while it works)
     sub.add_parser("diagnose")   # site-level "why is traffic down?" — ranked differential diagnosis
-    sub.add_parser("agent").add_argument("--interval", type=int, default=None)  # always-on mode (replaces cron)
+    pag = sub.add_parser("agent")  # always-on mode (replaces cron)
+    pag.add_argument("--interval", type=int, default=None)
+    pag.add_argument("--background", action="store_true", help="detach (survives closing the terminal)")
+    pag.add_argument("--install", action="store_true", help="macOS launchd: start at login, survive reboots")
+    pag.add_argument("--status", action="store_true")
+    pag.add_argument("--stop", action="store_true")
     psf = sub.add_parser("sf")  # Screaming Frog: import exports / auto-import sf-exports/ / headless crawl
     psf.add_argument("--csv", nargs="+", metavar="PATH", help="SF export file(s)/dir/zip (Internal:All)")
     psf.add_argument("--crawl", action="store_true", help="run a headless SF crawl + import (paid SF license)")
@@ -389,7 +394,16 @@ def main():
         print(diagnose.render_md(cfg))
     elif a.cmd == "agent":
         from . import daemon
-        daemon.run(cfg, interval=a.interval)
+        if a.status:
+            dump(daemon.status(cfg))
+        elif a.stop:
+            dump(daemon.stop(cfg))
+        elif a.install:
+            dump(daemon.install_launchd(cfg, interval=a.interval))
+        elif a.background:
+            dump(daemon.start_background(cfg, interval=a.interval))
+        else:
+            daemon.run(cfg, interval=a.interval)
     elif a.cmd == "sf":
         from . import sfimport
         if a.crawl:

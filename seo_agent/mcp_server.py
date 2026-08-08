@@ -284,7 +284,12 @@ def _diagnose(a):
 def _sf(a):
     from . import sfimport
     cfg = _cfg()
-    r = sfimport.import_csv(cfg, a["paths"]) if a.get("paths") else sfimport.auto_import(cfg)
+    if a.get("crawl"):
+        r = sfimport.crawl(cfg)          # MCP-triggered pull: headless SF crawl + import
+    elif a.get("paths"):
+        r = sfimport.import_csv(cfg, a["paths"])
+    else:
+        r = sfimport.auto_import(cfg)
     return sfimport.render_md(cfg, r)
 
 
@@ -390,8 +395,9 @@ TOOLS = [
      {"type": "object", "properties": {}}, _tip),
     ("diagnose", "Site-level 'why is traffic down?' — ranked differential diagnosis across ledger, sitediff, Google updates, zero-click erosion, decay, anomalies.",
      {"type": "object", "properties": {}}, _diagnose),
-    ("sf", "Import Screaming Frog exports (Internal:All CSV/zip/dir) — bootstrap or enrich the corpus + cross-check crawlers; no paths = auto-import sf-exports/.",
-     {"type": "object", "properties": {"paths": {"type": "array", "items": {"type": "string"}}}}, _sf),
+    ("sf", "Screaming Frog: import exports (paths), auto-import sf-exports/ (no args), or crawl:true = run a headless SF pull now.",
+     {"type": "object", "properties": {"paths": {"type": "array", "items": {"type": "string"}},
+                                       "crawl": {"type": "boolean"}}}, _sf),
     ("repurpose", "One article → zero-click derivatives: no-link LinkedIn post, X thread, newsletter section, quotable stat (voice-aware).",
      {"type": "object", "properties": {"url": {"type": "string"}}, "required": ["url"]}, _repurpose),
     ("brain", "Continuous self-learning memory: client taste, proven playbooks, lessons (auto-injected into every persona).",

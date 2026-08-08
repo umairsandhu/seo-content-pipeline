@@ -970,6 +970,25 @@ class DevilsAdvocate(unittest.TestCase):
         early = dt.datetime(2026, 8, 11, 6, 0)
         self.assertNotIn("daily autopilot cycle", daemon.tick(cfg, do=do, now=early))  # before hour
 
+    def test_agent_weekly_sf_pull_and_status(self):
+        from seo_agent import daemon
+        import datetime as dt
+        d = tempfile.mkdtemp(); os.chdir(d)
+        cfg = {"state_dir": "state", "agent": {"hour": 8, "sf_crawl": True, "sf_crawl_weekday": 0}}
+        pulls = []
+        do = {"poll": lambda: None, "detect": lambda: [], "alert": lambda t: None,
+              "daily": lambda: None, "weekly": lambda: None, "sf": lambda: None,
+              "sf_crawl": lambda: pulls.append(1) or {"mode": "refresh", "pages": 5}}
+        mon = dt.datetime(2026, 8, 10, 9, 0)                     # a Monday
+        self.assertTrue(any("Screaming Frog" in t for t in daemon.tick(cfg, do=do, now=mon)))
+        daemon.tick(cfg, do=do, now=mon.replace(hour=16))
+        self.assertEqual(len(pulls), 1)                           # once per week, restart-safe
+        # status: live pid = running; stale pid = not running
+        daemon._pidfile(cfg).write_text(str(os.getpid()))
+        self.assertTrue(daemon.status(cfg)["running"])
+        daemon._pidfile(cfg).write_text("99999999")
+        self.assertFalse(daemon.status(cfg)["running"])
+
 
 class ScreamingFrog(unittest.TestCase):
     """SF exports flow into the pipeline: bootstrap, SF-to-SF refresh (sitediff-able),
