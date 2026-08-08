@@ -46,3 +46,37 @@ completeness scoring in the gate · hreflang depth · pagination/parameter audit
 
 **The meta-lesson (LEARNINGS #24):** "shipped" must mean *deep enough for the role that
 depends on it* — every capability row now needs a depth check, not an existence check.
+
+---
+
+# Round 2 — devil's advocate (2026-08-08) — triage & response
+
+## ✅ Correct → BUILT same day
+
+| Point | What shipped |
+|---|---|
+| `content_score` dead-ends without DataForSEO | corpus-relative fallback: scores vs your own most-related pages (offline, `mode: "corpus-relative"`), prefers crawled copy over live fetch |
+| No site-level "why is traffic down?" | new **`diagnose`** — ranked differential diagnosis wiring ledger + sitediff + Google-update timeline + zero-click alligator + decay + anomaly radar, each cause with evidence, confidence, and the next command |
+| The moat is the loop; make it always-on | new **`agent`** daemon (OpenClaw shape, SEO-only): one long-running local process — heartbeat, instant high-sev channel alerts, daily autopilot cycle, weekly report delivery; restart-safe; replaces the cron lines |
+| Parity claim overstated | positioning rewritten in ROADMAP (below) — we lead on the closed loop + AI-visibility + local-first monitoring; we are honestly behind on crawl depth (Screaming Frog), visualization (Sitebulb), editor UX (Surfer), topic modeling (MarketMuse), and proprietary indexes (Ahrefs/Semrush) |
+| Portfolio mis-timed at H3 | promoted to H2; parity features (visual crawl map, spell-sweep) demoted below no-competitor-does-this items |
+
+## ❌ Stale — already exists (round 2 reviewed an old snapshot)
+
+Content brief generator → **`brief`** (SERP+PAA+intent+intake, 2026-08). Per-URL traffic
+diagnostic → **`explain <url>`**. Schema *generation* → **`schema <url>`** (11+ types).
+Internal-linking engine → **`autolink`/`inlinks`/`pagerank`** sculpt plans. Cannibalization →
+**`consolidate`**. Log-file analysis → **`logs`** (crawl budget + AI bots). Backlink gap →
+**`backlinks`** (link_gap). Content gap → **`gap`**. Topic clusters → **`authority`**.
+Title/meta rewriter → **`retitle`**. SERP-feature tracking → **`rank`** (features captured).
+Intent classification → in `brief`. CWV trend → `speed` history. Zero-click integration →
+`zeroclick` + now `diagnose`. JS audit → `render.enabled` wired into ingest (opt-in by design).
+
+## 📋 Accepted → tracked (H2 reorder)
+
+Brief→draft→**score gate** in `crew` · real-time MCP content editor · SERP-feature
+*opportunity mapping* · hreflang wired into audit CATS · redirect-map *planner* (sitediff
+monitors; migration mode plans) · chat-first control of the `agent` daemon (phase 2).
+
+**Meta-lesson:** external reviews keep auditing snapshots, not HEAD — keep this triage
+doc current so the next reviewer starts from reality.

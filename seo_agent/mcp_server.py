@@ -276,6 +276,11 @@ def _tip(a):
     return tips.render_md(_cfg())
 
 
+def _diagnose(a):
+    from . import diagnose
+    return diagnose.render_md(_cfg())
+
+
 def _repurpose(a):
     r = produce.repurpose(_cfg(), a["url"])
     return r.get("derivatives") or r.get("packet") or r.get("error", "")
@@ -376,6 +381,8 @@ TOOLS = [
      {"type": "object", "properties": {}}, _zeroclick),
     ("tip", "Today's sourced SEO tidbit — the tool teaches while it works (library fed by new talks/studies).",
      {"type": "object", "properties": {}}, _tip),
+    ("diagnose", "Site-level 'why is traffic down?' — ranked differential diagnosis across ledger, sitediff, Google updates, zero-click erosion, decay, anomalies.",
+     {"type": "object", "properties": {}}, _diagnose),
     ("repurpose", "One article → zero-click derivatives: no-link LinkedIn post, X thread, newsletter section, quotable stat (voice-aware).",
      {"type": "object", "properties": {"url": {"type": "string"}}, "required": ["url"]}, _repurpose),
     ("brain", "Continuous self-learning memory: client taste, proven playbooks, lessons (auto-injected into every persona).",

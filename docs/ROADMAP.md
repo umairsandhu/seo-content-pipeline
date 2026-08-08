@@ -18,7 +18,19 @@ dashboard. 80+ commands, 60 MCP tools, 74 tests, zero hosting.
 anomaly radar; daily cron = 24/7 monitoring, locally) · Sitebulb-style **why-it-matters +
 how-to-fix hints** on every audit category · Profound-style **AI-referral analytics**
 (`ga4` now splits out chatgpt/perplexity/gemini/copilot sessions — citations → visits) ·
-Surfer-style term-gap scoring (already had it: `score`; the scan confirmed parity).
+Surfer-style term-gap scoring (already had it: `score`; now with a no-key corpus-relative
+fallback) · **`diagnose`** (the one-command "why is traffic down?" differential no suite
+ships) · **`agent`** (always-on daemon — the OpenClaw shape, scoped to SEO).
+
+**Honest competitive position (revised after the devil's-advocate round):** we lead on
+the **closed loop** (ship → measure vs holdout → learn → adapt: nobody has it end-to-end),
+**AI-visibility from owned data** (aivis + AI referrals + AI-crawler logs), **local-first
+monitoring** (sitediff + agent: logs and data never leave the machine — a moat no cloud
+tool can copy), and **agent-native distribution** (63 MCP tools). We are honestly behind
+on: raw crawl depth vs Screaming Frog (300+ checks, custom extraction), visualization vs
+Sitebulb, live-editor UX vs Surfer/Clearscope, topic modeling vs MarketMuse, and we will
+never have Ahrefs/Semrush's proprietary indexes — we wrap APIs for that data. Strategy:
+lean into the loop, don't chase parity.
 
 ## Horizon 1 — Launch quality (now → day 30) · the LAUNCH-PLAN gates
 
@@ -44,11 +56,20 @@ until these hold.*
    LEARNINGS #27). Pairs with `zeroclick` branded-demand tracking.
 6. **Refresh-why + editorial calendar** — decay diagnosis (intent shift vs staleness vs
    lost links) and a content pipeline view in `serve`.
-7. **Quota + cost tracker** — per-provider spend/backoff surfaced in the dashboard.
-8. **Competitor reverse-engineering** — structure/schema/depth analysis of who outranks
-   you, not just what they publish.
-9. **Sitebulb-style visual crawl map** — click-depth/link-graph SVG in `serve`.
-10. **Broken outbound links + spell-sweep** — the last Screaming Frog parity items.
+7. **Agent phase 2: chat-first control** — reply "approve 3" / "status" / "diagnose" to the
+   `agent` daemon from Slack/WhatsApp/email; the OpenClaw interaction model, SEO-only.
+8. **Portfolio / agency view** *(promoted from H3 — agencies are the highest-LTV early
+   adopters)* — cross-site roll-up in `projects`: readiness, wins, learnings, resource
+   allocation across 5–50 workspaces.
+9. **Brief → draft → score gate** — wire `score` into `crew` as a stage: drafts must clear
+   term-coverage before the safety gate (the Surfer-loop, closed).
+10. **Quota + cost tracker** — per-provider spend/backoff surfaced in the dashboard.
+11. **Competitor reverse-engineering** — structure/schema/depth analysis of who outranks
+    you, not just what they publish.
+12. **Real-time MCP content editor** — live `score` feedback while writing, via the MCP
+    server any editor can attach to.
+13. *(parity, deprioritized)* visual crawl map · broken outbound links · spell-sweep —
+    nice, but they differentiate nothing; uniqueness items above come first.
 
 ## Horizon 3 — Where search is actually going (2027 bets)
 

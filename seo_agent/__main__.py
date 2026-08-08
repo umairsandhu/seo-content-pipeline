@@ -113,6 +113,8 @@ def main():
     sub.add_parser("sitediff")  # what changed on YOUR site between crawls (ContentKing-style, local)
     sub.add_parser("zeroclick")  # alligator + branded-demand trend + correlation view (the post-click KPIs)
     sub.add_parser("tip")        # today's sourced SEO tidbit (the tool teaches while it works)
+    sub.add_parser("diagnose")   # site-level "why is traffic down?" — ranked differential diagnosis
+    sub.add_parser("agent").add_argument("--interval", type=int, default=None)  # always-on mode (replaces cron)
     sub.add_parser("repurpose").add_argument("url")  # one article → zero-click derivatives (LinkedIn/X/newsletter/quotable)
     sub.add_parser("edition")   # show edition + entitlements
     sub.add_parser("webtask").add_argument("task_json", help="a web task JSON: {name, steps:[...]}")
@@ -379,6 +381,12 @@ def main():
     elif a.cmd == "tip":
         from . import tips
         print(tips.render_md(cfg))
+    elif a.cmd == "diagnose":
+        from . import diagnose
+        print(diagnose.render_md(cfg))
+    elif a.cmd == "agent":
+        from . import daemon
+        daemon.run(cfg, interval=a.interval)
     elif a.cmd == "repurpose":
         r = produce.repurpose(cfg, a.url)
         print(r.get("derivatives") or r.get("packet") or r.get("error"))

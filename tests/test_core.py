@@ -911,6 +911,66 @@ class Tips(unittest.TestCase):
         self.assertIsNone(tips.maybe({"tips": False}, "audit"))
 
 
+class DevilsAdvocate(unittest.TestCase):
+    """Round-2 critique fixes: no-key scoring fallback, site diagnosis, agent daemon."""
+
+    def test_content_score_corpus_fallback(self):
+        from seo_agent import content_score
+        d = tempfile.mkdtemp(); os.chdir(d)
+        ref = [{"url": f"https://d.com/blog/tents-{i}", "status": 200,
+                "text": ("four season tents need strong poles, snow skirts, and vestibule space. "
+                         "condensation management and wind stability matter most. ") * 30}
+               for i in range(4)]
+        mine = {"url": "https://d.com/blog/mine", "status": 200,
+                "text": "our tent guide talks about poles and price. " * 40}
+        Path("corpus.json").write_text(json.dumps(ref + [mine]))
+        r = content_score.score({}, "four season tents", "https://d.com/blog/mine")
+        self.assertEqual(r["mode"], "corpus-relative")        # no creds ≠ dead end anymore
+        self.assertLess(r["coverage_pct"], 100)
+        self.assertTrue(r["missing"])                          # surfaces the gap terms
+
+    def test_diagnose_ranks_causes_with_evidence(self):
+        from seo_agent import diagnose, history
+        d = tempfile.mkdtemp(); os.chdir(d)
+        cfg = {"history_dir": os.path.join(d, "hist"), "state_dir": "state",
+               "site": "https://d.com", "store_path": os.path.join(d, "seo.db")}
+        history.snapshot(cfg, "gsc_queries", [{"query": "q", "clicks": 1000, "impressions": 9000}],
+                         date="2026-07-01")
+        history.snapshot(cfg, "gsc_queries", [{"query": "q", "clicks": 600, "impressions": 9500}],
+                         date="2026-08-01")
+        base = {"status": 200, "robots": "", "canonical": "", "title": "T", "description": "D",
+                "h1": ["T"], "jsonld_types": [], "words": 500}
+        Path("corpus.prev.json").write_text(json.dumps([dict(base, url="https://d.com/a")]))
+        Path("corpus.json").write_text(json.dumps([dict(base, url="https://d.com/a", robots="noindex")]))
+        r = diagnose.run(cfg)
+        self.assertEqual(r["trend"]["pct"], -40.0)
+        causes = [c["cause"] for c in r["causes"]]
+        self.assertTrue(any("regression" in c.lower() for c in causes))   # the noindex
+        self.assertEqual(r["causes"][0]["confidence"], "high")            # ranked first
+        self.assertIn("next", r["causes"][0])
+
+    def test_agent_tick_schedules_once_and_dedupes_alerts(self):
+        from seo_agent import daemon
+        import datetime as dt
+        d = tempfile.mkdtemp(); os.chdir(d)
+        cfg = {"state_dir": "state", "agent": {"hour": 8}}
+        ran = {"daily": 0, "alerts": []}
+        do = {"poll": lambda: None,
+              "detect": lambda: [{"sev": "high", "kind": "indexation", "msg": "pages dropped"}],
+              "alert": lambda t: ran["alerts"].append(t),
+              "daily": lambda: ran.__setitem__("daily", ran["daily"] + 1),
+              "weekly": lambda: None}
+        nine = dt.datetime(2026, 8, 10, 9, 0)
+        took1 = daemon.tick(cfg, do=do, now=nine)
+        self.assertIn("daily autopilot cycle", took1)
+        took2 = daemon.tick(cfg, do=do, now=nine.replace(hour=15))
+        self.assertNotIn("daily autopilot cycle", took2)   # once per day, restart-safe
+        self.assertEqual(ran["daily"], 1)
+        self.assertEqual(len(ran["alerts"]), 1)            # same anomaly never re-alerts
+        early = dt.datetime(2026, 8, 11, 6, 0)
+        self.assertNotIn("daily autopilot cycle", daemon.tick(cfg, do=do, now=early))  # before hour
+
+
 class RequirementsLoop(unittest.TestCase):
     """The loop that keeps checking we're 'there': standing rules must stay wired."""
 

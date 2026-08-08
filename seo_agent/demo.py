@@ -106,6 +106,12 @@ def build(dirname="seo-demo"):
     for i, days in enumerate((63, 35, 28, 7)):
         snap(days, i)
     history.snapshot(cfg, "gsc_queries", [
+        {"query": "best 4 season tent", "clicks": 130, "impressions": 6200, "ctr": 0.021, "position": 8.9},
+        {"query": "down vs synthetic", "clicks": 70, "impressions": 3600, "ctr": 0.019, "position": 11.6},
+        {"query": "how should hiking boots fit", "clicks": 50, "impressions": 2700, "ctr": 0.019, "position": 10.1},
+        {"query": "demo outdoors", "clicks": 210, "impressions": 1400, "ctr": 0.15, "position": 1.2}],
+        date=D(35))
+    history.snapshot(cfg, "gsc_queries", [  # impressions surge, clicks lag → the alligator opens
         {"query": "best 4 season tent", "clicks": 120, "impressions": 9800, "ctr": 0.012, "position": 8.4},
         {"query": "down vs synthetic", "clicks": 60, "impressions": 5200, "ctr": 0.011, "position": 11.2},
         {"query": "how should hiking boots fit", "clicks": 45, "impressions": 3900, "ctr": 0.011, "position": 9.8},
