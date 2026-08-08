@@ -54,6 +54,11 @@ def tick(cfg, do=None, now=None):
 
     _safe(do["poll"])  # 1 · ingest approvals / CHANGES notes / FEEDBACK replies
 
+    # 1b · auto-import any new Screaming Frog exports dropped in sf-exports/
+    sf = _safe(do.get("sf") or (lambda: __import__("seo_agent.sfimport", fromlist=["x"]).auto_import(cfg)))
+    if sf and not sf.get("error"):
+        took.append(f"imported Screaming Frog export ({sf.get('pages', '?')} pages, {sf.get('mode')})")
+
     # 2 · NEW high-sev anomalies alert immediately (dedupe on message)
     for a in _safe(do["detect"]) or []:
         if a.get("sev") == "high" and a["msg"] not in st["seen_alerts"]:

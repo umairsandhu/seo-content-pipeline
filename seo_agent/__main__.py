@@ -115,6 +115,9 @@ def main():
     sub.add_parser("tip")        # today's sourced SEO tidbit (the tool teaches while it works)
     sub.add_parser("diagnose")   # site-level "why is traffic down?" — ranked differential diagnosis
     sub.add_parser("agent").add_argument("--interval", type=int, default=None)  # always-on mode (replaces cron)
+    psf = sub.add_parser("sf")  # Screaming Frog: import exports / auto-import sf-exports/ / headless crawl
+    psf.add_argument("--csv", nargs="+", metavar="PATH", help="SF export file(s)/dir/zip (Internal:All)")
+    psf.add_argument("--crawl", action="store_true", help="run a headless SF crawl + import (paid SF license)")
     sub.add_parser("repurpose").add_argument("url")  # one article → zero-click derivatives (LinkedIn/X/newsletter/quotable)
     sub.add_parser("edition")   # show edition + entitlements
     sub.add_parser("webtask").add_argument("task_json", help="a web task JSON: {name, steps:[...]}")
@@ -387,6 +390,15 @@ def main():
     elif a.cmd == "agent":
         from . import daemon
         daemon.run(cfg, interval=a.interval)
+    elif a.cmd == "sf":
+        from . import sfimport
+        if a.crawl:
+            r = sfimport.crawl(cfg)
+        elif a.csv:
+            r = sfimport.import_csv(cfg, a.csv)
+        else:
+            r = sfimport.auto_import(cfg)
+        print(sfimport.render_md(cfg, r))
     elif a.cmd == "repurpose":
         r = produce.repurpose(cfg, a.url)
         print(r.get("derivatives") or r.get("packet") or r.get("error"))

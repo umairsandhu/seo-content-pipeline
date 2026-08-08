@@ -971,6 +971,70 @@ class DevilsAdvocate(unittest.TestCase):
         self.assertNotIn("daily autopilot cycle", daemon.tick(cfg, do=do, now=early))  # before hour
 
 
+class ScreamingFrog(unittest.TestCase):
+    """SF exports flow into the pipeline: bootstrap, SF-to-SF refresh (sitediff-able),
+    enrich + crawler cross-check, and the daemon watch-folder."""
+
+    _CSV = ('"Internal - All"\n'
+            '"Address","Content Type","Status Code","Indexability","Title 1",'
+            '"Meta Description 1","H1-1","Meta Robots 1","Canonical Link Element 1",'
+            '"Word Count","Crawl Depth","Unique Inlinks"\n'
+            '"https://d.com/a","text/html; charset=UTF-8","200","Indexable","Best Tents in 2024",'
+            '"Our picks","Best Tents","index,follow","https://d.com/a","900","1","12"\n'
+            '"https://d.com/style.css","text/css","200","Non-Indexable","","","","","","0","1","3"\n'
+            '"https://d.com/b","text/html","200","Non-Indexable","Gear Guide","","Gear",'
+            '"noindex","","500","2","4"\n')
+
+    def test_bootstrap_then_refresh_rotates_for_sitediff(self):
+        from seo_agent import sfimport, sitediff
+        d = tempfile.mkdtemp(); os.chdir(d)
+        Path("sf.csv").write_text(self._CSV)
+        r = sfimport.import_csv({}, "sf.csv")
+        self.assertEqual(r["mode"], "bootstrap")
+        self.assertEqual(r["pages"], 2)                        # css row skipped
+        corpus = json.loads(Path("corpus.json").read_text())
+        self.assertEqual(corpus[0]["title"], "Best Tents in 2024")
+        self.assertEqual(corpus[0]["sf_inlinks"], 12)
+        F = []
+        from seo_agent import audit
+        audit.freshness(corpus, F, year=2026)                  # SF data feeds the audits
+        self.assertTrue(any(f["cat"] == "freshness" for f in F))
+        Path("sf2.csv").write_text(self._CSV.replace('"Best Tents in 2024"', '"Best Tents in 2026"'))
+        r2 = sfimport.import_csv({}, "sf2.csv")
+        self.assertEqual(r2["mode"], "refresh")                # rotated → sitediff compares crawls
+        dd = sitediff.diff({})
+        self.assertTrue(any(c["field"] == "title" for c in dd["changes"]))
+
+    def test_enrich_flags_crawler_disagreements(self):
+        from seo_agent import sfimport
+        d = tempfile.mkdtemp(); os.chdir(d)
+        Path("corpus.json").write_text(json.dumps([
+            {"url": "https://d.com/a", "status": 200, "robots": "", "canonical": "https://d.com/a",
+             "title": "Best Tents", "text": "long text " * 100},
+            {"url": "https://d.com/b", "status": 200, "robots": "", "canonical": "", "title": "Gear"}]))
+        r = sfimport.import_csv({}, self._write_csv())
+        self.assertEqual(r["mode"], "enrich")
+        self.assertEqual(r["matched"], 2)
+        self.assertTrue(any("robots disagree" in x for x in r["discrepancies"]))  # /b noindex in SF only
+        corpus = json.loads(Path("corpus.json").read_text())
+        self.assertEqual(corpus[0]["sf_crawl_depth"], 1)       # enrichment landed, text kept
+        self.assertIn("long text", corpus[0]["text"])
+
+    def _write_csv(self):
+        Path("sf.csv").write_text(self._CSV)
+        return "sf.csv"
+
+    def test_daemon_watch_folder_imports_once(self):
+        from seo_agent import sfimport
+        d = tempfile.mkdtemp(); os.chdir(d)
+        cfg = {"state_dir": "state"}
+        Path("sf-exports").mkdir()
+        Path("sf-exports/internal_all.csv").write_text(self._CSV)
+        r = sfimport.auto_import(cfg)
+        self.assertEqual(r["mode"], "bootstrap")
+        self.assertIsNone(sfimport.auto_import(cfg))           # same file never re-imports
+
+
 class RequirementsLoop(unittest.TestCase):
     """The loop that keeps checking we're 'there': standing rules must stay wired."""
 
