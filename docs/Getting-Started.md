@@ -38,8 +38,11 @@ python -m seo_agent start
 - **`.gitignore`** — hardened so no key can ever be committed.
 
 `start` opens the dashboard; its **Getting-started panel** lists your setup as numbered
-steps and always names the ONE next action with the exact command. Prefer text? `wizard`
-(or `wizard --interactive` to be asked the questions).
+steps and always names the ONE next action with the exact command. Prefer text? `wizard` —
+and **`wizard --interactive` asks you to pick a provider per capability**, gateway-style:
+each seam shows the RECOMMENDED option (and why), the free open-source local alternative
+(SearXNG, Ollama, Lighthouse), and skip — then writes your config and lists exactly what
+goes in `.env`. Nothing is assumed; everything has a zero-key path.
 
 ### Connect your data (the two that matter)
 

@@ -82,6 +82,72 @@ def next_step(cfg, root="."):
     return {"steps": steps, "readiness": r, "next": nxt}
 
 
+# ── provider choices, OpenClaw-gateway style: every capability seam presents its
+# options — the RECOMMENDED one first (and why), the free/OSS local alternative, and
+# skip. The user picks; we write config and tell them exactly what goes in .env. ──
+CHOICES = [
+    {"seam": "Search performance (your real demand data)", "config_key": None, "options": [
+        {"label": "GSC service account (RECOMMENDED — live API, auto-snapshots on every cycle)",
+         "why": "attribution + learning need snapshots on a cadence; the API never forgets to export",
+         "env": [], "note": "save the JSON key here as gsc-credentials.json (auto-detected) + set gsc_property"},
+        {"label": "CSV import (fastest — no Google Cloud setup)",
+         "why": "60 seconds to working data; you re-export weekly",
+         "env": [], "note": "Search Console → Performance → Export → `gsc --csv export.zip`"},
+        {"label": "Skip for now", "env": [], "note": "the plan/ledger stay demand-blind until connected"},
+    ]},
+    {"seam": "Market data (volumes, SERPs, People-Also-Ask)", "config_key": None, "options": [
+        {"label": "DataForSEO (RECOMMENDED — volumes + PAA + difficulty, ≈$0.006/SERP, bring-your-own)",
+         "why": "briefs, gap analysis, and forecasts feed on volumes + PAA no free source provides",
+         "env": ["DATAFORSEO_LOGIN", "DATAFORSEO_PASSWORD"]},
+        {"label": "SearXNG self-hosted (free, open source — organic SERPs only)",
+         "why": "zero spend; briefs stay SERP-grounded but lose PAA/volumes/features",
+         "env": ["SEARXNG_URL"], "note": "docker run -d -p 8888:8080 searxng/searxng → SEARXNG_URL=http://127.0.0.1:8888"},
+        {"label": "Free Google Autocomplete only (zero setup)",
+         "why": "keyword ideas with no volumes — the automatic fallback anyway", "env": []},
+    ]},
+    {"seam": "Writing engine (who writes drafts/strategy)", "config_key": ("llm", "provider"), "options": [
+        {"label": "Agent mode (RECOMMENDED inside Claude Code — the driving agent writes; no key)",
+         "value": "agent", "why": "frontier-quality writing at no extra cost when Claude drives the skill", "env": []},
+        {"label": "Ollama — local open-source model (private, free; for headless cron runs)",
+         "value": "ollama", "why": "nothing leaves the machine; good for client-confidential work",
+         "env": [], "note": "install ollama.com → `ollama pull llama3.1`"},
+        {"label": "Anthropic API (headless cron with frontier quality)",
+         "value": "anthropic", "env": ["ANTHROPIC_API_KEY"], "why": "best headless output; per-token cost"},
+        {"label": "OpenAI API", "value": "openai", "env": ["OPENAI_API_KEY"], "why": "alternative headless provider"},
+    ]},
+    {"seam": "Speed lab data (Core Web Vitals)", "config_key": None, "options": [
+        {"label": "Lighthouse CLI, local (RECOMMENDED — free, no key, no quota; auto-used when present)",
+         "why": "same open-source engine PSI wraps, on your machine",
+         "env": [], "note": "npm i -g lighthouse (or have npx)"},
+        {"label": "PageSpeed API key (adds CrUX FIELD data — real users, the ranking signal)",
+         "why": "lab tells you what to fix; field tells you what Google measures",
+         "env": ["PAGESPEED_API_KEY"]},
+        {"label": "Skip", "env": []},
+    ]},
+    {"seam": "Review & alert channel (approvals reach you where you live)", "config_key": None, "options": [
+        {"label": "CLI + dashboard (RECOMMENDED to start — zero setup, `serve` approves inline)",
+         "why": "everything works locally; add a channel when away-from-desk approvals matter", "env": []},
+        {"label": "Slack", "env": ["SLACK_WEBHOOK_URL"]},
+        {"label": "Email (send + reply-to-approve)", "env": ["SMTP_HOST", "SMTP_USER", "SMTP_PASSWORD",
+                                                            "IMAP_HOST", "IMAP_USER", "IMAP_PASSWORD"]},
+        {"label": "WhatsApp", "env": ["WHATSAPP_TOKEN", "WHATSAPP_PHONE_ID"]},
+    ]},
+]
+
+
+def apply_choice(cfg, seam, opt):
+    """Write a chosen option's config value; return the .env lines it still needs.
+    (Pure — the interactive loop and tests both use it.)"""
+    ck = seam.get("config_key")
+    if ck and opt.get("value") is not None:
+        cur = cfg
+        for part in ck[:-1]:
+            cur = cur.setdefault(part, {})
+        cur[ck[-1]] = opt["value"]
+    todo = [f"{e}=" for e in opt.get("env", [])]
+    return cfg, todo
+
+
 def interactive(cfg, root=".", config_path="config.json"):
     """Terminal 'modals' — collect the essentials and write them into config.json."""
     import json
@@ -112,7 +178,31 @@ def interactive(cfg, root=".", config_path="config.json"):
     if drive:
         cfg.setdefault("drive", {})["folder_id"] = drive.strip()
     cfg.setdefault("learning", {})["share_cross_site"] = share
+
+    # provider choices — one seam at a time, recommended first, trade-offs stated
+    print("\n=== Pick your providers (Enter = the recommended option) ===")
+    env_todo, notes = [], []
+    for seam in CHOICES:
+        print(f"\n{seam['seam']}")
+        for i, o in enumerate(seam["options"], 1):
+            print(f"  {i}. {o['label']}")
+            if o.get("why"):
+                print(f"     ↳ {o['why']}")
+        pick = ask("Choice", "1")
+        try:
+            opt = seam["options"][max(0, min(len(seam["options"]) - 1, int(pick) - 1))]
+        except ValueError:
+            opt = seam["options"][0]
+        cfg, todo = apply_choice(cfg, seam, opt)
+        env_todo += todo
+        if opt.get("note"):
+            notes.append(f"{seam['seam'].split(' (')[0]}: {opt['note']}")
     Path(config_path).write_text(json.dumps(cfg, indent=2) + "\n")
+    if env_todo:
+        print("\n── Add to .env (git-ignored — never share these): "
+              + " ".join(dict.fromkeys(env_todo)))
+    for n in notes:
+        print(f"  → {n}")
     req = cms_extra.requirements(cms_t) or {}
     if req.get("env") or req.get("config"):
         print(f"\n  {req['name']}: add {', '.join(req['env']) or 'nothing'} to .env (git-ignored)"

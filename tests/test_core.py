@@ -1135,6 +1135,31 @@ class OpenSourceFallbacks(unittest.TestCase):
         self.assertEqual(r["transport"], "lighthouse-local")
 
 
+class ProviderChoices(unittest.TestCase):
+    """OpenClaw-gateway-style onboarding: every capability seam offers options —
+    recommended first (with why), always a zero-key path, user picks."""
+
+    def test_every_seam_recommends_first_and_has_a_free_path(self):
+        from seo_agent import wizard
+        for seam in wizard.CHOICES:
+            self.assertGreaterEqual(len(seam["options"]), 2)      # always a real choice
+            first = seam["options"][0]
+            self.assertIn("RECOMMENDED", first["label"])          # "which tool is best" is explicit
+            self.assertTrue(first.get("why"))                     # …and justified
+            self.assertTrue(any(not o.get("env") for o in seam["options"]))  # zero-key path exists
+
+    def test_apply_choice_writes_config_and_env_todo(self):
+        from seo_agent import wizard
+        llm = next(s for s in wizard.CHOICES if s.get("config_key") == ("llm", "provider"))
+        ollama = next(o for o in llm["options"] if o.get("value") == "ollama")
+        cfg, todo = wizard.apply_choice({}, llm, ollama)
+        self.assertEqual(cfg["llm"]["provider"], "ollama")        # OSS-local pick lands in config
+        self.assertEqual(todo, [])                                # …and needs no keys
+        market = next(s for s in wizard.CHOICES if "Market data" in s["seam"])
+        _, todo = wizard.apply_choice({}, market, market["options"][0])
+        self.assertIn("DATAFORSEO_LOGIN=", todo)                  # key picks emit .env lines
+
+
 class RequirementsLoop(unittest.TestCase):
     """The loop that keeps checking we're 'there': standing rules must stay wired."""
 
