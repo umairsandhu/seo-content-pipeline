@@ -11,6 +11,8 @@ import base64
 import json
 import os
 import sys
+import time
+import urllib.parse
 import urllib.request
 
 
@@ -62,11 +64,74 @@ def search_volume(keywords, loc="United States", lang="English"):
     return out
 
 
+def _searx_map(data, depth=10):
+    """SearXNG JSON → our SERP shape (organic only — PAA/features need a real SERP API)."""
+    organic = [{"title": r.get("title"), "url": r.get("url")}
+               for r in (data.get("results") or []) if r.get("url")][:depth]
+    return {"organic": organic, "paa": [], "related": data.get("suggestions") or [],
+            "features": {}, "source": "searxng"}
+
+
+def _searx_serp(keyword, depth=10, timeout=20):
+    """Free OSS SERP fallback: a self-hosted SearXNG instance (docker run searxng/searxng).
+    Set SEARXNG_URL; weaker than DataForSEO (no PAA/volumes/features) but never a dead end."""
+    base = (os.environ.get("SEARXNG_URL") or "").rstrip("/")
+    if not base:
+        return None
+    try:
+        q = urllib.parse.urlencode({"q": keyword, "format": "json"})
+        req = urllib.request.Request(f"{base}/search?{q}", headers={"User-Agent": "seo-agent"})
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return _searx_map(json.load(r), depth)
+    except Exception:
+        return None
+
+
+def _suggest_parse(body):
+    """Google Suggest JSON → keyword list (["seed", ["s1","s2",…]])."""
+    try:
+        data = json.loads(body)
+        return [s for s in (data[1] or []) if isinstance(s, str)]
+    except Exception:
+        return []
+
+
+def google_suggest(seed, limit=40):
+    """Free keyword ideas from Google Autocomplete (no key, no cost): the seed expanded
+    through question/comparison modifiers + the alphabet. No volumes — pair with GSC
+    impressions for demand once ranked."""
+    out, seen = [], set()
+    probes = [seed] + [f"{seed} {m}" for m in
+                       ("how", "best", "vs", "for", "why", "a", "b", "c", "d", "e",
+                        "f", "g", "h", "i", "j")]
+    for p in probes:
+        if len(out) >= limit:
+            break
+        try:
+            q = urllib.parse.urlencode({"client": "firefox", "q": p})
+            req = urllib.request.Request("https://suggestqueries.google.com/complete/search?" + q,
+                                         headers={"User-Agent": "Mozilla/5.0"})
+            with urllib.request.urlopen(req, timeout=10) as r:
+                for s in _suggest_parse(r.read().decode("utf-8", "ignore")):
+                    if s not in seen and s != seed:
+                        seen.add(s)
+                        out.append({"keyword": s, "volume": None, "competition": None,
+                                    "source": "google-suggest"})
+        except Exception:
+            continue
+        time.sleep(0.12)
+    return out[:limit]
+
+
 def serp(keyword, loc="United States", lang="English", depth=10):
     res = _dfs_post("serp/google/organic/live/advanced",
                     [{"keyword": keyword, "location_name": loc, "language_name": lang, "depth": depth}])
     if not res:
-        return {"error": "no DataForSEO creds / call failed"}
+        sx = _searx_serp(keyword, depth)  # OSS fallback: self-hosted SearXNG
+        if sx:
+            return sx
+        return {"error": "no DataForSEO creds / call failed (tip: run a SearXNG instance and "
+                         "set SEARXNG_URL for a free organic-SERP fallback)"}
     result = (res.get("tasks") or [{}])[0].get("result") or []
     items = result[0].get("items", []) if result else []
     organic, paa, related = [], [], []
@@ -101,11 +166,12 @@ def serp(keyword, loc="United States", lang="English", depth=10):
 
 
 def suggestions(seed, loc="United States", lang="English", limit=50):
-    """Discovery / trend pull — expand a seed into ranked keyword ideas + volumes."""
+    """Discovery / trend pull — expand a seed into ranked keyword ideas + volumes.
+    No DataForSEO? Falls back to free Google Autocomplete ideas (no volumes)."""
     res = _dfs_post("dataforseo_labs/google/keyword_suggestions/live",
                     [{"keyword": seed, "location_name": loc, "language_name": lang, "limit": limit}])
     if not res:
-        return []
+        return google_suggest(seed, limit)
     items = ((res.get("tasks") or [{}])[0].get("result") or [{}])[0].get("items") or []
     out = []
     for it in items:
@@ -244,7 +310,27 @@ def complete(prompt, system=None, cfg_llm=None, max_tokens=8000, timeout=600):
         return _anthropic(prompt, system, cfg_llm.get("model", "claude-opus-4-8"), max_tokens, timeout)
     if provider == "openai":
         return _openai(prompt, system, cfg_llm.get("model", "gpt-4o"), max_tokens, timeout)
+    if provider == "ollama":
+        return _ollama(prompt, system, cfg_llm.get("model", "llama3.1"), timeout)
     return None  # "agent" — the caller writes it
+
+
+def _ollama(prompt, system, model, timeout):
+    """Local, open-source LLM (ollama.com) — headless drafting with NO cloud key and no
+    data leaving the machine. `llm.provider: "ollama"` + `ollama pull llama3.1`.
+    OLLAMA_URL overrides the default localhost port."""
+    base = os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434").rstrip("/")
+    msgs = ([{"role": "system", "content": system}] if system else []) + \
+        [{"role": "user", "content": prompt}]
+    try:
+        req = urllib.request.Request(base + "/api/chat",
+                                     data=json.dumps({"model": model, "messages": msgs,
+                                                      "stream": False}).encode(),
+                                     method="POST", headers={"Content-Type": "application/json"})
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return (json.load(r).get("message") or {}).get("content")
+    except Exception:
+        return None  # no local model running → agent mode
 
 
 def _anthropic(prompt, system, model, max_tokens, timeout):

@@ -11,6 +11,7 @@ import json
 import os
 import urllib.parse
 import urllib.request
+from pathlib import Path
 
 FIELD = {"lcp": (2500, 4000), "inp": (200, 500), "cls": (0.1, 0.25)}  # good, poor (ms / unitless)
 
@@ -105,12 +106,48 @@ def sample_urls(cfg, corpus, n=None):
     return picked[:n]
 
 
+def _lh_parse(d):
+    """Lighthouse CLI JSON → the same lab shape psi() returns."""
+    au, cat = d.get("audits", {}), d.get("categories", {})
+    num = lambda k: au.get(k, {}).get("numericValue")
+    pct = lambda c: round((cat.get(c, {}).get("score") or 0) * 100)
+    return {"perf_score": pct("performance"), "a11y_score": pct("accessibility"),
+            "lab_lcp_ms": num("largest-contentful-paint"),
+            "lab_cls": num("cumulative-layout-shift"),
+            "lab_tbt_ms": num("total-blocking-time"), "transport": "lighthouse-local"}
+
+
+def _lighthouse(url, strategy="mobile", timeout=180):
+    """OSS lab data with NO key or quota: the open-source Lighthouse CLI, run locally
+    (`npm i -g lighthouse` or via npx). Same engine PSI uses, on your machine."""
+    import shutil
+    import subprocess
+    import tempfile
+    binp = shutil.which("lighthouse")
+    cmd = [binp] if binp else (["npx", "--yes", "lighthouse"] if shutil.which("npx") else None)
+    if not cmd:
+        return None
+    outp = Path(tempfile.mkdtemp()) / "lh.json"
+    args = cmd + [url, "--output=json", f"--output-path={outp}", "--quiet",
+                  "--only-categories=performance,accessibility",
+                  '--chrome-flags=--headless --no-sandbox']
+    if strategy == "desktop":
+        args.append("--preset=desktop")
+    try:
+        subprocess.run(args, check=True, capture_output=True, timeout=timeout)
+        return _lh_parse(json.loads(outp.read_text()))
+    except Exception:
+        return None
+
+
 def check(cfg, urls, snapshot=True):
     key = os.environ.get("PAGESPEED_API_KEY")
     strat = cfg.get("speed", {}).get("strategy", "mobile")
     out = []
-    for u in urls[: cfg.get("speed", {}).get("max_urls", 10)]:
-        out.append({"url": u, **psi(u, key, strat), **crux(u, key)})
+    use_lh = not key  # keyless → prefer local OSS Lighthouse (no quota); PSI as last resort
+    for i, u in enumerate(urls[: cfg.get("speed", {}).get("max_urls", 10)]):
+        lab = (_lighthouse(u, strat) if use_lh and i < 3 else None) or psi(u, key, strat)
+        out.append({"url": u, **lab, **crux(u, key)})
     origin = (cfg.get("site") or "").rstrip("/")
     res = {"origin": {"url": origin, **crux(origin, key, origin=True)} if origin else {},
            "pages": out, "has_key": bool(key)}

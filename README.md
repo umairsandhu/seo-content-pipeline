@@ -12,8 +12,8 @@ your work delivered. Human-gated at every step.
 ![python](https://img.shields.io/badge/python-%E2%89%A53.9-blue)
 ![deps](https://img.shields.io/badge/core%20deps-numpy%20%2B%20scikit--learn-orange)
 ![storage](https://img.shields.io/badge/storage-file--based%20(no%20DB%2C%20no%20server)-lightgrey)
-![mcp](https://img.shields.io/badge/MCP-59%20tools-purple)
-![tests](https://img.shields.io/badge/tests-71%20passing-brightgreen)
+![mcp](https://img.shields.io/badge/MCP-66%20tools-purple)
+![tests](https://img.shields.io/badge/tests-95%20passing-brightgreen)
 
 **No hosting, no SaaS, no database.** Stdlib + `numpy`/`scikit-learn` at the core; every API is
 optional and the whole thing **degrades gracefully** — the audit, strategy, drafts, AI-search
@@ -125,16 +125,17 @@ The gate asks for two things (both optional to *start*, required for depth):
 
 | Group | Commands | Does |
 |---|---|---|
-| **Onboard & Doctor** | `init` `wizard` `preflight` `onboard` `safety` `integrations` `audit` `sitemap` `speed` `logs` `schema` `renderdiff` `llmstxt` | Guided setup + fork-safety + the full technical/on-page/CWV/log/structured-data audit |
-| **Observe** | `ingest` `gsc` `gsc --csv` `rank` `trends` `backlinks` `ctr` `ga4` | Crawl + track rank/CTR/SERP-features/backlinks; first-party CTR curve; GA4 organic revenue |
-| **Decide** | **`plan`** **`consult`** `consolidate` `gap` `competitors` `aio` `pagerank` `decay` `algo` `authority` `eeat` `radar` | One ranked action list · McKinsey-level strategy · cannibalization/301 · competitor sitemap-delta · internal PageRank |
-| **Produce** | `brief` `draft` `crew` `refresh` `retitle` `citability` `score` | SERP-grounded briefs & drafts by a multi-agent expert crew; decaying-page refreshes |
-| **AI-search / GEO** | `aivis` `entity` `geo` `citability` | Citation share across ChatGPT/Perplexity/Gemini/AI Overviews · entity graph + Wikidata · passage-citability |
+| **Start & understand** | **`start`** `demo` `init` `wizard` `preflight` `config` **`profile`** | Hand-held entry (guided web dashboard) · 5-min zero-key demo · every setting has a slot+hint · **auto-profile the site** (platform fingerprint, CSR→auto-rendering, crawl sizing, sitemap-vs-spider) |
+| **Doctor** | `audit` `sitemap` `speed` `logs` `schema` `renderdiff` `llmstxt` `safety` `integrations` | Technical/on-page/CWV/log/structured-data audit with **why-it-matters + how-to-fix hints** per category, indexability matrix, redirect-chain trace, native click-depth |
+| **Observe & monitor** | `ingest` `gsc` `gsc --csv` `rank` `trends` `backlinks` `ctr` `ga4` **`sitediff`** `sf` | Crawl (sitemap or link-following spider) + track rank/CTR/backlinks · **crawl-to-crawl change tracking** (noindex regressions alert) · AI-referral analytics in `ga4` · optional Screaming Frog import |
+| **Decide & diagnose** | **`plan`** **`consult`** **`diagnose`** `consolidate` `gap` `competitors` `aio` `pagerank` `decay` `algo` `authority` `eeat` `radar` | One ranked action list · board-ready strategy with forecast scenarios · **"why is traffic down?" ranked differential** · cannibalization/301 · internal PageRank |
+| **Produce** | `brief` `draft` `crew` `refresh` `retitle` `citability` `score` **`repurpose`** **`voice`** | Intent-classified SERP-grounded briefs · multi-agent expert crew · **measured brand voice on every draft** · **zero-click derivatives** (no-link LinkedIn/X/newsletter) |
+| **AI-search / GEO** | `aivis` `entity` `geo` `citability` **`zeroclick`** | Citation share across AI engines · entity graph + Wikidata · weighted GEO score · passage-citability · **the impressions-vs-clicks alligator + branded-demand trend** |
 | **Control & review** | `control` `pr` `cms` `webtask` `autonomy` `review` `approve` `changes` `apply --approved` | Ship fixes via repo PRs / **13 CMS connectors** / headless browser — autonomy-gated, human-approved on CLI/email/Slack/Mattermost/WhatsApp |
-| **Measure & deliver** | `ledger` `explain` `anomaly` `report --pdf --email` `run --daily\|--monthly` `email` `deliver` `feedback` | Causal change ledger + holdout attribution · "why did /x drop?" · anomaly alerts · PDF reports · **email/Google-Drive client delivery + the feedback loop** |
-| **Learn** | **`learn`** **`brain`** | Impact of every change at day/week/month + cross-site "what works" · self-learning memory: client taste + proven playbooks, injected into every prompt |
-| **Autonomy loop** | **`autopilot --daily\|--weekly\|--monthly`** **`serve`** | The 4-agent loop (Audit→Plan→Execute→Report) + the live local dashboard |
-| **Scale & packaging** | `projects` `jobs` `edition` `mcp` | Multi-site (agency) portfolio · job queue · edition/entitlements · MCP server |
+| **Measure & deliver** | `ledger` `explain` `anomaly` `report --pdf --email` `run` `email` `deliver` `feedback` **`practices`** `tip` | Causal ledger + holdout attribution · anomaly alerts · email/Drive client delivery + feedback loop · **best practices found→fixed→measured** · a sourced SEO tidbit a day |
+| **Learn** | **`learn`** **`brain`** | Impact of every change at day/week/month + cross-site "what works" (opt-in) · self-learning memory: client taste + proven playbooks, injected into every prompt |
+| **Always-on** | **`agent --background\|--install`** **`autopilot`** **`serve`** | The resident SEO agent: heartbeat, instant alerts, daily cycle, weekly delivered report — background or boot-persistent · the 4-role loop · the live guided dashboard |
+| **Scale & packaging** | `projects` `jobs` `edition` `mcp` | Multi-site (agency) portfolio · job queue · edition/entitlements · 66-tool MCP server |
 
 Full reference: **[docs/Capabilities.md](docs/Capabilities.md)** and **[docs/Commands.md](docs/Commands.md)**.
 
@@ -192,6 +193,7 @@ skill — on *your* machine. See **[docs/AGENT-LOOP-PLAN.md](docs/AGENT-LOOP-PLA
 | optional | OpenAI / Perplexity / Gemini / Anthropic | live AI-visibility tracking (`aivis`); headless drafting |
 | optional | WordPress · Webflow · Ghost · Shopify · Contentful · Strapi · Sanity · HubSpot · Drupal · Joomla · Wix · Notion · GitHub (`gh`) | publish + update/delete live content / repo PRs (git-PR file is the default; `cms` shows every connector + its env vars) |
 | optional | Google Drive (service account or rclone) | drop deliverables straight into the client's folder (`deliver`) |
+| optional · **OSS, zero-key** | **Ollama** (local LLM) · **SearXNG** (self-hosted SERP) · **Lighthouse CLI** (local lab CWV) · Playwright (rendering) | cloud-free drafting · free SERP grounding · keyless speed audits · JS crawling — every paid seam has an open-source fallback |
 
 `integrations` prints a live matrix of what's active/missing and what each unlocks.
 

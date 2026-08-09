@@ -1093,6 +1093,48 @@ class NativeCrawler(unittest.TestCase):
         self.assertEqual(profmod._crawl_delay(txt), 2.5)   # the * group, not Googlebot's
 
 
+class OpenSourceFallbacks(unittest.TestCase):
+    """Every paid seam has an OSS/free path: Ollama (LLM), SearXNG (SERP),
+    Google Suggest (keywords), Lighthouse CLI (lab CWV)."""
+
+    def test_ollama_provider_degrades_cleanly(self):
+        from seo_agent import providers
+        os.environ["OLLAMA_URL"] = "http://127.0.0.1:1"          # nothing listening
+        try:
+            self.assertIsNone(providers.complete("hi", cfg_llm={"provider": "ollama"}))
+        finally:
+            os.environ.pop("OLLAMA_URL", None)                    # no crash → agent mode
+
+    def test_searx_mapping_matches_serp_shape(self):
+        from seo_agent import providers
+        data = {"results": [{"title": "A", "url": "https://a.com"},
+                            {"title": "B", "url": "https://b.com"}],
+                "suggestions": ["a vs b"]}
+        s = providers._searx_map(data, depth=1)
+        self.assertEqual(s["organic"], [{"title": "A", "url": "https://a.com"}])
+        self.assertEqual(s["related"], ["a vs b"])
+        self.assertEqual(s["source"], "searxng")
+        for k in ("paa", "features"):
+            self.assertIn(k, s)                                   # brief/score expect these keys
+
+    def test_google_suggest_parser(self):
+        from seo_agent import providers
+        self.assertEqual(providers._suggest_parse('["crm", ["crm software", "crm free"]]'),
+                         ["crm software", "crm free"])
+        self.assertEqual(providers._suggest_parse("not json"), [])
+
+    def test_lighthouse_parse_matches_psi_shape(self):
+        from seo_agent import speed
+        d = {"categories": {"performance": {"score": 0.92}, "accessibility": {"score": 0.88}},
+             "audits": {"largest-contentful-paint": {"numericValue": 1800},
+                        "cumulative-layout-shift": {"numericValue": 0.05},
+                        "total-blocking-time": {"numericValue": 120}}}
+        r = speed._lh_parse(d)
+        self.assertEqual(r["perf_score"], 92)
+        self.assertEqual(r["lab_lcp_ms"], 1800)
+        self.assertEqual(r["transport"], "lighthouse-local")
+
+
 class RequirementsLoop(unittest.TestCase):
     """The loop that keeps checking we're 'there': standing rules must stay wired."""
 
