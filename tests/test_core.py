@@ -1054,6 +1054,45 @@ class ScreamingFrog(unittest.TestCase):
         self.assertIsNone(sfimport.auto_import(cfg))           # same file never re-imports
 
 
+class NativeCrawler(unittest.TestCase):
+    """SF-independence: our own crawl_depth + inlinks + site profiling (LibreCrawl-class,
+    stdlib, no proprietary tools)."""
+
+    def test_annotate_graph_depth_and_inlinks(self):
+        from seo_agent import ingest
+        site = "https://d.com"
+        corpus = [
+            {"url": "https://d.com", "links": ["/a", "https://d.com/b", "https://other.com/x"]},
+            {"url": "https://d.com/a", "links": ["/b"]},
+            {"url": "https://d.com/b", "links": []},
+            {"url": "https://d.com/orphan", "links": []},
+        ]
+        ingest.annotate_graph(corpus, site)
+        by = {c["url"]: c for c in corpus}
+        self.assertEqual(by["https://d.com"]["crawl_depth"], 0)
+        self.assertEqual(by["https://d.com/a"]["crawl_depth"], 1)
+        self.assertEqual(by["https://d.com/b"]["crawl_depth"], 1)     # home links /b directly (BFS = shortest)
+        self.assertIsNone(by["https://d.com/orphan"]["crawl_depth"])  # unreachable = orphan signal
+        self.assertEqual(by["https://d.com/b"]["inlinks"], 2)         # from home + /a
+        self.assertEqual(by["https://d.com/orphan"]["inlinks"], 0)
+
+    def test_platform_fingerprints(self):
+        from seo_agent import profile as profmod
+        import re
+        samples = {"WordPress": '<link href="/wp-content/themes/x.css">',
+                   "Webflow": '<html data-wf-page="abc">',
+                   "Shopify": '<script src="https://cdn.shopify.com/x.js">',
+                   "Next.js": '<script id="__NEXT_DATA__">'}
+        for want, html_snip in samples.items():
+            hit = next((name for pat, name, _ in profmod._FP if re.search(pat, html_snip, re.I)), None)
+            self.assertEqual(hit, want)
+
+    def test_robots_crawl_delay_parsed(self):
+        from seo_agent import profile as profmod
+        txt = "User-agent: Googlebot\nCrawl-delay: 1\n\nUser-agent: *\nCrawl-delay: 2.5\nDisallow: /tmp/"
+        self.assertEqual(profmod._crawl_delay(txt), 2.5)   # the * group, not Googlebot's
+
+
 class RequirementsLoop(unittest.TestCase):
     """The loop that keeps checking we're 'there': standing rules must stay wired."""
 

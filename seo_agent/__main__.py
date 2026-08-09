@@ -120,7 +120,8 @@ def main():
     pag.add_argument("--install", action="store_true", help="macOS launchd: start at login, survive reboots")
     pag.add_argument("--status", action="store_true")
     pag.add_argument("--stop", action="store_true")
-    psf = sub.add_parser("sf")  # Screaming Frog: import exports / auto-import sf-exports/ / headless crawl
+    sub.add_parser("profile").add_argument("--apply", action="store_true")  # auto-understand the site → fix crawler capabilities
+    psf = sub.add_parser("sf")  # Screaming Frog: import exports / auto-import sf-exports/ / headless crawl (optional bridge — native crawler needs nothing)
     psf.add_argument("--csv", nargs="+", metavar="PATH", help="SF export file(s)/dir/zip (Internal:All)")
     psf.add_argument("--crawl", action="store_true", help="run a headless SF crawl + import (paid SF license)")
     sub.add_parser("repurpose").add_argument("url")  # one article → zero-click derivatives (LinkedIn/X/newsletter/quotable)
@@ -404,6 +405,12 @@ def main():
             dump(daemon.start_background(cfg, interval=a.interval))
         else:
             daemon.run(cfg, interval=a.interval)
+    elif a.cmd == "profile":
+        from . import profile as profmod
+        r = profmod.apply(cfg) if a.apply else None
+        print(profmod.render_md(cfg, r))
+        if r and r.get("applied"):
+            print(f"\n✓ wrote {', '.join(r['applied'])} → config.json")
     elif a.cmd == "sf":
         from . import sfimport
         if a.crawl:

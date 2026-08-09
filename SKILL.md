@@ -74,7 +74,8 @@ python -m seo_agent repurpose <url>         # one article → no-link LinkedIn p
 python -m seo_agent tip                     # today's sourced SEO tidbit (auto-appears once/day after commands + on the dashboard; "tips": false to disable)
 python -m seo_agent diagnose                # "why is traffic down?" — ranked differential: self-inflicted / Google update / zero-click erosion / decay / anomalies
 python -m seo_agent agent [--background|--install|--status|--stop]  # ALWAYS-ON mode: heartbeat + instant alerts + daily cycle + weekly report (+ weekly SF pull if agent.sf_crawl). --background detaches; --install = launchd, survives reboots
-python -m seo_agent sf [--csv <export>] [--crawl]  # Screaming Frog: import Internal:All exports (bootstrap/enrich + crawler cross-check); bare `sf` auto-imports sf-exports/; --crawl = headless SF
+python -m seo_agent profile [--apply]       # auto-understand the site: platform fingerprint, CSR detection (auto-enables JS rendering), scale, robots — fixes the crawler's capabilities
+python -m seo_agent sf [--csv <export>] [--crawl]  # OPTIONAL Screaming Frog bridge (import/cross-check) — the native crawler needs nothing: sitemap or spider mode, own crawl_depth + inlinks
 python -m seo_agent speed                   # Core Web Vitals (PageSpeed lab + CrUX field)
 python -m seo_agent logs access.log[.gz]    # log-file analysis: crawl waste + AI-crawler coverage
 python -m seo_agent aio                      # re-rank striking-distance by AI-Overview-adjusted CTR

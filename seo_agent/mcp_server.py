@@ -281,6 +281,12 @@ def _diagnose(a):
     return diagnose.render_md(_cfg())
 
 
+def _profile(a):
+    from . import profile as profmod
+    cfg = _cfg()
+    return profmod.render_md(cfg, profmod.apply(cfg) if a.get("apply") else None)
+
+
 def _sf(a):
     from . import sfimport
     cfg = _cfg()
@@ -395,6 +401,8 @@ TOOLS = [
      {"type": "object", "properties": {}}, _tip),
     ("diagnose", "Site-level 'why is traffic down?' — ranked differential diagnosis across ledger, sitediff, Google updates, zero-click erosion, decay, anomalies.",
      {"type": "object", "properties": {}}, _diagnose),
+    ("profile", "Auto-understand the site (platform, rendering needs, scale, robots) and fix the crawler's capabilities; apply:true writes crawler settings to config.",
+     {"type": "object", "properties": {"apply": {"type": "boolean"}}}, _profile),
     ("sf", "Screaming Frog: import exports (paths), auto-import sf-exports/ (no args), or crawl:true = run a headless SF pull now.",
      {"type": "object", "properties": {"paths": {"type": "array", "items": {"type": "string"}},
                                        "crawl": {"type": "boolean"}}}, _sf),

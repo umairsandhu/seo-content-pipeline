@@ -379,6 +379,18 @@ def _heading_skip(levels):
     return False
 
 
+def depth_check(corpus, F, t):
+    """Native click-depth audit (crawl_depth is computed by our own crawler now):
+    pages buried deeper than max_depth clicks from home get crawled less and rank
+    worse; unreachable-from-home pages corroborate the orphan check."""
+    idx = [c for c in corpus if _indexable(c) and "crawl_depth" in c]
+    deep = [c for c in idx if (c.get("crawl_depth") or 0) > t.get("max_depth", 4)]
+    if deep:
+        F.append({"cat": "links", "sev": "med", "url": deep[0]["url"],
+                  "msg": f"{len(deep)} pages deeper than {t.get('max_depth', 4)} clicks from home — "
+                         "surface them via internal links (`autolink`, `pagerank`)"})
+
+
 def mobile(corpus, F):
     """Mobile-first index basics measurable from raw HTML. Deeper signals (tap targets,
     font legibility) come from PSI's accessibility audit in `speed`."""
@@ -422,6 +434,7 @@ def report(cfg, corpus_path="corpus.json"):
     freshness(corpus, F)
     headings(corpus, F)
     mobile(corpus, F)
+    depth_check(corpus, F, t)
     try:  # indexability decision matrix + redirect health (bounded live trace)
         from . import indexability
         F.extend(indexability.check(cfg, corpus))

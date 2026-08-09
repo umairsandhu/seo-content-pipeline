@@ -240,8 +240,73 @@ def _match(url, include, exclude, site):
     return True
 
 
+def _internal_links(rec, host):
+    """Resolve a record's raw hrefs to absolute same-host URLs (fragments stripped)."""
+    from urllib.parse import urljoin
+    base = rec.get("final_url") or rec["url"]
+    out = []
+    for h in rec.get("links", []) or []:
+        try:
+            u = urljoin(base, h).split("#")[0]
+        except ValueError:
+            continue
+        pu = urlparse(u)
+        if pu.scheme in ("http", "https") and pu.netloc.lower().replace("www.", "") == host:
+            out.append(u.rstrip("/"))
+    return out
+
+
+def annotate_graph(corpus, site):
+    """Native crawl-depth + inlinks for EVERY crawl mode (the Screaming Frog fields,
+    computed ourselves): inlinks = internal pages linking to a URL; crawl_depth =
+    BFS clicks from the homepage through the resolved link graph."""
+    host = urlparse(site).netloc.lower().replace("www.", "")
+    by_url = {(c.get("final_url") or c["url"]).rstrip("/"): c for c in corpus}
+    graph, inlinks = {}, {}
+    for c in corpus:
+        src = (c.get("final_url") or c["url"]).rstrip("/")
+        tgts = set(_internal_links(c, host))
+        graph[src] = tgts
+        for t in tgts:
+            if t != src and t in by_url:
+                inlinks[t] = inlinks.get(t, 0) + 1
+    for u, c in by_url.items():
+        c["inlinks"] = inlinks.get(u, 0)
+    root = site.rstrip("/")
+    frontier, depth = [root], {root: 0}
+    while frontier:
+        nxt = []
+        for u in frontier:
+            for t in graph.get(u, ()):
+                if t in by_url and t not in depth:
+                    depth[t] = depth[u] + 1
+                    nxt.append(t)
+        frontier = nxt
+    for u, c in by_url.items():
+        if "crawl_depth" not in c or c["crawl_depth"] is None:
+            c["crawl_depth"] = depth.get(u)  # None = unreachable from home (orphan signal)
+    return corpus
+
+
 def build(cfg, out="corpus.json", delay=0.15):
     site = (cfg.get("site") or "").rstrip("/")
+    # auto-understand the site first: platform, rendering needs, scale, politeness
+    prof = None
+    try:
+        from . import profile as profmod
+        prof = profmod.ensure(cfg)
+    except Exception:
+        pass
+    plan = (prof or {}).get("plan", {})
+    crawl_cfg = cfg.get("crawl", {}) or {}
+    delay = float(crawl_cfg.get("delay", plan.get("delay", delay)))
+    if plan.get("render") and not (cfg.get("render", {}) or {}).get("enabled"):
+        cfg.setdefault("render", {})["enabled"] = True
+        print("  (profiler: client-rendered site + Playwright present → JS rendering AUTO-ENABLED)")
+    elif (prof or {}).get("needs_render") and not plan.get("render") \
+            and not (cfg.get("render", {}) or {}).get("enabled"):
+        print("  ⚠ profiler: site looks CLIENT-RENDERED and Playwright is not installed — "
+              "the crawl will under-report. `pip install playwright && playwright install chromium`")
     urls = sitemap_urls(cfg["sitemap"]) if cfg.get("sitemap") else []
     if not urls and site:                      # configured sitemap missing/404 → discover from robots.txt
         for sm in robots_sitemaps(site):
@@ -249,10 +314,13 @@ def build(cfg, out="corpus.json", delay=0.15):
             if urls:
                 print(f"  (sitemap auto-discovered from robots.txt: {sm})")
                 break
+    spider_mode = crawl_cfg.get("mode") == "spider" or not urls
     urls = [u for u in dict.fromkeys(urls) if _match(u, cfg.get("include", []),
                                                      cfg.get("exclude", []), site)]
     urls = urls[: cfg.get("max_pages", 400)]
-    workers = int(cfg.get("ingest", {}).get("workers", 8))
+    workers = int(cfg.get("ingest", {}).get("workers", plan.get("workers", 8)))
+    if spider_mode:
+        return _spider_build(cfg, site, out, delay, workers)
     print(f"ingesting {len(urls)} pages from {cfg.get('sitemap')}")
     corpus = []
 
@@ -295,6 +363,71 @@ def build(cfg, out="corpus.json", delay=0.15):
                         print(f"  ! {futs[fu]}: {e}", file=sys.stderr)
                     if i % 50 == 0:
                         checkpoint(i)
+    annotate_graph(corpus, site)               # native crawl_depth + inlinks (all modes)
     Path(out).write_text(json.dumps(corpus, ensure_ascii=False, indent=1))
     print(f"wrote {out} ({len(corpus)} pages)")
+    return corpus
+
+
+def _spider_build(cfg, site, out, delay, workers):
+    """Link-following BFS crawl — the LibreCrawl/Screaming-Frog mode, native: for sites
+    with no (or partial) sitemaps. Respects robots.txt Disallow + include/exclude,
+    tracks true click depth as it goes, and is interrupt-safe like the sitemap crawl."""
+    from . import render
+    disallows = []
+    try:
+        from .indexability import _star_disallows
+        disallows = _star_disallows(_get(site + "/robots.txt"))
+    except Exception:
+        pass
+    host = urlparse(site).netloc.lower().replace("www.", "")
+    inc, exc = cfg.get("include", []), cfg.get("exclude", [])
+    max_pages = cfg.get("max_pages", 400)
+    print(f"spidering {site} (link-following, ≤{max_pages} pages, {workers} workers, "
+          f"{len(disallows)} robots rules honored)")
+    corpus, seen = [], {site.rstrip("/"): 0}
+    frontier = [site.rstrip("/")]
+
+    def ok(u):
+        pu = urlparse(u)
+        if pu.netloc.lower().replace("www.", "") != host:
+            return False
+        if any(pu.path.startswith(d) for d in disallows):
+            return False
+        return _match(u, inc, exc, site)
+
+    prevp = Path(out)
+    if prevp.exists() and prevp.stat().st_size > 2:
+        Path(out.replace(".json", ".prev.json")).write_text(prevp.read_text())
+    with render.session(cfg) as r:
+        while frontier and len(corpus) < max_pages:
+            batch, frontier = frontier[:workers], frontier[workers:]
+
+            def fetch_one(u):
+                res = (r.render(u) if r else None) or _fetch(u)
+                rec = extract(u, res[2])
+                rec["status"], rec["final_url"] = res[0], res[1]
+                rec["crawl_depth"] = seen.get(u.rstrip("/"), 0)
+                return rec
+            with ThreadPoolExecutor(max_workers=1 if r else workers) as ex:
+                for fu in as_completed({ex.submit(fetch_one, u): u for u in batch}):
+                    try:
+                        rec = fu.result()
+                    except Exception as e:
+                        print(f"  ! {e}", file=sys.stderr)
+                        continue
+                    corpus.append(rec)
+                    d = rec["crawl_depth"]
+                    for link in _internal_links(rec, host):
+                        if link not in seen and ok(link) and len(seen) < max_pages * 3:
+                            seen[link] = d + 1
+                            frontier.append(link)
+            if len(corpus) % 50 < workers:
+                Path(out).write_text(json.dumps(corpus, ensure_ascii=False, indent=1))
+                print(f"  …{len(corpus)} crawled · {len(frontier)} queued (checkpointed)")
+            time.sleep(delay)
+    annotate_graph(corpus, site)
+    Path(out).write_text(json.dumps(corpus, ensure_ascii=False, indent=1))
+    print(f"wrote {out} ({len(corpus)} pages, max depth "
+          f"{max((c.get('crawl_depth') or 0) for c in corpus) if corpus else 0})")
     return corpus
