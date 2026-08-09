@@ -1160,6 +1160,51 @@ class ProviderChoices(unittest.TestCase):
         self.assertIn("DATAFORSEO_LOGIN=", todo)                  # key picks emit .env lines
 
 
+class Identity(unittest.TestCase):
+    """OpenClaw workspace pattern: editable identity files the employee reads every
+    session; Hermes pattern: interview-built user model, day one."""
+
+    def _cfg(self):
+        d = tempfile.mkdtemp(); os.chdir(d)
+        return {"state_dir": os.path.join(d, "state"), "site": "https://demo.com",
+                "brand": {"name": "Demo"}}
+
+    def test_scaffold_is_create_only_and_bootstrap_retires(self):
+        from seo_agent import identity
+        cfg = self._cfg()
+        made = identity.scaffold(cfg)["created"]
+        for f in ("SOUL.md", "AGENTS.md", "BOOTSTRAP.md"):
+            self.assertIn(f, made)
+        Path("SOUL.md").write_text("# my custom soul")
+        self.assertEqual(identity.scaffold(cfg)["created"], [])       # operator edits win
+        self.assertEqual(Path("SOUL.md").read_text(), "# my custom soul")
+        self.assertTrue(identity.complete_bootstrap())                # first-run ritual retires
+        self.assertFalse(Path("BOOTSTRAP.md").exists())
+        self.assertFalse(identity.complete_bootstrap())
+
+    def test_interview_reaches_strategist_prompt_and_brain(self):
+        from seo_agent import brain, identity, personas
+        cfg = self._cfg()
+        identity.scaffold(cfg)
+        r = identity.write_client(cfg, {"sells": "crm software", "buyer": "sales leaders",
+                                        "nogo": "never mention pricing"})
+        self.assertTrue(r["ok"])
+        sysp = personas.system("strategist", cfg=cfg)
+        self.assertIn("YOUR IDENTITY", sysp)                          # SOUL.md injected
+        self.assertIn("THE CLIENT YOU WORK FOR", sysp)                # CLIENT.md injected
+        self.assertIn("sales leaders", sysp)                          # business-aware day one
+        self.assertGreaterEqual(brain.counts(cfg)["total"], 2)        # facts + no-go seeded
+
+    def test_journal_and_memory_mirror(self):
+        from seo_agent import brain, identity
+        cfg = self._cfg()
+        identity.journal(cfg, ["shipped 2 retitles", "alligator opening"])
+        self.assertIn("alligator opening", identity.recent_journal(cfg))
+        brain.add(cfg, "playbook", "retitles win here", source="test", tag="t")
+        self.assertEqual(identity.memory_digest(cfg), "MEMORY.md")
+        self.assertIn("retitles win here", Path("MEMORY.md").read_text())
+
+
 class RequirementsLoop(unittest.TestCase):
     """The loop that keeps checking we're 'there': standing rules must stay wired."""
 

@@ -139,6 +139,13 @@ def report_phase(cfg, deliver=True):
            "dispatched_today": ex.get("dispatched", []), "proven_wins": wins,
            "attribution_window": att.get("window"),
            "learned_best": learned[:5], "brain": brain_state.get("memory")}
+    # the diary + curated-memory mirror (OpenClaw memory/ + MEMORY.md patterns)
+    from . import identity
+    _safe(lambda: identity.journal(cfg, [
+        f"cycle: {len(rep['shipped_today'])} shipped · {len(rep['dispatched_today'])} dispatched"
+        + (f" · top win {wins[0]['url'].rsplit('/', 1)[-1]} +{wins[0]['holdout_adjusted_lift']}" if wins else ""),
+        (f"best playbook: {learned[0]['type']} {learned[0]['mean_lift']:+g}" if learned else "learning accruing")]))
+    _safe(lambda: identity.memory_digest(cfg))
     state.write(cfg, "report", rep)
     if deliver and (cfg.get("review", {}) or cfg.get("report", {})):
         text = _digest_text(cfg, rep)

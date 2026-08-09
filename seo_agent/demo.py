@@ -123,6 +123,15 @@ def build(dirname="seo-demo"):
     ledger.record(cfg, f"{SITE}/blog/sleeping-bags-2024", "update_meta", "meta rewrite", date=D(35))
     ledger.record(cfg, f"{SITE}/blog/camp-stoves-2023", "refresh", "content refresh", date=D(35))
 
+    from . import identity
+    identity.scaffold({"site": SITE, "brand": {"name": "Demo Outdoors"}}, root=str(root))
+    identity.write_client({**cfg, "site": SITE},
+                          {"sells": "premium outdoor gear reviews + affiliate picks",
+                           "buyer": "weekend backpackers researching their next purchase",
+                           "conversion": "affiliate click-through on a gear pick",
+                           "moat": "we actually field-test everything (47 nights logged)",
+                           "nogo": "never trash competitors; no medical/survival claims",
+                           "capacity": "5"}, root=str(root))
     learn.cycle(cfg)                      # measures +7/+28 follow-ups (holdout-adjusted)
     brain.add(cfg, "preference", "Client feedback on monthly report: love the comparison tables — "
               "keep intros under 3 sentences and always lead with the price-per-warmth numbers",

@@ -34,6 +34,11 @@ def init(root=".", site=None):
         cfgp.write_text(json.dumps(cfgmod.scaffold(site), indent=2) + "\n")
         created_cfg = True
     saf = safety.check(root=str(root), apply=True)  # .env.example + hardened .gitignore
+    try:  # the employee's identity files (SOUL/AGENTS/BOOTSTRAP) — create-only
+        from . import identity
+        identity.scaffold({"site": site or "", "brand": {}}, root=str(root))
+    except Exception:
+        pass
     envp, exp = root / ".env", root / ".env.example"
     created_env = False
     if exp.exists() and not envp.exists():
@@ -100,6 +105,14 @@ def run(cfg, keywords=None, root=".", do_ingest=True, out="BASELINE.md", degrade
 
     md = _render(cfg, stages, blocked=False)
     Path(out).write_text(md)
+    try:  # baseline done → identity files exist, first-run ritual retires itself
+        from . import identity
+        identity.scaffold(cfg, root=root)
+        identity.complete_bootstrap(root=root)
+        identity.journal(cfg, ["onboarding baseline complete — probation over; daily rhythm begins"],
+                         root=root)
+    except Exception:
+        pass
     return stages, md
 
 

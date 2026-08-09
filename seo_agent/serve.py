@@ -252,8 +252,9 @@ def _page(cfg):
 
 
 _DOC_FILES = ("report.html", "report.pdf", "plan.md", "audit.md", "BASELINE.md", "PLAYBOOK.md",
-              "recommendations.md", "digest.md", "consult.md", "article-plan.md")
-_DOC_DIRS = ("content", "site-changes", "drafts")
+              "recommendations.md", "digest.md", "consult.md", "article-plan.md",
+              "AGENTS.md", "SOUL.md", "CLIENT.md", "MEMORY.md", "BOOTSTRAP.md")
+_DOC_DIRS = ("content", "site-changes", "drafts", "memory")
 _DOC_KIND = {".pdf": "report (PDF)", ".html": "report (web)", ".md": "document", ".json": "change file"}
 
 

@@ -67,8 +67,21 @@ def system(role, cfg=None, query=""):
     base = ROLES.get(role, STRATEGIST)
     if cfg is None:
         return base
+    parts = [base]
+    try:  # the employee's editable identity + the client's business model (OpenClaw pattern)
+        from . import identity
+        s = identity.soul(cfg)
+        if s:
+            parts.append("\n\nYOUR IDENTITY (SOUL.md — operator-tuned; stay in character):\n" + s)
+        if role in ("strategist", "writer", "editor"):
+            c = identity.client(cfg)
+            if c:
+                parts.append("\n\nTHE CLIENT YOU WORK FOR (CLIENT.md):\n" + c)
+    except Exception:
+        pass
     try:
         from . import brain
-        return base + brain.context_block(cfg, purpose=_PURPOSE.get(role, "any"), query=query)
+        parts.append(brain.context_block(cfg, purpose=_PURPOSE.get(role, "any"), query=query))
     except Exception:
-        return base
+        pass
+    return "".join(parts)

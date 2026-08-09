@@ -203,6 +203,19 @@ def interactive(cfg, root=".", config_path="config.json"):
               + " ".join(dict.fromkeys(env_todo)))
     for n in notes:
         print(f"  → {n}")
+
+    # the interview (Hermes-style user modeling): 6 questions → CLIENT.md + brain seeds,
+    # so the strategist/writer know the BUSINESS on day one. Enter skips any question.
+    from . import identity
+    print("\n=== The interview — 2 minutes that make every draft business-aware (Enter skips) ===")
+    answers = {}
+    for key, q in identity.INTERVIEW:
+        answers[key] = ask(q)
+    ci = identity.write_client(cfg, answers)
+    if ci.get("ok"):
+        print(f"  ✓ CLIENT.md written ({ci['answered']} answers) — seeded into the brain; "
+              "edit the file any time")
+    identity.scaffold(cfg)
     req = cms_extra.requirements(cms_t) or {}
     if req.get("env") or req.get("config"):
         print(f"\n  {req['name']}: add {', '.join(req['env']) or 'nothing'} to .env (git-ignored)"

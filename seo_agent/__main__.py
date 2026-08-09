@@ -121,6 +121,7 @@ def main():
     pag.add_argument("--status", action="store_true")
     pag.add_argument("--stop", action="store_true")
     sub.add_parser("profile").add_argument("--apply", action="store_true")  # auto-understand the site → fix crawler capabilities
+    sub.add_parser("interview")  # (re)run the business interview → CLIENT.md + brain seeds
     psf = sub.add_parser("sf")  # Screaming Frog: import exports / auto-import sf-exports/ / headless crawl (optional bridge — native crawler needs nothing)
     psf.add_argument("--csv", nargs="+", metavar="PATH", help="SF export file(s)/dir/zip (Internal:All)")
     psf.add_argument("--crawl", action="store_true", help="run a headless SF crawl + import (paid SF license)")
@@ -405,6 +406,15 @@ def main():
             dump(daemon.start_background(cfg, interval=a.interval))
         else:
             daemon.run(cfg, interval=a.interval)
+    elif a.cmd == "interview":
+        from . import identity
+        if not sys.stdin.isatty():
+            print("run in a terminal — or edit CLIENT.md directly (same effect)"); return
+        print("=== The interview — who does your employee work for? (Enter skips) ===")
+        answers = {k: input(f"{q}: ").strip() for k, q in identity.INTERVIEW}
+        r = identity.write_client(cfg, answers)
+        identity.scaffold(cfg)
+        print("✓ CLIENT.md written + brain seeded" if r.get("ok") else "skipped — nothing answered")
     elif a.cmd == "profile":
         from . import profile as profmod
         r = profmod.apply(cfg) if a.apply else None

@@ -152,6 +152,16 @@ delivery and becomes a preference. Two or three cycles in, drafts/reports read l
 client wrote the spec themselves. Ask for feedback explicitly in the delivery note — silence
 teaches nothing.
 
+**28. Identity lives in editable files, not code (the OpenClaw/Hermes lesson).** The
+patterns that make personal agents durable: persona in `SOUL.md`, operating rules in
+`AGENTS.md`, the user/business model in `CLIENT.md` (built by an INTERVIEW, not a form),
+curated memory mirrored to `MEMORY.md`, a daily journal in `memory/`, and a `BOOTSTRAP.md`
+ritual that deletes itself. All create-only (operator edits win), all injected into every
+persona prompt with char budgets, all surviving restarts/model swaps. Never hardcode what
+the operator might want to tune — an employee whose personality you can edit in a text
+file is trusted; a black box isn't. And interview answers seed the brain, so business
+context reaches the strategist on day one (closing the "no business context" critique).
+
 **25. Measure the zero-click layers — traffic is a secondary metric.** ~58% of searches
 end without a click; platforms suppress outbound links (no-link posts reach ~10× further);
 impressions rise while clicks fall (the "alligator"). A site can lose 80% of its organic
