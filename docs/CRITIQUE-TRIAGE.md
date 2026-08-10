@@ -80,3 +80,13 @@ monitors; migration mode plans) · chat-first control of the `agent` daemon (pha
 
 **Meta-lesson:** external reviews keep auditing snapshots, not HEAD — keep this triage
 doc current so the next reviewer starts from reality.
+
+---
+
+# Round 3 — the self-audit (2026-08-11)
+
+We turned the audit inward: a full drift/fragmentation inventory of our own architecture
+(~52 parallel registries, 93 commands documented in 4–5 drifting places, 6 incompatible
+`_safe` helpers, 162 bare exception handlers — and four drifted pairs the audit itself
+discovered). The verdict, the honest "couldn't have known vs didn't want to know" split,
+and the v2 blueprint live in **[ARCHITECTURE-V2](ARCHITECTURE-V2.md)**.

@@ -98,6 +98,14 @@ until these hold.*
 - **Multimodal search surfaces** — video objects, image SEO depth, and voice-answer
   extractability as AI answers go multimodal.
 
+## The v2 re-architecture (post-launch)
+
+The full rebuild retrospective — the first architectural decision we'd change (one
+capability registry, every surface generated), the evidence, the honest "couldn't have
+known vs didn't want to know" split, and the 3-phase strangler migration — lives in
+**[ARCHITECTURE-V2](ARCHITECTURE-V2.md)**. Execute after launch; the drift punch-list in
+its appendix is same-day-fixable now.
+
 ## Operating principles (unchanged, load-bearing)
 
 Local-first, no hosting, ever · every feature degrades without creds · human gate between
