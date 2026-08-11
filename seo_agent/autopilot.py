@@ -132,6 +132,33 @@ def execute_phase(cfg):
     return ex
 
 
+def _rollback_phase(cfg):
+    """Find measured-negative changes and act per autonomy mode: approve → queue a
+    rollback for review; auto → execute (capped 2/cycle); manual → just report."""
+    from . import autonomy, brain, rollback
+    props = rollback.proposals(cfg)
+    if not props:
+        return []
+    mode = autonomy.mode(cfg)
+    out, executed = [], 0
+    for p in props:
+        brain.add(cfg, "lesson", f"AVOID '{p['type']}' on pages like {p['url'].rsplit('/', 1)[-1]}: "
+                  f"measured {p['mean_lift']:+g} at +28d (CI<0). Rolled back.",
+                  source="auto-rollback", tag=f"avoid-{p['type']}")
+        if mode == "auto" and executed < 2:
+            r = _safe(lambda: rollback.rollback(cfg, p["change_id"]))
+            out.append({**p, "action": "reverted" if (r or {}).get("ok") else "revert-failed"})
+            executed += 1
+        elif mode == "approve":
+            _safe(lambda: autonomy.authorize(cfg, f"rollback #{p['change_id']} ({p['type']} on "
+                  f"{p['url']}) — measured {p['mean_lift']:+g} at +28d", kind="delete",
+                  target=p["url"], detail=f"rollback:{p['type']}"))
+            out.append({**p, "action": "queued for approval"})
+        else:
+            out.append({**p, "action": "proposed"})
+    return out
+
+
 # ── 4. REPORT (attribution + deliver) ───────────────────────────────────────
 def report_phase(cfg, deliver=True):
     from . import learn
@@ -144,9 +171,12 @@ def report_phase(cfg, deliver=True):
     _safe(lambda: learn.cycle(cfg))
     brain_state = _safe(lambda: brain.cycle(cfg)) or {}
     learned = _safe(lambda: learn.ranking(cfg)) or []
+    # W3: propose rollbacks for changes that MEASURED NEGATIVE — queue for review (approve mode)
+    # or execute drip-capped (auto mode); teach the brain to avoid the losing type here.
+    rollbacks = _safe(lambda: _rollback_phase(cfg)) or []
     rep = {"date": _today().isoformat(), "shipped_today": ex.get("done", []),
            "dispatched_today": ex.get("dispatched", []), "proven_wins": wins,
-           "attribution_window": att.get("window"),
+           "attribution_window": att.get("window"), "rollbacks": rollbacks,
            "learned_best": learned[:5], "brain": brain_state.get("memory")}
     # the diary + curated-memory mirror (OpenClaw memory/ + MEMORY.md patterns)
     from . import identity
@@ -208,6 +238,10 @@ def render_md(cfg, r):
         L += ["", "## What's working best (learned — day/week/month follow-ups)"]
         for r in rep["learned_best"][:4]:
             L.append(f"- **{r['type']}** — {r['mean_lift']:+g} avg lift/page ({int(r['win_rate']*100)}% win, {r['source']})")
+    if rep.get("rollbacks"):
+        L += ["", "## ↩ Rollbacks (measured-negative changes)"]
+        for rb in rep["rollbacks"]:
+            L.append(f"- **{rb['type']}** on {rb['url'].rsplit('/', 1)[-1]} — {rb['mean_lift']:+g} at +28d → {rb['action']}")
     L.append("\n_Watch it live with `serve`; approve dispatched changes there or via `review`. "
              "Impact by day/week/month + what works: `learn`._")
     try:

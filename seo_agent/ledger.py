@@ -19,25 +19,54 @@ def _con(cfg):
     con.execute("CREATE TABLE IF NOT EXISTS changes("
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT, url TEXT, type TEXT, "
                 "detail TEXT, commit_ref TEXT, status TEXT)")
+    for col, typ in (("before_state", "TEXT"), ("verified", "INTEGER DEFAULT -1")):
+        try:  # W3: before-state (for rollback) + post-apply verification flag; in-place migration
+            con.execute(f"ALTER TABLE changes ADD COLUMN {col} {typ}")
+        except Exception:
+            pass
     return con
 
 
-def record(cfg, url, ctype, detail="", commit_ref="", date=None, status="applied"):
+def record(cfg, url, ctype, detail="", commit_ref="", date=None, status="applied", before=None):
+    """Log a change; returns its new id. `before` (dict of the pre-change title/meta/content)
+    is stored so the change can be rolled back later (W3)."""
     con = _con(cfg)
     with con:
-        con.execute("INSERT INTO changes(date,url,type,detail,commit_ref,status) VALUES (?,?,?,?,?,?)",
-                    (date or datetime.date.today().isoformat(), url, ctype, detail, commit_ref, status))
+        cur = con.execute("INSERT INTO changes(date,url,type,detail,commit_ref,status,before_state) "
+                          "VALUES (?,?,?,?,?,?,?)",
+                          (date or datetime.date.today().isoformat(), url, ctype, detail, commit_ref,
+                           status, json.dumps(before) if before else None))
+        cid = cur.lastrowid
     con.close()
+    return cid
+
+
+def set_verified(cfg, change_id, ok):
+    con = _con(cfg)
+    with con:
+        con.execute("UPDATE changes SET verified=? WHERE id=?", (1 if ok else 0, change_id))
+    con.close()
+
+
+_CHG_COLS = ["id", "date", "url", "type", "detail", "commit_ref", "status", "before_state", "verified"]
 
 
 def changes(cfg, url=None):
     con = _con(cfg)
     where, args = (" WHERE url=?", (url,)) if url else ("", ())
-    rows = con.execute("SELECT id,date,url,type,detail,commit_ref,status FROM changes" + where
-                       + " ORDER BY date DESC, id DESC", args).fetchall()
+    rows = con.execute("SELECT id,date,url,type,detail,commit_ref,status,before_state,verified "
+                       "FROM changes" + where + " ORDER BY date DESC, id DESC", args).fetchall()
     con.close()
-    cols = ["id", "date", "url", "type", "detail", "commit_ref", "status"]
-    return [dict(zip(cols, r)) for r in rows]
+    out = []
+    for r in rows:
+        d = dict(zip(_CHG_COLS, r))
+        d["before_state"] = json.loads(d["before_state"]) if d.get("before_state") else None
+        out.append(d)
+    return out
+
+
+def get_change(cfg, change_id):
+    return next((c for c in changes(cfg) if c["id"] == change_id), None)
 
 
 def _norm(u):

@@ -42,11 +42,25 @@ def change(cfg, op, **kw):
         _write_change_file(change, applied=False)  # plan/preview even in manual mode
         return {"status": "planned", "reason": dec["reason"], "change": change,
                 "preview": f"{CHANGES_DIR}/ (proposed; not applied)"}
+    # W3: snapshot the page BEFORE we change it, so this is revertable
+    before = None
+    if op in ("update_meta", "update_content") and kw.get("url"):
+        try:
+            from . import rollback
+            before = rollback.capture(cfg, kw["url"]) or None
+        except Exception:
+            pass
     res = _execute(cfg, change)
     if res.get("ok"):  # log to the causal ledger for attribution later
         try:
-            from . import ledger
-            ledger.record(cfg, str(target), op, str(detail))
+            from . import ledger, rollback
+            cid = ledger.record(cfg, str(target), op, str(detail), before=before)
+            if op in ("update_meta", "update_content") and kw.get("url"):  # W3: post-apply verify
+                v = rollback.verify(cfg, kw["url"], change)
+                if v is not None:
+                    ledger.set_verified(cfg, cid, v)
+                    res["verified"] = v
+            res["change_id"] = cid
         except Exception:
             pass
     return {"status": "executed", **res}

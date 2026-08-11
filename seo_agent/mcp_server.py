@@ -246,6 +246,12 @@ def _ledger(a):
     return ledger.render_md(_cfg())
 
 
+def _rollback(a):
+    from . import rollback
+    cfg = _cfg()
+    return rollback.render_md(cfg, rollback.rollback(cfg, a["change_id"]) if a.get("change_id") else None)
+
+
 def _learn(a):
     from . import learn
     return learn.render_md(_cfg())
@@ -387,6 +393,8 @@ TOOLS = [
                                        "description": {"type": "string"}}, "required": ["op"]}, _control),
     ("ledger", "Change log + causal attribution (before/after vs a holdout of untouched pages).",
      {"type": "object", "properties": {}}, _ledger),
+    ("rollback", "Revert a change that measured negative (or list rollback proposals) — restores the captured before-state.",
+     {"type": "object", "properties": {"change_id": {"type": "integer"}}}, _rollback),
     ("learn", "What's working — impact of changes by day/week/month + cross-site 'best change types'.",
      {"type": "object", "properties": {}}, _learn),
     ("practices", "Best practices learned & applied on this site — found → fixed → measured, with live numbers.",

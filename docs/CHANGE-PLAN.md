@@ -39,10 +39,11 @@ where · why-now. Updated 2026-08-11.*
 
 ## Tier 2 — In the launch track (the gates depend on these)
 
-- [ ] **W3 · Auto-rollback + post-apply verification (gate G3).** Before-state capture at
-  change time; re-fetch after `apply` to confirm the change landed; auto-propose a rollback for
-  any change measuring negative at +28d (CI excludes 0). `ledger.py` · `site_control.py` ·
-  `autopilot.py`.
+- [x] **W3 · Auto-rollback + post-apply verification (gate G3 ✅ 2026-08-11).** `rollback.py`:
+  before-state capture at change time, post-apply verify (re-fetch → `verified` flag),
+  `rollback <id>` inverse op, and auto-proposals for measured losers (n≥3, CI<0) that queue for
+  review + teach the brain an avoid-lesson. `ledger.py` · `site_control.py` · `autopilot.py` ·
+  4 tests.
 - [ ] **W4 · Connectors proven live + CI (gate G4).** `cms --verify` (create→update→delete a
   test draft) against ≥4 sandbox accounts; record fixtures; GitHub Actions runs unit tests +
   fixture replay on every push. `cms_extra.py` · `.github/workflows/`.

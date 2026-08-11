@@ -80,6 +80,8 @@ def main():
     sub.add_parser("control").add_argument("change_json", help="a change JSON: {op, ...}")
     sub.add_parser("pr").add_argument("edits_json", help="repo PR JSON: {title, edits:[{file, edits:[...], desc, url}]}")
     sub.add_parser("ledger")                                     # change log + causal attribution
+    prb = sub.add_parser("rollback")  # revert a measured-loser change (or list proposals)
+    prb.add_argument("change_id", nargs="?", type=int)
     sub.add_parser("explain").add_argument("url")               # why did this page change?
     sub.add_parser("learn").add_argument("--notify", action="store_true")  # what worked best (day/week/month) + cross-site
     pbr = sub.add_parser("brain")  # continuous self-learning memory (taste/playbooks/lessons)
@@ -326,6 +328,9 @@ def main():
         print(repo.render_md(cfg, repo.open_pr(cfg, spec["title"], spec["edits"])))
     elif a.cmd == "ledger":
         print(ledger.render_md(cfg))
+    elif a.cmd == "rollback":
+        from . import rollback
+        print(rollback.render_md(cfg, rollback.rollback(cfg, a.change_id) if a.change_id else None))
     elif a.cmd == "explain":
         print(explain_mod.render_md(cfg, explain_mod.explain(cfg, a.url)))
     elif a.cmd == "learn":

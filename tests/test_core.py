@@ -1285,6 +1285,70 @@ class AttributionHardening(unittest.TestCase):
         self.assertGreaterEqual(learn.confounded_count(cfg), 3)
 
 
+class Rollback(unittest.TestCase):
+    """W3 / gate G3 — before-state capture, restore, and auto-proposals for measured losers."""
+
+    def _cfg(self, d=None):
+        d = d or tempfile.mkdtemp(); os.chdir(d)
+        return {"store_path": os.path.join(d, "seo.db"), "history_dir": os.path.join(d, "hist"),
+                "site": "https://demo.com", "global_lessons_path": os.path.join(d, "g.json"),
+                "state_dir": "state"}
+
+    def test_before_state_stored_and_restored(self):
+        from seo_agent import ledger, rollback
+        cfg = self._cfg()
+        cid = ledger.record(cfg, "https://demo.com/a", "update_meta", "new title",
+                            before={"title": "OLD TITLE", "description": "old desc"})
+        ch = ledger.get_change(cfg, cid)
+        self.assertEqual(ch["before_state"]["title"], "OLD TITLE")   # revertable state persisted
+        r = rollback.rollback(cfg, cid)                              # file CMS → writes a change file
+        self.assertTrue(r["ok"])
+        self.assertTrue(any(c["type"] == "rollback:update_meta" for c in ledger.changes(cfg)))
+
+    def test_rollback_refused_without_before_state(self):
+        from seo_agent import ledger, rollback
+        cfg = self._cfg()
+        cid = ledger.record(cfg, "https://demo.com/a", "retitle", "x")   # no before → can't auto-revert
+        self.assertFalse(rollback.rollback(cfg, cid)["ok"])
+
+    def test_proposals_flag_measured_losers_only(self):
+        from seo_agent import history, ledger, rollback
+        cfg = self._cfg()
+        def snap(date, refresh_clicks, hold):
+            rows = [{"page": f"https://demo.com/r{i}", "clicks": refresh_clicks[i], "position": 9.0}
+                    for i in range(3)]
+            rows += [{"page": f"https://demo.com/h{i}", "clicks": hold, "position": 10.0} for i in range(10)]
+            history.snapshot(cfg, "gsc_pages", rows, date=date)
+        snap("2026-02-02", [50, 55, 52], 50)
+        snap("2026-03-06", [25, 28, 24], 55)                         # all 3 fell hard while holdout rose
+        for i in range(3):
+            ledger.record(cfg, f"https://demo.com/r{i}", "refresh", "content refresh",
+                          date="2026-02-02", before={"title": f"t{i}"})
+        ledger.follow_up(cfg)
+        props = rollback.proposals(cfg)
+        self.assertTrue(props)
+        self.assertTrue(all(p["type"] == "refresh" for p in props))   # only the losing type
+        self.assertTrue(all(p["mean_lift"] < 0 for p in props))
+
+    def test_autopilot_queues_rollback_in_approve_mode(self):
+        from seo_agent import autonomy, autopilot, brain, history, ledger
+        cfg = self._cfg(); cfg["autonomy"] = "approve"
+        def snap(date, clicks, hold):
+            rows = [{"page": f"https://demo.com/r{i}", "clicks": clicks[i], "position": 9.0} for i in range(3)]
+            rows += [{"page": f"https://demo.com/h{i}", "clicks": hold, "position": 10.0} for i in range(10)]
+            history.snapshot(cfg, "gsc_pages", rows, date=date)
+        snap("2026-02-02", [50, 55, 52], 50); snap("2026-03-06", [25, 28, 24], 55)
+        for i in range(3):
+            ledger.record(cfg, f"https://demo.com/r{i}", "refresh", "x", date="2026-02-02",
+                          before={"title": f"t{i}"})
+        ledger.follow_up(cfg)
+        rbs = autopilot._rollback_phase(cfg)
+        self.assertTrue(any(rb["action"] == "queued for approval" for rb in rbs))
+        self.assertTrue(any(i["kind"] == "delete" for i in autonomy.load_queue(cfg)))   # in the review queue
+        self.assertTrue(any(e["kind"] == "lesson" and "AVOID" in e["text"]              # brain learned to avoid
+                            for e in brain.load(cfg)["entries"]))
+
+
 class SecurityHardening(unittest.TestCase):
     """SEC-H1/H2 + M3-M6 + L7 — the pre-launch hardening pass, under test."""
 

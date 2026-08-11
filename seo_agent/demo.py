@@ -123,7 +123,9 @@ def build(dirname="seo-demo"):
     ledger.record(cfg, f"{SITE}/blog/hiking-boot-guide", "retitle", "benefit-led title", date=D(35))
     ledger.record(cfg, f"{SITE}/blog/rain-jackets-2024", "retitle", "2024 → current year", date=D(35))
     ledger.record(cfg, f"{SITE}/blog/sleeping-bags-2024", "update_meta", "meta rewrite", date=D(35))
-    ledger.record(cfg, f"{SITE}/blog/camp-stoves-2023", "refresh", "content refresh", date=D(35))
+    ledger.record(cfg, f"{SITE}/blog/camp-stoves-2023", "refresh", "content refresh", date=D(35),
+                  before={"title": "Best Camp Stoves in 2023 (Buyer's Guide)",
+                          "description": "Our 2023 camp-stove picks."})  # a measured loser → W3 rollback demo
 
     from . import identity
     identity.scaffold({"site": SITE, "brand": {"name": "Demo Outdoors"}}, root=str(root))

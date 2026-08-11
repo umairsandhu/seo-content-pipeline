@@ -22,7 +22,7 @@ clean cycles, full case study at 90 days.
 |---|---|---|
 | G1 | 3 pilot sites each ran ≥30 daily autopilot cycles without manual rescue | ⬜ 🔒 |
 | G2 | Attribution shows min-n + confidence intervals + confound flags (W2) | ✅ 2026-08-11 |
-| G3 | Negative changes get rollback proposals automatically (W3) | ⬜ 🔒 |
+| G3 | Negative changes get rollback proposals automatically (W3) | ✅ 2026-08-11 |
 | G4 | ≥4 CMS connectors verified against live sandbox accounts + CI green (W4) | ⬜ 🔒 |
 | G5 | `demo` gives a stranger the full aha in <5 min, zero keys (W6) | 🟨 built + auto-tested — human timed test pending 🔒 |
 | G6 | Cross-site learning is opt-in with clear disclosure (W7) | ✅ |
@@ -80,15 +80,22 @@ python -m seo_agent onboard         # baseline
 - [x] Tests: consistent-wins-qualify · noisy-mean-does-NOT-qualify · seasonal-null ·
       confound-exclusion (4 new; demo upgraded to n=3 so the aha shows real CIs)
 
-## W3 · Auto-rollback (Gate G3)
+## W3 · Auto-rollback + post-apply verification (Gate G3) — ✅ done 2026-08-11
 
 *Why: an autonomous bot is only trustable if it can undo itself.*
 
-- [ ] `ledger.record` captures a **before-state** snapshot (title/meta/content-hash) at change time
-- [ ] `rollback <change_id>` command → inverse `site_control` op, autonomy-gated, logged as `rollback:<type>`
-- [ ] Autopilot report phase: change measured **negative at +28d (CI excludes 0)** → auto-queue a rollback proposal (approve mode) / execute capped in auto mode
-- [ ] Rolled-back types feed `brain` avoid-lessons automatically
-- [ ] Test: synthetic negative change → rollback proposal appears in the queue
+- [x] `ledger` captures a **before-state** (title/meta/H1) at change time + a `verified` flag;
+      `site_control.change` snapshots the live page before meta/content ops (`rollback.capture`)
+- [x] **Post-apply verification**: after a live meta/content change, re-fetch and confirm the new
+      title/meta is present (`rollback.verify`) → the ledger row is marked verified 1/0, so a
+      change that didn't land can't pollute attribution
+- [x] `rollback <change_id>` command + MCP tool → inverse `site_control` op from the stored
+      before-state, autonomy-gated, logged as `rollback:<type>`
+- [x] Autopilot report phase: `rollback.proposals` finds change types measured **negative at
+      +28d (n≥3, CI excludes 0)** → approve mode queues them for review, auto mode reverts
+      (capped 2/cycle), manual reports; every one teaches the brain an **avoid-lesson**
+- [x] Tests: capture+restore · refused-without-before-state · proposals-flag-losers-only ·
+      autopilot-queues-in-approve-mode (4). Demo seeds a revertable loser.
 
 ## W4 · Connectors proven live + CI (Gate G4)
 

@@ -145,6 +145,7 @@ python -m seo_agent autopilot --daily          # 4-agent cycle: Audit→Plan(dat
 python -m seo_agent serve [--port 8787] [--no-open]  # dashboard: getting-started guide, situation/plan/execution, best practices (learned+applied here), documents to review, inline approvals
 python -m seo_agent practices                  # best practices learned & applied on this site — found → fixed → measured
 python -m seo_agent ledger                      # every change → holdout-adjusted attribution
+python -m seo_agent rollback [<change_id>]      # list measured-loser rollback proposals, or revert one to its captured before-state (auto-proposed each cycle)
 python -m seo_agent learn [--notify]           # what worked best by day/week/month + cross-site knowledge (auto-runs each cycle)
 python -m seo_agent brain [--add "…" --kind fact|lesson|preference|playbook]  # self-learning memory: client taste + proven playbooks (auto-injected into every persona)
 python -m seo_agent voice                      # measure the site's existing brand voice → every future draft matches it from day one
