@@ -543,14 +543,16 @@ class Brain(unittest.TestCase):
     def test_measured_outcomes_become_playbooks(self):
         from seo_agent import brain, history, ledger
         cfg = self._cfg()
-        def snap(date, ca, cb, hc):
+        def snap(date, ca, cb, cc, hc):
             rows = [{"page": "https://demo.com/a", "clicks": ca, "position": 8.0},
-                    {"page": "https://demo.com/b", "clicks": cb, "position": 9.0}]
+                    {"page": "https://demo.com/b", "clicks": cb, "position": 9.0},
+                    {"page": "https://demo.com/c", "clicks": cc, "position": 9.5}]
             rows += [{"page": f"https://demo.com/h{i}", "clicks": hc, "position": 10.0} for i in range(10)]
             history.snapshot(cfg, "gsc_pages", rows, date=date)
-        snap("2026-01-01", 20, 30, 50); snap("2026-01-29", 60, 75, 52)
+        snap("2026-01-01", 20, 30, 25, 50); snap("2026-01-29", 60, 75, 63, 52)  # consistent → qualifies (W2: n=3, CI>0)
         ledger.record(cfg, "https://demo.com/a", "retitle", "x", date="2026-01-01")
         ledger.record(cfg, "https://demo.com/b", "retitle", "y", date="2026-01-01")
+        ledger.record(cfg, "https://demo.com/c", "retitle", "z", date="2026-01-01")
         ledger.follow_up(cfg)
         brain.cycle(cfg)
         entries = brain.load(cfg)["entries"]
@@ -689,7 +691,7 @@ class Demo(unittest.TestCase):
         os.chdir("dw")
         cfg = json.loads(Path("config.json").read_text())
         loc = learn.local_lessons(cfg)
-        self.assertEqual(loc["retitle"][28]["n"], 2)              # measured wins exist
+        self.assertEqual(loc["retitle"][28]["n"], 3)              # measured wins exist (W2: n≥3)
         self.assertGreater(loc["retitle"][28]["mean_lift"], 0)
         self.assertLess(loc["refresh"][28]["mean_lift"], 0)       # and one honest loss
         self.assertGreaterEqual(brain.counts(cfg).get("playbook", 0), 1)
@@ -1203,6 +1205,84 @@ class Identity(unittest.TestCase):
         brain.add(cfg, "playbook", "retitles win here", source="test", tag="t")
         self.assertEqual(identity.memory_digest(cfg), "MEMORY.md")
         self.assertIn("retitles win here", Path("MEMORY.md").read_text())
+
+
+class AttributionHardening(unittest.TestCase):
+    """W2/G2: the brain must not learn noise — min-n, CIs, confound flags, and the
+    diff-in-diff seasonality null all enforced."""
+
+    def _cfg(self, d=None):
+        d = d or tempfile.mkdtemp(); os.chdir(d)
+        return {"store_path": os.path.join(d, "seo.db"), "history_dir": os.path.join(d, "hist"),
+                "site": "https://demo.com", "global_lessons_path": os.path.join(d, "g.json"),
+                "state_dir": os.path.join(d, "state")}
+
+    def _snap(self, cfg, date, changed_clicks, holdout_clicks):
+        from seo_agent import history
+        rows = [{"page": f"https://demo.com/c{i}", "clicks": c, "position": 8.0}
+                for i, c in enumerate(changed_clicks)]
+        rows += [{"page": f"https://demo.com/h{i}", "clicks": holdout_clicks, "position": 10.0}
+                 for i in range(10)]
+        history.snapshot(cfg, "gsc_pages", rows, date=date)
+
+    def test_consistent_wins_qualify_and_make_playbooks(self):
+        from seo_agent import brain, ledger, learn
+        cfg = self._cfg()
+        self._snap(cfg, "2026-02-02", [40, 35, 30], 50)     # dates avoid algo.UPDATES windows
+        self._snap(cfg, "2026-03-06", [80, 72, 68], 52)     # consistent ~+35-38 real lift
+        for i in range(3):
+            ledger.record(cfg, f"https://demo.com/c{i}", "retitle", "x", date="2026-02-02")
+        ledger.follow_up(cfg)
+        v = learn.local_lessons(cfg)["retitle"][28]
+        self.assertEqual(v["n"], 3)
+        self.assertIsNotNone(v["ci95"])
+        self.assertGreater(v["ci_low"], 0)
+        self.assertTrue(v["qualified"])
+        brain.cycle(cfg)
+        self.assertTrue(any(e["kind"] == "playbook" for e in brain.load(cfg)["entries"]))
+        self.assertTrue(any(r["qualified"] for r in learn.ranking(cfg)))
+
+    def test_noisy_mean_positive_does_not_qualify(self):
+        from seo_agent import brain, ledger, learn
+        cfg = self._cfg()
+        self._snap(cfg, "2026-02-02", [40, 35, 30], 50)
+        self._snap(cfg, "2026-03-06", [95, 20, 33], 52)      # +55, -15, +3 → mean>0, CI spans 0
+        for i in range(3):
+            ledger.record(cfg, f"https://demo.com/c{i}", "retitle", "x", date="2026-02-02")
+        ledger.follow_up(cfg)
+        v = learn.local_lessons(cfg)["retitle"][28]
+        self.assertGreater(v["mean_lift"], 0)
+        self.assertFalse(v["qualified"])                     # noise doesn't graduate
+        brain.cycle(cfg)
+        self.assertFalse(any(e["kind"] == "playbook" for e in brain.load(cfg)["entries"]))
+
+    def test_seasonal_surge_yields_null_lift(self):
+        from seo_agent import ledger, learn
+        cfg = self._cfg()
+        self._snap(cfg, "2026-02-02", [40, 35, 30], 50)
+        self._snap(cfg, "2026-03-06", [60, 53, 45], 75)      # EVERYTHING +50% (season) — holdout too
+        for i in range(3):
+            ledger.record(cfg, f"https://demo.com/c{i}", "retitle", "x", date="2026-02-02")
+        ledger.follow_up(cfg)
+        v = learn.local_lessons(cfg)["retitle"][28]
+        self.assertLess(abs(v["mean_lift"]), 8)              # diff-in-diff absorbs the season
+        self.assertFalse(v["qualified"])                     # no false "proven"
+
+    def test_google_update_confounds_are_excluded(self):
+        from seo_agent import algo, ledger, learn
+        cfg = self._cfg()
+        import datetime as dt
+        upd = dt.date.fromisoformat(algo.UPDATES[0][0])
+        d0, d1 = upd - dt.timedelta(days=10), upd + dt.timedelta(days=30)
+        self._snap(cfg, d0.isoformat(), [40, 35, 30], 50)
+        self._snap(cfg, d1.isoformat(), [80, 72, 68], 52)
+        for i in range(3):  # shipped 2 days after the update → confounded
+            ledger.record(cfg, f"https://demo.com/c{i}", "retitle", "x",
+                          date=(upd + dt.timedelta(days=2)).isoformat())
+        ledger.follow_up(cfg)
+        self.assertTrue(all(r["confounded"] for r in ledger.followups(cfg)))
+        self.assertNotIn("retitle", learn.local_lessons(cfg))   # excluded from learning
+        self.assertGreaterEqual(learn.confounded_count(cfg), 3)
 
 
 class RequirementsLoop(unittest.TestCase):

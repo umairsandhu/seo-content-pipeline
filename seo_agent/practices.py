@@ -35,13 +35,14 @@ def _fixes_by_type(cfg):
 
 
 def _lift(cfg, typ, horizon=28):
-    """Positive, winning evidence only — a losing 'refresh' must never be presented as
-    proof that an unrelated practice works (negatives surface as their own Rethink row)."""
+    """QUALIFIED evidence only (W2): n≥3 with a 95% CI excluding zero. Small positive
+    samples read as 'measuring', never as proof."""
     try:
         v = (learn.local_lessons(cfg).get(typ) or {})
         v = v.get(horizon) or next(iter(v.values()), None)
-        if v and v["mean_lift"] > 0 and v["win_rate"] >= 0.5:
-            return f"{v['mean_lift']:+g} avg clicks/page at +{horizon}d ({int(v['win_rate']*100)}% win, n={v['n']})"
+        if v and v.get("qualified") and v["win_rate"] >= 0.5:
+            return (f"{v['mean_lift']:+g} avg clicks/page at +{horizon}d "
+                    f"(±{v.get('ci95')} CI95, {int(v['win_rate']*100)}% win, n={v['n']})")
     except Exception:
         pass
     return None
@@ -87,13 +88,19 @@ def report(cfg, corpus_path="corpus.json"):
     # 6. what measurement itself has proven — wins AND losses, honestly labeled
     try:
         for r in learn.ranking(cfg):
-            ev = f"{r['mean_lift']:+g} avg lift ({int(r['win_rate']*100)}% win, {r['source']})"
-            if r["mean_lift"] > 0 and r["win_rate"] >= 0.5:
+            ev = (f"{r['mean_lift']:+g} avg lift"
+                  + (f" ±{r['ci95']} CI95" if r.get("ci95") else "")
+                  + f" ({int(r['win_rate']*100)}% win, n={r['n']}, {r['source']})")
+            if r.get("qualified") and r["win_rate"] >= 0.5:
                 rows.append({"practice": f"Do more '{r['type']}' changes — proven track record",
                              "found": None, "fixed": r["n"], "proof": ev, "tier": "measured"})
-            elif r["mean_lift"] < 0:
+            elif r["mean_lift"] < 0 and r["n"] >= 3:
                 rows.append({"practice": f"Rethink '{r['type']}' changes — measurably NOT working here",
                              "found": None, "fixed": r["n"], "proof": ev, "tier": "measured"})
+            elif r["mean_lift"] > 0:
+                rows.append({"practice": f"'{r['type']}' changes trending positive — collecting evidence",
+                             "found": None, "fixed": r["n"],
+                             "proof": ev + " — needs n≥3 with CI>0 to graduate", "tier": "applied"})
     except Exception:
         pass
     # 7. brain lessons (negative knowledge is a best practice too)

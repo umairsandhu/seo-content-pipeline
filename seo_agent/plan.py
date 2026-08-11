@@ -163,9 +163,11 @@ def build(cfg):
     try:
         from . import learn
         for r in learn.ranking(cfg)[:2]:
-            if r["mean_lift"] > 0:
+            if r.get("qualified"):  # W2: only n≥3 with CI excluding zero earns a "do-more"
                 add(_a(66 if r["source"] == "this-site" else 58, "S", "do-more", r["type"],
-                       f"proven {r['mean_lift']:+g} avg lift/page ({int(r['win_rate']*100)}% win, {r['source']}) — "
+                       f"proven {r['mean_lift']:+g} avg lift/page"
+                       + (f" (±{r['ci95']} CI95)" if r.get("ci95") else "")
+                       + f" ({int(r['win_rate']*100)}% win, {r['source']}) — "
                        "repeat this change type on similar pages", "learn"))
     except Exception:
         pass

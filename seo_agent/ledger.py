@@ -68,19 +68,46 @@ def _on_or_after(snaps, target):
     return later[0] if later else None
 
 
+def _ensure_followups(con):
+    """One home for the followups DDL (was declared twice — ARCHITECTURE-V2 §7.6) +
+    in-place migration for the W2 statistical columns."""
+    con.execute("CREATE TABLE IF NOT EXISTS followups(change_id INTEGER, horizon INTEGER, "
+                "from_date TEXT, to_date TEXT, delta_clicks REAL, holdout REAL, lift REAL, "
+                "delta_pos REAL, PRIMARY KEY(change_id, horizon))")
+    for col, typ in (("confounded", "INTEGER DEFAULT 0"), ("holdout_n", "INTEGER DEFAULT 0")):
+        try:
+            con.execute(f"ALTER TABLE followups ADD COLUMN {col} {typ}")
+        except Exception:
+            pass  # column already exists
+
+
+def _confounded(cdate, window=5):
+    """A change shipped within ±window days of a known Google update can't be cleanly
+    attributed — the algorithm moved the ground under the measurement (W2/G2)."""
+    import datetime
+    try:
+        from . import algo
+        for d, _name in algo.UPDATES:
+            if abs((cdate - datetime.date.fromisoformat(d)).days) <= window:
+                return 1
+    except Exception:
+        pass
+    return 0
+
+
 def follow_up(cfg, horizons=(7, 28, 90)):
     """Measure each change's impact at day/week/month horizons — the follow-up loop.
     For a change on date D, compare its URL's clicks/position from the snapshot nearest D
-    to the snapshot nearest D+horizon, minus a holdout of untouched pages over the same
-    window. Persists to a `followups` table so learning accrues as history builds."""
+    to the snapshot nearest D+horizon, minus the MEDIAN DELTA of a holdout of untouched
+    pages over the same window (diff-in-diff: seasonality/weekday/algorithm effects common
+    to the whole site cancel out). Changes within ±5d of a Google update are flagged
+    `confounded` and excluded from learning aggregates. Persists to `followups`."""
     import datetime
     snaps = _snapshots_sorted(cfg)
     if len(snaps) < 2:
         return {"error": "need ≥2 GSC page snapshots over time (run `gsc` on a cadence)", "recorded": 0}
     con = _con(cfg)
-    con.execute("CREATE TABLE IF NOT EXISTS followups(change_id INTEGER, horizon INTEGER, "
-                "from_date TEXT, to_date TEXT, delta_clicks REAL, holdout REAL, lift REAL, "
-                "delta_pos REAL, PRIMARY KEY(change_id, horizon))")
+    _ensure_followups(con)
     ch_all = changes(cfg)
     changed_urls = {_norm(c["url"]) for c in ch_all}
     recorded = 0
@@ -106,25 +133,27 @@ def follow_up(cfg, horizons=(7, 28, 90)):
                              for x in set(base[1]) & set(res[1]) if x not in changed_urls)
                 hold = hds[len(hds) // 2] if hds else 0
                 dpos = (r.get("position", 0) or 0) - (b.get("position", 0) or 0)
-                con.execute("INSERT OR REPLACE INTO followups VALUES (?,?,?,?,?,?,?,?)",
+                con.execute("INSERT OR REPLACE INTO followups VALUES (?,?,?,?,?,?,?,?,?,?)",
                             (ch["id"], h, base[0].isoformat(), res[0].isoformat(),
-                             dclicks, hold, dclicks - hold, round(dpos, 1)))
+                             dclicks, hold, dclicks - hold, round(dpos, 1),
+                             _confounded(cdate), len(hds)))
                 recorded += 1
     con.close()
     return {"recorded": recorded, "horizons": list(horizons)}
 
 
 def followups(cfg):
-    """Joined change type + horizon lift rows (for the learning layer)."""
+    """Joined change type + horizon lift rows (for the learning layer), with the W2
+    trust columns: confound flag + holdout size."""
     con = _con(cfg)
-    con.execute("CREATE TABLE IF NOT EXISTS followups(change_id INTEGER, horizon INTEGER, "
-                "from_date TEXT, to_date TEXT, delta_clicks REAL, holdout REAL, lift REAL, delta_pos REAL, "
-                "PRIMARY KEY(change_id, horizon))")
-    rows = con.execute("SELECT c.type, f.horizon, f.lift, f.delta_pos, f.to_date "
+    _ensure_followups(con)
+    rows = con.execute("SELECT c.type, f.horizon, f.lift, f.delta_pos, f.to_date, "
+                       "f.confounded, f.holdout_n "
                        "FROM followups f JOIN changes c ON c.id=f.change_id").fetchall()
     con.close()
-    return [{"type": t, "horizon": h, "lift": lift, "delta_pos": dp, "to_date": td}
-            for t, h, lift, dp, td in rows]
+    return [{"type": t, "horizon": h, "lift": lift, "delta_pos": dp, "to_date": td,
+             "confounded": bool(cf), "holdout_n": hn or 0}
+            for t, h, lift, dp, td, cf, hn in rows]
 
 
 def _section(u):

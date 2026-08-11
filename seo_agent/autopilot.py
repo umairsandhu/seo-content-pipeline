@@ -13,7 +13,8 @@ from . import channels, ledger, state
 # per action-kind: (days until due, recheck cadence)
 _SCHED = {
     "fix:meta": (0, "weekly"), "fix:links": (0, "weekly"), "fix:duplicate": (0, "weekly"),
-    "fix:headings": (0, "weekly"), "fix:a11y": (2, "monthly"), "retitle": (0, "weekly"),
+    "fix:headings": (0, "weekly"), "fix:a11y": (2, "monthly"), "fix:freshness": (0, "weekly"),
+    "retitle": (0, "weekly"),
     "consolidate": (1, "weekly"), "sculpt": (1, "weekly"), "push": (2, "weekly"),
     "refresh": (1, "weekly"), "repeat-win": (0, "weekly"),
     "write": (4, "weekly"), "cluster": (5, "weekly"),
@@ -91,6 +92,14 @@ _TASK = {
     "fix:freshness": lambda t: f"retitle {t} (bump the stale year, refresh dated stats)",
     "sculpt": lambda t: f"add internal links to {t} (pagerank)", "push": lambda t: f'brief "{t}" → optimize',
     "entity": lambda t: "entity → add Wikidata + sameAs", "citability": lambda t: f"rewrite {t} answer-first",
+    "eeat": lambda t: f"strengthen E-E-A-T on {t} (author, dates, citations — `eeat`)",
+    "geo": lambda t: f"raise AI-citation readiness on {t} (`geo` gaps)",
+    "decide": lambda t: f"decide upgrade-vs-consolidate for {t} (`consolidate`)",
+    "repeat-win": lambda t: f"repeat the proven change type on {t} (`learn`)",
+    "ai-visibility": lambda t: f'track + improve AI-answer share for "{t}" (`aivis`)',
+    "fix:a11y": lambda t: f"batch-fix alt text / lang / heading order on {t}",
+    "fix:duplicate": lambda t: f"consolidate duplicate content into {t}",
+    "fix:headings": lambda t: f"repair heading structure on {t} (one H1, ordered H2/H3)",
 }
 
 

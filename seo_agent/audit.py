@@ -32,6 +32,9 @@ HINTS = {
                 "fix the sitemap source (CMS/plugin), keep only 200-status indexable URLs, resubmit in GSC"),
     "crawl": ("if crawlers can't reach or render it, nothing else matters",
               "unblock robots.txt, fix 5xx, enable rendering for CSR pages (`render.enabled`)"),
+    "index": ("pages Google won't index can't rank, and accidental noindex is silent",
+              "audit meta-robots deliberately: noindex only what you mean, and never behind a "
+              "robots.txt disallow (`indexability` findings show the conflicts)"),
     "indexability": ("conflicting index signals make Google guess — it often guesses wrong",
                      "one clear signal per page: fix canonical chains at the source, never pair noindex "
                      "with a robots.txt disallow, return real 404s (`pr`/`control` ship these)"),

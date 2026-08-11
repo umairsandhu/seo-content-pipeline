@@ -22,9 +22,14 @@ GITIGNORE = [
     "# Python", "__pycache__/", "*.pyc", "*.egg-info/", "build/", "dist/", ".venv/", "",
     "# Secrets — NEVER commit (public repo)", ".env", ".env.*", "*.env", "!.env.example",
     "config.json", "*service-account*.json", "*-credentials.json", "gsc-service-account.json", "",
-    "# Per-site working data + generated outputs", "corpus.json", "history/", "content/",
-    "recommendations.md", "digest.md", "audit.md", "plan.md", "report.html", "BASELINE.md",
-    "content-queue.json", "next-brief.md", "", "# OS", ".DS_Store",
+    "# Per-site working data + generated outputs", "corpus.json", "corpus.prev.json",
+    "history/", "content/", "state/", "memory/", "site-changes/", "sf-exports/",
+    "*.db", "agent.log", "approvals.json", "review-responses.json",
+    "recommendations.md", "digest.md", "audit.md", "plan.md", "report.html", "report.pdf",
+    "consult.md", "article-plan.md", "BASELINE.md", "SETUP.md",
+    "content-queue.json", "next-brief.md", "",
+    "# Client-sensitive identity/memory — never in a public fork",
+    "CLIENT.md", "MEMORY.md", "", "# OS", ".DS_Store",
 ]
 
 # Real-secret patterns (not placeholders). Ordered high-signal first.

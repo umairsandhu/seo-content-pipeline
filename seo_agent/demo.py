@@ -97,6 +97,7 @@ def build(dirname="seo-demo"):
 
     # 3 months of GSC page history: 2 retitles win, 1 meta win, 1 refresh LOSS, 10-page holdout
     changed = {"best-tents-2024": (40, 40, 55, 85), "hiking-boot-guide": (35, 35, 44, 66),
+               "rain-jackets-2024": (25, 25, 34, 49),
                "sleeping-bags-2024": (30, 30, 36, 44), "camp-stoves-2023": (60, 60, 52, 44)}
     def snap(days_ago, idx):
         rows = [{"page": f"{SITE}/blog/{slug}", "clicks": v[idx], "position": 9.0 - idx}
@@ -120,6 +121,7 @@ def build(dirname="seo-demo"):
 
     ledger.record(cfg, f"{SITE}/blog/best-tents-2024", "retitle", "2024 → current year", date=D(35))
     ledger.record(cfg, f"{SITE}/blog/hiking-boot-guide", "retitle", "benefit-led title", date=D(35))
+    ledger.record(cfg, f"{SITE}/blog/rain-jackets-2024", "retitle", "2024 → current year", date=D(35))
     ledger.record(cfg, f"{SITE}/blog/sleeping-bags-2024", "update_meta", "meta rewrite", date=D(35))
     ledger.record(cfg, f"{SITE}/blog/camp-stoves-2023", "refresh", "content refresh", date=D(35))
 
@@ -138,7 +140,7 @@ def build(dirname="seo-demo"):
               source="client-feedback")
     brain.cycle(cfg)                      # distills the retitle playbook from the measured wins
     return {"ok": True, "dir": str(root), "pages": len(_corpus()),
-            "measured_changes": 4, "next": f"cd {dirname} && python -m seo_agent start"}
+            "measured_changes": 5, "next": f"cd {dirname} && python -m seo_agent start"}
 
 
 def render_md(r):
@@ -148,7 +150,7 @@ def render_md(r):
         "# Demo workspace ready 🎒  (synthetic data — zero keys, zero network)", "",
         f"- **{r['pages']} pages** crawled corpus (good, stale-year, thin, missing-meta — like a real site)",
         f"- **3 months of search history** + **{r['measured_changes']} measured changes** "
-        "(2 wins, 1 modest, 1 loss — holdout-adjusted)",
+        "(3 statistically qualified wins, 1 modest, 1 honest loss — holdout-adjusted, CI-checked)",
         "- **A learned playbook + client taste** already in the brain", "",
         "## Do this now",
         f"```\n{r['next']}\n```",

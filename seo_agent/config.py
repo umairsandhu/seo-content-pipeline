@@ -51,6 +51,15 @@ TEMPLATE = {
     "tips": True,
     "agent": {"interval": 600, "hour": 8, "report_weekday": 4, "sf_crawl": False},
     "crawl": {"mode": "auto", "delay": 0.15},
+    "llm": {"provider": "agent", "model": ""},
+    "render": {"enabled": False},
+    "max_pages": 400,
+    "ingest": {"workers": 8},
+    "speed": {"strategy": "mobile", "max_urls": 10},
+    "audit": {"title_max": 60, "thin_words": 300, "max_depth": 4},
+    "aio": {"target_pos": 3},
+    "pillars": {},
+    "history_dir": "history",
     "review": {"channels": []},
     "rank": {"keywords": [], "max": 50},
     "logs": {"path": ""},
@@ -81,6 +90,18 @@ HINTS = {
     "crawl": 'mode: "auto" (profiler picks sitemap vs link-following spider) | "sitemap" | "spider"; '
              "delay = politeness seconds (robots Crawl-delay always honored). "
              "`profile` auto-detects the platform + rendering needs; `profile --apply` writes these",
+    "llm": 'who writes headlessly: "agent" (Claude drives — recommended, no key) | "ollama" '
+           '(local OSS) | "anthropic" | "openai" — the wizard asks',
+    "render": "enabled: true = JavaScript rendering via Playwright (the profiler auto-enables "
+              "when the site is client-rendered and Playwright is installed)",
+    "max_pages": "crawl cap per ingest (profiler sizes it from the sitemap)",
+    "ingest": "workers: parallel fetchers (profiler sizes; lower on shared hosting)",
+    "speed": 'strategy: "mobile"|"desktop"; max_urls: CWV sample size (smart-sampled: homepage + '
+             "money pages + one per template)",
+    "audit": "Site Doctor thresholds (title_max, thin_words, max_depth …) — defaults are sane",
+    "aio": "AI-Overview CTR model: target_pos for forecasting",
+    "pillars": 'hub pages to funnel internal links into, e.g. {"/shop": "storefront"}',
+    "history_dir": "where dated snapshots live (default history/) — attribution feeds on these",
     "review": 'extra approval channels, e.g. ["slack"] (SLACK_WEBHOOK_URL in .env) — CLI/dashboard always work',
     "rank": "keywords to track daily/weekly, e.g. {\"keywords\": [\"best crm\"], \"max\": 50}",
     "logs": "path to a server access log (crawl-budget + AI-crawler analysis)",

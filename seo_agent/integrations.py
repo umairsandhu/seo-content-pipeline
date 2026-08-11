@@ -151,11 +151,12 @@ INTEGRATIONS = [
      "docs": "https://developers.google.com/drive/api/guides/manage-uploads"},
 ]
 
-# Every other CMS the pipeline can drive (Shopify, Contentful, Strapi, Sanity, HubSpot,
-# Drupal, Joomla, Wix, Notion + the no-write-API ones) — generated from cms_extra so
-# the registry, .env.example, and onboarding never drift from the connectors.
-from . import cms_extra  # noqa: E402
-INTEGRATIONS += cms_extra.integration_entries()
+# CMS entries (Shopify, Contentful, Strapi, … + the no-write-API ones) are generated
+# from cms_extra so the registry never drifts from the connectors — computed per call,
+# NOT by mutating the module list at import time (import-order safety; ARCHITECTURE-V2 §7.5).
+def _all():
+    from . import cms_extra
+    return INTEGRATIONS + cms_extra.integration_entries()
 
 
 def _get(cfg, dotted):
@@ -179,7 +180,7 @@ def active(cfg, it):
 
 def matrix(cfg):
     out = []
-    for it in INTEGRATIONS:
+    for it in _all():
         missing = ([e for e in it["env"] if not os.environ.get(e)]
                    + [c for c in it.get("config", []) if not _get(cfg, c)])
         out.append({**it, "active": active(cfg, it), "missing": missing})
@@ -198,7 +199,7 @@ def env_example():
     for tier, label in [("must", "Required — core data"), ("recommended", "Recommended"),
                         ("optional", "Optional")]:
         seen = []
-        for it in INTEGRATIONS:
+        for it in _all():
             if it["tier"] != tier or not it["env"]:
                 continue
             seen.append(f"# {it['name']}: {it['purpose']}")

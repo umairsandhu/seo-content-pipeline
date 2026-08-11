@@ -16,7 +16,7 @@ clean cycles, full case study at 90 days.
 | # | Gate | Status |
 |---|---|---|
 | G1 | 3 pilot sites each ran ≥30 daily autopilot cycles without manual rescue | ⬜ 🔒 |
-| G2 | Attribution shows min-n + confidence intervals + confound flags (W2) | ⬜ 🔒 |
+| G2 | Attribution shows min-n + confidence intervals + confound flags (W2) | ✅ 2026-08-11 |
 | G3 | Negative changes get rollback proposals automatically (W3) | ⬜ 🔒 |
 | G4 | ≥4 CMS connectors verified against live sandbox accounts + CI green (W4) | ⬜ 🔒 |
 | G5 | `demo` gives a stranger the full aha in <5 min, zero keys (W6) | 🟨 built + auto-tested — human timed test pending 🔒 |
@@ -58,16 +58,22 @@ python -m seo_agent onboard         # baseline
 - [ ] All: GSC snapshot cadence confirmed (attribution needs it — LEARNINGS #19)
 - [ ] Day 30: pull `ledger` + `learn` from all three → case-study draft (G7)
 
-## W2 · Attribution you can defend (Gate G2)
+## W2 · Attribution you can defend (Gate G2) — ✅ done 2026-08-11
 
-*Why: the brain must not learn noise. Today's lift = change − holdout-median; harden it.*
+*Why: the brain must not learn noise. Shipped before any pilot data accrued.*
 
-- [ ] `ledger.follow_up`: capture holdout **before→after trend** per horizon (diff-in-diff, not level-diff)
-- [ ] Minimum evidence: no playbook/lesson distilled below n≥3; UI shows "n<3 — collecting"
-- [ ] Confidence: 95% CI on mean lift (t-interval; Wilson for win-rate) → stored + rendered everywhere lifts show
-- [ ] Confound flag: change within ±5 days of a Google update (`algo`/`radar` timeline) → `confounded: true`, excluded from playbooks
-- [ ] Seasonality guard: compare same-weekday windows (7d multiples already do this — assert + test)
-- [ ] Tests: synthetic seasonal + confounded scenarios prove false playbooks are NOT created
+- [x] Diff-in-diff confirmed + documented: lift = change's delta − holdout-median delta over the
+      same window (seasonality/weekday/algorithm effects common to the site cancel; proven by the
+      synthetic-seasonal null test: sitewide +50% surge → lift ≈ 0, no false playbook)
+- [x] Minimum evidence: playbooks/lessons require n≥3; ⏳ "collecting" markers in learn/practices
+- [x] 95% CI on mean lift (t-interval, small-n table) + Wilson lower bound on win-rate — stored per
+      cell, rendered in `learn` (±), `plan` do-more, `practices`, brain playbook text
+- [x] `qualified` = n≥3 AND CI excludes zero — enforced in brain.distill, plan do-more,
+      practices evidence, learn recommendations (unqualified evidence can never recommend)
+- [x] Confound flag: change within ±5d of a Google update (`algo.UPDATES`) → `confounded` column,
+      EXCLUDED from all learning aggregates, surfaced in `learn` ("N follow-ups excluded")
+- [x] Tests: consistent-wins-qualify · noisy-mean-does-NOT-qualify · seasonal-null ·
+      confound-exclusion (4 new; demo upgraded to n=3 so the aha shows real CIs)
 
 ## W3 · Auto-rollback (Gate G3)
 

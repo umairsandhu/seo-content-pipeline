@@ -119,13 +119,14 @@ def distill(cfg, obs):
         made.append(r)
     for typ, hs in (obs["outcomes"] or {}).items():
         v = hs.get(28) or next(iter(hs.values()), None)
-        if not v or v["n"] < 2:
+        if not v or v["n"] < 3:  # W2/G2: no playbook below n=3 — the brain must not learn noise
             continue
         ev = {h: dict(x) for h, x in hs.items()}
-        if v["win_rate"] >= 0.6:
+        if v["win_rate"] >= 0.6 and v.get("qualified"):  # CI on lift excludes zero
             made.append(add(cfg, "playbook",
                             f"PROVEN here: '{typ}' changes → {v['mean_lift']:+g} avg clicks/page "
-                            f"at +28d ({int(v['win_rate']*100)}% win, n={v['n']}). Do more of these.",
+                            f"at +28d (±{v.get('ci95', '?')} CI95, {int(v['win_rate']*100)}% win, "
+                            f"n={v['n']}). Do more of these.",
                             source="ledger-followups", tag=typ, evidence=ev))
         elif v["win_rate"] <= 0.4 and v["n"] >= 3:
             made.append(add(cfg, "lesson",
