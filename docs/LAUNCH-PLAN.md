@@ -1,5 +1,10 @@
 # 🚀 Launch Plan — the living dashboard
 
+> **Read [CHANGE-PLAN](CHANGE-PLAN.md) first.** It consolidates every pending change
+> (security, rebuild, depth) into sequenced tiers and names the two security blockers (H1/H2)
+> that must clear *before* these gates run. This file verifies; CHANGE-PLAN scopes.
+
+
 **This file is the source of truth.** Every agent updates its checkboxes here as work
 lands (same PR). Launch fires only when every **Gate** row is ✅.
 Companion visual: the Launch Dashboard artifact · Status legend: ⬜ todo · 🟨 in progress · ✅ done · 🔒 gate
