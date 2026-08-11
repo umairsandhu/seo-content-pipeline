@@ -12,8 +12,9 @@ your work delivered. Human-gated at every step.
 ![python](https://img.shields.io/badge/python-%E2%89%A53.9-blue)
 ![deps](https://img.shields.io/badge/core%20deps-numpy%20%2B%20scikit--learn-orange)
 ![storage](https://img.shields.io/badge/storage-file--based%20(no%20DB%2C%20no%20server)-lightgrey)
-![mcp](https://img.shields.io/badge/MCP-66%20tools-purple)
-![tests](https://img.shields.io/badge/tests-95%20passing-brightgreen)
+![CI](https://github.com/umairsandhu/seo-content-pipeline/actions/workflows/ci.yml/badge.svg)
+![mcp](https://img.shields.io/badge/MCP-67%20tools-purple)
+![tests](https://img.shields.io/badge/tests-120%20passing-brightgreen)
 
 **No hosting, no SaaS, no database.** Stdlib + `numpy`/`scikit-learn` at the core; every API is
 optional and the whole thing **degrades gracefully** — the audit, strategy, drafts, AI-search

@@ -523,6 +523,65 @@ def _notion(cfg, cms, change):
     return {"ok": True, "connector": "notion", "id": pid}
 
 
+def verify(cfg):
+    """W4 / gate G4 — prove the configured CMS connector end-to-end against the LIVE API:
+    create a throwaway draft → update it → delete it, reporting pass/fail per step. Runs the
+    exact production dispatch (publish + site_control), so a green run means the real API
+    accepts our payloads. Needs the CMS creds; degrades to a clear 'not configured' per step."""
+    import datetime
+    t = ((cfg.get("cms", {}) or {}).get("type") or "file").lower()
+    r = requirements(t) or {}
+    if t == "file":
+        return {"cms": "file", "skipped": True,
+                "note": "file/git-PR flow writes reviewable diffs — nothing live to verify"}
+    if "manual" in r:
+        return {"cms": t, "skipped": True, "note": f"{r['name']}: no write API — {r.get('manual', '')}"}
+    miss = missing_env(t) + [c for c in r.get("config", [])
+                             if not (cfg.get("cms", {}) or {}).get(c.split(".", 1)[-1])]
+    if miss:
+        return {"cms": t, "skipped": True, "note": "not configured — set " + ", ".join(miss)}
+
+    from . import publish, site_control
+    stamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    post = {"title": f"connector-verify {stamp}", "slug": f"connector-verify-{stamp}",
+            "markdown": "Automated connector self-test — safe to delete. " * 20,
+            "meta_description": "connector self-test", "status": "draft"}
+    steps = []
+
+    c = publish.publish(cfg, post, skip_gate=True)
+    steps.append({"step": "create", "ok": bool(c.get("ok")), "id": c.get("id"), "error": c.get("error")})
+    cid = c.get("id")
+    if not cid:
+        return {"cms": t, "ok": False, "steps": steps, "note": "create failed — later steps skipped"}
+
+    url = post_url = c.get("url") or ""
+    u = site_control.change(cfg, "update_meta", id=cid, url=post_url,
+                            title=f"connector-verify {stamp} (updated)")
+    steps.append({"step": "update", "ok": u.get("status") == "executed" and u.get("ok", True) is not False,
+                  "error": u.get("error")})
+
+    d = site_control.change(cfg, "delete", id=cid, url=post_url)
+    steps.append({"step": "delete", "ok": d.get("status") == "executed" and d.get("ok", True) is not False,
+                  "error": d.get("error"), "note": "left the draft in place if delete is unsupported"})
+
+    return {"cms": t, "ok": all(s["ok"] for s in steps), "steps": steps, "test_id": cid}
+
+
+def verify_md(cfg, r=None):
+    r = r or verify(cfg)
+    L = [f"# Connector verify — {r['cms']}"]
+    if r.get("skipped"):
+        return "\n".join(L + [f"\n_⊘ skipped — {r.get('note', '')}_"])
+    icon = {True: "✅", False: "❌"}
+    L.append("")
+    for s in r["steps"]:
+        L.append(f"- {icon[s['ok']]} **{s['step']}**" + (f" — {s['error']}" if s.get("error") else "")
+                 + (f"  _(id {s.get('id')})_" if s.get("id") else ""))
+    L.append(f"\n**{'✅ connector works end-to-end' if r['ok'] else '❌ connector has a problem — see above'}**"
+             + (f" · test draft id {r['test_id']} (deleted if delete passed)" if r.get("test_id") else ""))
+    return "\n".join(L)
+
+
 def render_md(cfg):
     cur = ((cfg.get("cms", {}) or {}).get("type") or "file").lower()
     L = ["# CMS connectors — what the pipeline can drive", "",
@@ -535,5 +594,7 @@ def render_md(cfg):
     if miss:
         L += ["", f"> ⚠ current cms `{cur}` is missing env: {', '.join(miss)} — add to `.env` (git-ignored)."]
     L += ["", "_Set `cms.type` in config.json. Every connector creates DRAFTS and routes through "
-          "the autonomy/review gate. No write API? The file/git-PR flow always works._"]
+          "the autonomy/review gate. No write API? The file/git-PR flow always works._",
+          "_Prove your connector works end-to-end: `cms --verify` (create → update → delete a "
+          "throwaway draft against the live API)._"]
     return "\n".join(L)

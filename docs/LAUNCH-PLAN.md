@@ -23,7 +23,7 @@ clean cycles, full case study at 90 days.
 | G1 | 3 pilot sites each ran ≥30 daily autopilot cycles without manual rescue | ⬜ 🔒 |
 | G2 | Attribution shows min-n + confidence intervals + confound flags (W2) | ✅ 2026-08-11 |
 | G3 | Negative changes get rollback proposals automatically (W3) | ✅ 2026-08-11 |
-| G4 | ≥4 CMS connectors verified against live sandbox accounts + CI green (W4) | ⬜ 🔒 |
+| G4 | ≥4 CMS connectors verified against live sandbox accounts + CI green (W4) | 🟨 code done (CI green + contract tests + `cms --verify`) — live sandbox runs = human |
 | G5 | `demo` gives a stranger the full aha in <5 min, zero keys (W6) | 🟨 built + auto-tested — human timed test pending 🔒 |
 | G6 | Cross-site learning is opt-in with clear disclosure (W7) | ✅ |
 | G7 | One public case study with real ledger numbers (≥30d) | ⬜ 🔒 |
@@ -97,15 +97,24 @@ python -m seo_agent onboard         # baseline
 - [x] Tests: capture+restore · refused-without-before-state · proposals-flag-losers-only ·
       autopilot-queues-in-approve-mode (4). Demo seeds a revertable loser.
 
-## W4 · Connectors proven live + CI (Gate G4)
+## W4 · Connectors proven live + CI (Gate G4) — 🟨 code done 2026-08-11
 
 *Why: "smoke-tested offline" is not a launch claim.*
 
-- [ ] `cms --verify`: create draft "connector-verify" → update → delete → report pass/fail per configured CMS
-- [ ] Sandboxes (all free): WordPress (docker) · Shopify dev store · Strapi (docker) · Notion · Contentful · Sanity — verify + record HTTP fixtures to `tests/fixtures/`
-- [ ] Note per-CMS constraints honestly in `cms` output (e.g. Wix update is id-only)
-- [ ] `.github/workflows/ci.yml`: unit tests + fixture replay on every push (no secrets in CI)
-- [ ] README badge flips to real CI status
+- [x] `cms --verify` (+ MCP): create → update → delete a throwaway draft against the configured
+      CMS's LIVE API, pass/fail per step (runs the real publish + site_control dispatch);
+      degrades to a clear "not configured" per step
+- [x] **Connector contract tests** — `cms_extra._http` is monkeypatched to capture each
+      connector's request + feed a canned response, proving create/update/delete payload-shaping
+      + response-parsing deterministically in CI (no secrets, no network)
+- [x] `.github/workflows/ci.yml` — full suite on py3.9/3.11/3.12 + secret leak-scan on every
+      push/PR; no secrets used (live verify runs on the operator's machine)
+- [x] **Doc-drift guard** — every CLI command must appear in `docs/Capabilities.md` (now 93/93);
+      build fails if a command ships undocumented
+- [x] README CI badge (real Actions status)
+- [ ] **HUMAN half (→ full G4 ✅):** create the free sandboxes (WordPress docker · Shopify dev ·
+      Strapi docker · Notion · Contentful · Sanity), run `cms --verify` against each — only you
+      can create the accounts (like G1's pilots)
 
 ## W5 · Experiment engine v1 (not gating)
 

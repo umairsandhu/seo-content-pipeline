@@ -152,7 +152,7 @@ python -m seo_agent voice                      # measure the site's existing bra
 python -m seo_agent explain <url>              # why did this page's traffic change?
 
 # Client delivery + the feedback (taste) loop
-python -m seo_agent cms                        # every CMS connector (WP/Webflow/Ghost/Shopify/Contentful/Strapi/Sanity/HubSpot/Drupal/Joomla/Wix/Notion) + required env vars
+python -m seo_agent cms [--verify]             # every CMS connector + required env vars; --verify live round-trips (create→update→delete a throwaway draft) the configured CMS
 python -m seo_agent deliver report.pdf [--note "…"]   # email + Google Drive delivery to the client (logged)
 python -m seo_agent feedback "their reply" [--about "…"]  # client reaction → learned as taste → future output matches them
 

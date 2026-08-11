@@ -319,7 +319,8 @@ def _brain(a):
 
 def _cms(a):
     from . import cms_extra
-    return cms_extra.render_md(_cfg())
+    cfg = _cfg()
+    return cms_extra.verify_md(cfg) if a.get("verify") else cms_extra.render_md(cfg)
 
 
 def _deliver(a):
@@ -419,8 +420,8 @@ TOOLS = [
     ("brain", "Continuous self-learning memory: client taste, proven playbooks, lessons (auto-injected into every persona).",
      {"type": "object", "properties": {"add": {"type": "string"},
                                        "kind": {"type": "string", "enum": ["fact", "lesson", "preference", "playbook"]}}}, _brain),
-    ("cms", "Every CMS connector (WordPress/Webflow/Ghost/Shopify/Contentful/Strapi/Sanity/HubSpot/Drupal/Joomla/Wix/Notion) + required env vars.",
-     {"type": "object", "properties": {}}, _cms),
+    ("cms", "CMS connectors + required env vars; verify:true live-round-trips the configured CMS (create→update→delete a throwaway draft).",
+     {"type": "object", "properties": {"verify": {"type": "boolean"}}}, _cms),
     ("deliver", "Send deliverables to the client via email and/or their Google Drive folder; logs the delivery for the feedback loop.",
      {"type": "object", "properties": {"files": {"type": "array", "items": {"type": "string"}},
                                        "note": {"type": "string"}}}, _deliver),

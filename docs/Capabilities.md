@@ -122,6 +122,7 @@ Run `plan` (tactical next actions) or `consult` (full strategy) at **any** point
 | `prospect` | Link-acquisition prospects from the competitor backlink gap + outreach packet | DataForSEO + competitors; agent-mode without | prospects |
 | `jobs` | Durable job queue (SQLite) — schedule/retry long-running runs | — | queue |
 | `projects [add <name> <dir>]` | Multi-site portfolio (agency) + readiness roll-up per client | — | portfolio |
+| `edition` | Show the active edition (Open / Pro / Agency / Enterprise) + its entitlements; gates only white-label + commercial/reseller use + support, never the engine | — | entitlements |
 | `run --daily / --weekly / --monthly [--email]` | Scheduled digest at three cadences; `--email` auto-sends the PDF | — (+GSC/DFS) | `digest.md` (+ email) |
 
 ## Layer 6 · Expert brain, full control & delivery

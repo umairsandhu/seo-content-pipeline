@@ -1,0 +1,31 @@
+name: CI
+
+# Runs the full test suite + the secret leak-scan on every push and PR.
+# No secrets are used or needed — connector tests are contract tests (mocked HTTP),
+# and the suite is stdlib + numpy/scikit-learn only. The live connector round-trip
+# (`cms --verify`) runs on the operator's own machine against their sandbox, never here.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install core deps
+        run: pip install numpy scikit-learn
+      - name: Run the test suite
+        run: python -m unittest discover -s tests -v
+      - name: Secret leak-scan (fork-safety gate)
+        run: python -m seo_agent safety --precommit

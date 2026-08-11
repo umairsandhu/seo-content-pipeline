@@ -44,9 +44,11 @@ where · why-now. Updated 2026-08-11.*
   `rollback <id>` inverse op, and auto-proposals for measured losers (n≥3, CI<0) that queue for
   review + teach the brain an avoid-lesson. `ledger.py` · `site_control.py` · `autopilot.py` ·
   4 tests.
-- [ ] **W4 · Connectors proven live + CI (gate G4).** `cms --verify` (create→update→delete a
-  test draft) against ≥4 sandbox accounts; record fixtures; GitHub Actions runs unit tests +
-  fixture replay on every push. `cms_extra.py` · `.github/workflows/`.
+- [x] **W4 · Connectors proven live + CI (gate G4 — code done 2026-08-11).** `cms --verify`
+  live round-trip + connector contract tests (mocked HTTP, no secrets) + GitHub Actions
+  (suite on 3 Pythons + secret-scan, every push) + a doc-drift guard (93/93 commands in
+  Capabilities). *Human half left: create sandboxes + run `cms --verify` against them.*
+  `cms_extra.py` · `.github/workflows/ci.yml`.
 - [x] **SEC-M3–M6 · Hardened 2026-08-11 (done early, with Tier 1).** Crawler scheme allowlist
   + private/loopback/link-local IP block + 8 MB size cap + redirect re-check (`ingest._url_ok`)
   · slug sanitized to `[a-z0-9-]` + repo path containment (`publish._slug`, `repo._contained`)

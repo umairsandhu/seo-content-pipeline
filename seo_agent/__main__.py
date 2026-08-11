@@ -87,7 +87,8 @@ def main():
     pbr = sub.add_parser("brain")  # continuous self-learning memory (taste/playbooks/lessons)
     pbr.add_argument("--add", metavar="TEXT"); pbr.add_argument("--kind", default="fact",
                      choices=["fact", "lesson", "preference", "playbook"])
-    sub.add_parser("cms")  # every CMS connector + its env/config requirements
+    sub.add_parser("cms").add_argument("--verify", action="store_true",
+        help="live round-trip the configured CMS: create → update → delete a throwaway draft")
     pdl = sub.add_parser("deliver"); pdl.add_argument("files", nargs="*", default=["report.pdf"])
     pdl.add_argument("--note", default="")   # email + Google Drive delivery to the client
     pfb = sub.add_parser("feedback"); pfb.add_argument("text")
@@ -342,7 +343,7 @@ def main():
             dump(brain.add(cfg, a.kind, a.add, source="manual"))
         print(brain.render_md(cfg))
     elif a.cmd == "cms":
-        print(cms_extra.render_md(cfg))
+        print(cms_extra.verify_md(cfg) if a.verify else cms_extra.render_md(cfg))
     elif a.cmd == "deliver":
         print(deliver_mod.render_md(cfg, deliver_mod.deliver(cfg, a.files, note=a.note)))
     elif a.cmd == "feedback":

@@ -1285,6 +1285,96 @@ class AttributionHardening(unittest.TestCase):
         self.assertGreaterEqual(learn.confounded_count(cfg), 3)
 
 
+class DocDriftGuard(unittest.TestCase):
+    """W4/CI anti-drift: every registered CLI command must be documented in Capabilities.md
+    (the canonical reference). This is the cheap version of ARCHITECTURE-V2's generated-docs
+    CI test — it fails the build the moment a new command ships undocumented."""
+
+    def test_every_command_in_capabilities(self):
+        import re
+        root = Path(__file__).resolve().parent.parent
+        main = (root / "seo_agent" / "__main__.py").read_text()
+        cmds = set(re.findall(r'sub\.add_parser\("([\w-]+)"', main)) | \
+            set(re.findall(r'\.add_parser\("([\w-]+)"', main))
+        caps = (root / "docs" / "Capabilities.md").read_text()
+        missing = sorted(c for c in cmds if not re.search(rf'\b{re.escape(c)}\b', caps))
+        self.assertEqual(missing, [], f"commands missing from docs/Capabilities.md: {missing}")
+
+
+class Connectors(unittest.TestCase):
+    """W4 / gate G4 — connector CONTRACT tests: monkeypatch the HTTP seam to capture the
+    request each connector builds and feed a canned API response, so create/update/delete
+    payload-shaping + response-parsing are proven deterministically in CI (no secrets, no
+    network). The live half is `cms --verify` against a sandbox."""
+
+    def _harness(self, canned):
+        """Replace cms_extra._http; return (calls, restore). `canned` maps method→response."""
+        from seo_agent import cms_extra
+        calls = []
+        orig = cms_extra._http
+
+        def fake(url, method, headers, payload=None, timeout=60, ctype="application/json"):
+            calls.append({"url": url, "method": method, "payload": payload, "headers": headers})
+            resp = canned.get(method, canned.get("*", {}))
+            return resp(len(calls)) if callable(resp) else resp
+        cms_extra._http = fake
+        return calls, (lambda: setattr(cms_extra, "_http", orig))
+
+    def test_shopify_lifecycle_requests(self):
+        from seo_agent import cms_extra
+        os.environ["SHOPIFY_ACCESS_TOKEN"] = "x"
+        cfg = {"cms": {"type": "shopify", "store": "demo.myshopify.com", "blog_id": "99"}}
+        calls, restore = self._harness({"POST": {"article": {"id": 555}},
+                                        "GET": {"articles": [{"id": 555}]},
+                                        "PUT": {"article": {"id": 555}}, "DELETE": {}})
+        try:
+            c = cms_extra.execute(cfg, {"op": "create", "post": {"title": "T", "markdown": "b"}})
+            self.assertEqual(c["id"], 555)                          # response parsed
+            self.assertIn("/blogs/99/articles.json", calls[0]["url"])  # right endpoint
+            self.assertEqual(calls[0]["payload"]["article"]["title"], "T")   # payload shaped
+            u = cms_extra.execute(cfg, {"op": "update_meta", "id": 555, "title": "T2"})
+            self.assertTrue(u["ok"]); self.assertEqual(calls[-1]["method"], "PUT")
+            d = cms_extra.execute(cfg, {"op": "delete", "id": 555})
+            self.assertTrue(d["ok"]); self.assertEqual(calls[-1]["method"], "DELETE")
+        finally:
+            restore(); os.environ.pop("SHOPIFY_ACCESS_TOKEN", None)
+
+    def test_contentful_and_strapi_create_shape(self):
+        from seo_agent import cms_extra
+        os.environ["CONTENTFUL_MANAGEMENT_TOKEN"] = "x"
+        cfg = {"cms": {"type": "contentful", "space_id": "sp", "content_type": "post"}}
+        calls, restore = self._harness({"POST": {"sys": {"id": "abc"}}})
+        try:
+            c = cms_extra.execute(cfg, {"op": "create", "post": {"title": "Hi", "markdown": "body"}})
+            self.assertEqual(c["id"], "abc")
+            self.assertIn("/spaces/sp/environments/master/entries", calls[0]["url"])
+            self.assertEqual(calls[0]["headers"].get("X-Contentful-Content-Type"), "post")
+        finally:
+            restore(); os.environ.pop("CONTENTFUL_MANAGEMENT_TOKEN", None)
+        os.environ["STRAPI_TOKEN"] = "x"
+        cfg = {"cms": {"type": "strapi", "base_url": "https://cms.x", "collection": "articles"}}
+        calls, restore = self._harness({"POST": {"data": {"documentId": "d1"}}})
+        try:
+            c = cms_extra.execute(cfg, {"op": "create", "post": {"title": "Hi", "markdown": "b"}})
+            self.assertEqual(c["id"], "d1")
+            self.assertTrue(calls[0]["url"].endswith("/api/articles"))
+            self.assertEqual(calls[0]["payload"]["data"]["title"], "Hi")
+        finally:
+            restore(); os.environ.pop("STRAPI_TOKEN", None)
+
+    def test_missing_creds_reported_not_crashed(self):
+        from seo_agent import cms_extra
+        for t in ("shopify", "contentful", "strapi", "sanity", "hubspot", "notion"):
+            r = cms_extra.execute({"cms": {"type": t}}, {"op": "create", "post": {"title": "x"}})
+            self.assertFalse(r["ok"]); self.assertIn("set", r["error"].lower())
+
+    def test_verify_skips_cleanly_when_unconfigured(self):
+        from seo_agent import cms_extra
+        self.assertTrue(cms_extra.verify({"cms": {"type": "file"}})["skipped"])
+        r = cms_extra.verify({"cms": {"type": "shopify"}})
+        self.assertTrue(r["skipped"]); self.assertIn("not configured", r["note"])
+
+
 class Rollback(unittest.TestCase):
     """W3 / gate G3 — before-state capture, restore, and auto-proposals for measured losers."""
 
