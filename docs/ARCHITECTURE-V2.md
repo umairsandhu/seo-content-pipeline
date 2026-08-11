@@ -185,6 +185,9 @@ Capability(
                                     # closed vocabulary + teach-forward hints (absorbs audit.HINTS;
                                     # CI: "every emitted cat is registered" → CATS-class bugs unshippable)
   requires=("gsc?",),               # provider slots; "?" = soft → dispatcher degrades; bare = hard gate
+  trust={"mutates": False,          # ← Round-2 addition: does invoking this change state?
+         "untrusted_inputs": ("page_text",),   #   which args carry hostile content (taint)
+         "touches_live": False},    #   crosses to the live site? → force the human gate
   config={"audit.title_max": {"default": 60, "hint": "..."}},  # absorbs TEMPLATE/HINTS/DEFAULTS
   providers=[...],                  # per-seam options, recommended-first (absorbs CHOICES/INTEGRATIONS/REQUIREMENTS)
   schedule=("weekly", 0),           # absorbs autopilot._SCHED/_TASK
@@ -278,3 +281,78 @@ Not in this document's scope, but discovered by its audit and cheap to fix:
 *The one-sentence version: we built five registries because we kept feeling the pain of not
 having one — the rebuild starts by believing our own docstring: "register once → everything
 else knows."*
+
+---
+
+# Round 2 — re-asked against the complete audit (2026-08-11)
+
+*Round 1 audited the architecture through one static-structure lens. We then ran the three
+lenses it skipped — a **security attack-surface map**, a **coverage measurement**, and an
+**exact doc-content diff** (all in [AUDIT-COMPLEMENT](AUDIT-COMPLEMENT.md)) — and re-asked the
+rebuild question. Does the registry-first verdict survive?*
+
+## The verdict survives — and round 2 confirms round 1's prediction
+
+The security lens surfaces a failure *class* the static lens could not see: the tool **crossed
+a trust boundary**. It became a thing that runs a *mutating* localhost server the browser
+auto-opens, an always-on daemon that acts autonomously, subprocess execution, and — most of
+all — a loop that **ingests untrusted web content and then acts on it** — with no taint model
+and no mutation/trust boundary anywhere in the architecture. The two findings that scored HIGH
+(CSRF-to-autopilot-publish on the dashboard; email/feedback → persistent prompt injection) are
+both expressions of that missing boundary.
+
+So is the trust boundary the *new* #1 that displaces registry-first? No — and the reason is the
+same dependency arrow that decided round 1:
+
+- **Most of the security findings are localized, not structural.** A CSRF token, an Origin
+  check, a scheme allowlist, a slug sanitizer are a few lines each — a hardening pass, not a
+  rebuild. That is categorically unlike drift, which cannot be fixed without the contract.
+- **The one architectural finding — untrusted-content → prompt-injection — is enforced by the
+  registry, exactly like the other cross-cutting policies.** A capability contract with a
+  `trust` dimension (`mutates` / `untrusted_inputs` / `touches_live` — added to the §5 spec
+  above) lets the *dispatcher* CSRF-protect every `mutates:true` capability, taint-track every
+  `untrusted_inputs` argument, and force the human gate on every `touches_live` call. This is
+  the **third** cross-cutting policy the registry is the substrate for — after the error policy
+  (degrade-vs-fail) and the event spine ("side-effecting ⇒ emits Change"). One contract; three
+  policies enforced at one point instead of re-implemented per route.
+
+**Registry-first stays #1. The event spine stays #2. Round 2's concrete change is to the
+contract spec, not the ranking:** round 1's contract had `requires` and `emits` but no trust
+flags. Add them. The trust boundary is decision #2b — adopted the same week as the spine (the
+week the tool first mutates and acts), and enforced through the same registry.
+
+## The sharper "we didn't want to know"
+
+Round 1's drift at least *nagged* us — badge counts we hand-bumped every commit, the CATS bug
+that eventually surfaced. The security surface was **silent**. We shipped a mutating localhost
+dashboard that auto-launches in the browser, an always-on daemon, subprocess execution, and
+autonomous action on crawled content — and **never ran a single security pass until asked**.
+Coverage is the identical shape: 39% of modules untested, because a test produces no visible
+artifact. Both blind spots share one cause, and it is exactly the mechanism round 1 named:
+**demo-driven development under critique pressure.** Security, tests, and doc-accuracy are
+precisely the three things that *have no demo* — so they are precisely the three things that
+rotted. Round 2 does not overturn round 1's thesis; it is the controlled prediction that
+thesis makes, confirmed. If the incentive was "ship a visible capability every session," then
+the invisible work was always going to be the debt — and it was.
+
+## The "we couldn't have known" that legitimately holds
+
+Local-first / loopback / single-user / bring-your-own-keys was itself a **correct security
+decision** — it shrank the threat model so far that several findings are LOW *by design*: no
+remote attacker, no multi-tenant data, no hosted secrets, stdio-only MCP, no `eval`/`pickle`.
+That is a keeper. The two things that architecture does *not* cover — a browser reaching
+localhost, and acting on untrusted content you fetched — are exactly the two that scored HIGH.
+And both became knowable only at the same inflection as the ledger and the spine: **week 2–3,
+when the content script became an autonomous agent.** On day 1, a crawl-and-report script that
+touches nothing and opens no port has neither problem. The honest line is the same as round
+1's: we couldn't have known the tool would cross the trust boundary; once it did, the boundary
+was a knowable gap we didn't look at — because looking produced no demo.
+
+## What this means for launch (not for the rebuild)
+
+The rebuild verdict is unchanged, but the *launch* gate moved: **AUDIT-COMPLEMENT H1 (dashboard
+CSRF) and H2 (email-approval spoofing) must be closed before this ships to strangers** — those
+are exploitable, not merely untidy. The fix is a dedicated hardening pass under test
+(`/security-review`), not a document. This addendum's job was only to answer whether the
+complete picture changes the *architecture* verdict. It doesn't. It sharpens it, and it turns
+round 1's self-diagnosis from an assertion into a confirmed prediction.

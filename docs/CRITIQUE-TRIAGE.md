@@ -90,3 +90,11 @@ We turned the audit inward: a full drift/fragmentation inventory of our own arch
 `_safe` helpers, 162 bare exception handlers — and four drifted pairs the audit itself
 discovered). The verdict, the honest "couldn't have known vs didn't want to know" split,
 and the v2 blueprint live in **[ARCHITECTURE-V2](ARCHITECTURE-V2.md)**.
+
+**Round 3b — the complementary audit (2026-08-11).** The round-3 inventory was one lens
+(static architecture); we then ran the three it skipped — a security attack-surface map, a
+coverage measurement (33/85 modules untested), and an exact doc-content diff — in
+**[AUDIT-COMPLEMENT](AUDIT-COMPLEMENT.md)**. Two HIGH security findings (dashboard CSRF,
+email-approval spoofing) gate any public launch and need a `/security-review` hardening pass.
+The re-asked rebuild verdict (registry-first survives, sharpened with a trust dimension) is
+the **Round 2 addendum** in ARCHITECTURE-V2.
