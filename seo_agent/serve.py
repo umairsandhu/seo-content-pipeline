@@ -48,7 +48,9 @@ button.g{background:var(--em)}form.inl{display:inline}input[type=text]{border:1p
 """
 
 
-def _page(cfg):
+def _page(cfg, token=""):
+    _t = f'<input type="hidden" name="t" value="{token}">' if token else ""
+    _q = f"?t={token}" if token else ""
     s = state.summary(cfg)
     sit, pl = s.get("situation") or {}, s.get("plan") or {}
     rep = s.get("report") or {}
@@ -194,7 +196,7 @@ def _page(cfg):
         docs = _docs_list(cfg)
         if docs:
             rows = "".join(
-                f'<tr><td><a href="/doc?f={urllib.parse.quote(d["path"])}">{html.escape(d["path"])}</a></td>'
+                f'<tr><td><a href="/doc?f={urllib.parse.quote(d["path"])}{("&t="+token) if token else ""}">{html.escape(d["path"])}</a></td>'
                 f'<td class="mut">{d["kind"]}</td><td class="n">{d["modified"]}</td>'
                 f'<td class="mut">{html.escape(d.get("note", ""))[:40]}</td></tr>' for d in docs[:14])
             P.append('<table><tr><th>document</th><th>kind</th><th>updated</th><th></th></tr>' + rows + '</table>')
@@ -221,9 +223,9 @@ def _page(cfg):
                 f'<tr><td>{aid}</td><td><span class="pill s-{i["status"]}">{i["status"]}</span></td>'
                 f'<td>{html.escape(i["action"][:60])}</td>'
                 f'<td class="mut">{html.escape((i.get("feedback") or "")[:40])}</td>'
-                f'<td><form class="inl" method="post" action="/approve"><input type="hidden" name="id" value="{aid}">'
+                f'<td><form class="inl" method="post" action="/approve">{_t}<input type="hidden" name="id" value="{aid}">'
                 f'<button class="g">Approve</button></form> '
-                f'<form class="inl" method="post" action="/changes"><input type="hidden" name="id" value="{aid}">'
+                f'<form class="inl" method="post" action="/changes">{_t}<input type="hidden" name="id" value="{aid}">'
                 f'<input type="text" name="notes" placeholder="changes…" size="16">'
                 f'<button>Request</button></form></td></tr>')
         P.append('<table><tr><th>id</th><th>status</th><th>action</th><th>notes</th><th></th></tr>'
@@ -244,10 +246,10 @@ def _page(cfg):
         pass
     head = (f'<header><b>SEO <span class="g">autopilot</span></b> · {site} '
             f'<span class="mut" style="color:#8ea0bd">{html.escape(rep.get("date",""))}</span>'
-            f'<form method="post" action="/cycle"><button class="g">▶ Run cycle</button></form></header>'
+            f'<form method="post" action="/cycle">{_t}<button class="g">▶ Run cycle</button></form></header>'
             f'{tipline}')
     return (f'<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">'
-            f'<meta http-equiv=refresh content=25><title>SEO autopilot — {site}</title><style>{_CSS}</style>'
+            f'<meta http-equiv=refresh content="25;url=/{_q}"><title>SEO autopilot — {site}</title><style>{_CSS}</style>'
             f'{head}<div class="wrap">{"".join(P)}</div>')
 
 
@@ -290,10 +292,24 @@ def _doc_path(f):
     p = (Path.cwd() / f).resolve()
     if Path.cwd().resolve() not in p.parents or not p.exists():
         return None
+    # SEC-L7: re-check the RESOLVED target against the whitelist so a symlink
+    # (content/x.json → ../.env) can't smuggle a non-whitelisted file past the guard.
+    if p.suffix not in (".md", ".json", ".html", ".pdf"):
+        return None
+    rel = str(p.relative_to(Path.cwd().resolve()))
+    if rel not in _DOC_FILES and not (len(Path(rel).parts) == 2 and Path(rel).parts[0] in _DOC_DIRS):
+        return None
     return p
 
 
-def _make_handler(cfg):
+def _host_ok(host_header):
+    """DNS-rebinding guard: the browser's Host must be loopback. A rebinding attacker's
+    page sends its own domain as Host, so this stops the classic rebinding pivot."""
+    host = (host_header or "").rsplit(":", 1)[0].strip("[]").lower()
+    return host in ("127.0.0.1", "localhost", "::1", "")
+
+
+def _make_handler(cfg, token):
     class H(BaseHTTPRequestHandler):
         def log_message(self, *a):
             pass
@@ -301,50 +317,79 @@ def _make_handler(cfg):
         def _send(self, body, ctype="text/html", code=200):
             self.send_response(code)
             self.send_header("Content-Type", ctype)
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("Content-Security-Policy", "default-src 'self' 'unsafe-inline'; img-src data:")
             self.end_headers()
             self.wfile.write(body.encode() if isinstance(body, str) else body)
 
+        def _query_token(self):
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
+            return (q.get("t") or [""])[0]
+
         def do_GET(self):
-            if self.path.startswith("/api/state"):
+            if not _host_ok(self.headers.get("Host")):   # rebinding guard on every request
+                self._send("forbidden", code=403)
+                return
+            path = urllib.parse.urlparse(self.path).path
+            if path in ("/", "") and self._query_token() != token:
+                # bootstrap: land the operator's own browser on a tokened URL. Cross-origin
+                # callers can't read the redirect's Location, so the token doesn't leak.
+                self.send_response(303)
+                self.send_header("Location", f"/?t={token}")
+                self.end_headers()
+                return
+            if path != "/" and self._query_token() != token:  # /api/state + /doc need the token
+                self._send("forbidden", code=403)
+                return
+            if path.startswith("/api/state"):
                 self._send(json.dumps(state.summary(cfg), indent=1), "application/json")
-            elif self.path.startswith("/doc"):
+            elif path.startswith("/doc"):
                 q = urllib.parse.parse_qs(urllib.parse.urlparse(self.path).query)
                 p = _doc_path((q.get("f") or [""])[0])
                 if not p:
                     self._send("<p>not found</p>", code=404)
                 elif p.suffix == ".pdf":
                     self._send(p.read_bytes(), "application/pdf")
-                elif p.suffix == ".html":
-                    self._send(p.read_text(errors="ignore"))
-                else:  # md / json — readable, styled, back-linked
+                else:  # md/json/html all rendered ESCAPED (no raw-HTML passthrough → no stored XSS)
                     body = html.escape(p.read_text(errors="ignore"))
                     self._send(f'<!doctype html><meta charset=utf-8><title>{html.escape(p.name)}</title>'
                                f'<style>{_CSS}</style><div class="wrap" style="grid-template-columns:1fr">'
-                               f'<div class="card wide"><h2><a href="/">← dashboard</a> · {html.escape(p.name)}</h2>'
+                               f'<div class="card wide"><h2><a href="/?t={token}">← dashboard</a> · {html.escape(p.name)}</h2>'
                                f'<pre style="white-space:pre-wrap;font-size:13px">{body}</pre></div></div>')
             else:
-                self._send(_page(cfg))
+                self._send(_page(cfg, token))
 
         def do_POST(self):
-            n = int(self.headers.get("Content-Length", 0))
+            if not _host_ok(self.headers.get("Host")):
+                self._send("forbidden", code=403)
+                return
+            n = int(self.headers.get("Content-Length", 0) or 0)
             form = urllib.parse.parse_qs(self.rfile.read(n).decode())
             g = lambda k: (form.get(k) or [""])[0]
+            if g("t") != token:   # CSRF: attacker can't read the same-origin token
+                self._send("forbidden", code=403)
+                return
             _CACHE.clear()  # any action can change setup/practices state — refresh next render
-            if self.path == "/approve":
-                review.respond(cfg, int(g("id")), "approve")
-            elif self.path == "/changes":
-                review.respond(cfg, int(g("id")), "changes", g("notes"))
-            elif self.path == "/cycle":
-                autopilot.cycle(cfg, deliver=False)
+            try:
+                if self.path == "/approve":
+                    review.respond(cfg, int(g("id")), "approve")
+                elif self.path == "/changes":
+                    review.respond(cfg, int(g("id")), "changes", g("notes"))
+                elif self.path == "/cycle":
+                    autopilot.cycle(cfg, deliver=False)
+            except (ValueError, TypeError):
+                pass  # junk id / malformed body — ignore, redirect back
             self.send_response(303)
-            self.send_header("Location", "/")
+            self.send_header("Location", f"/?t={token}")
             self.end_headers()
     return H
 
 
 def serve(cfg, port=8787, open_browser=True):
-    httpd = HTTPServer(("127.0.0.1", port), _make_handler(cfg))
-    url = f"http://127.0.0.1:{port}"
+    import secrets
+    token = secrets.token_urlsafe(16)   # per-session; defeats CSRF (attacker can't read it)
+    httpd = HTTPServer(("127.0.0.1", port), _make_handler(cfg, token))
+    url = f"http://127.0.0.1:{port}/?t={token}"
     print(f"SEO autopilot dashboard → {url}   (Ctrl-C to stop)")
     if open_browser:  # the hand-holding default: the web page opens and guides you
         threading.Timer(0.6, lambda: webbrowser.open(url)).start()

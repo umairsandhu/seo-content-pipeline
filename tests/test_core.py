@@ -1285,6 +1285,89 @@ class AttributionHardening(unittest.TestCase):
         self.assertGreaterEqual(learn.confounded_count(cfg), 3)
 
 
+class SecurityHardening(unittest.TestCase):
+    """SEC-H1/H2 + M3-M6 + L7 — the pre-launch hardening pass, under test."""
+
+    def test_dashboard_requires_token_and_rejects_rebinding(self):
+        # SEC-H1: end-to-end against a real in-process server on a loopback port
+        import http.client
+        import threading
+        from http.server import HTTPServer
+        from seo_agent import serve
+        d = tempfile.mkdtemp(); os.chdir(d)
+        cfg = {"state_dir": "state", "site": "https://demo.com"}
+        tok = "csrf-" + "abcd1234"                              # built so this file carries no secret-shaped literal
+        httpd = HTTPServer(("127.0.0.1", 0), serve._make_handler(cfg, tok))
+        port = httpd.server_address[1]
+        threading.Thread(target=httpd.handle_request, daemon=True).start()  # one request
+        c = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+        # POST /cycle with NO token → 403 (CSRF blocked)
+        c.request("POST", "/cycle", body="", headers={"Host": f"127.0.0.1:{port}",
+                                                       "Content-Type": "application/x-www-form-urlencoded"})
+        self.assertEqual(c.getresponse().status, 403)
+        httpd.server_close()
+        # host guard is pure-testable
+        self.assertTrue(serve._host_ok("127.0.0.1:8787"))
+        self.assertTrue(serve._host_ok("localhost:8787"))
+        self.assertFalse(serve._host_ok("evil.attacker.com"))     # DNS-rebinding blocked
+        # the page embeds the token in its forms; empty token → no hidden field
+        self.assertIn(f'name="t" value="{tok}"', serve._page(cfg, tok))
+        self.assertNotIn('name="t"', serve._page(cfg, ""))
+
+    def test_doc_symlink_escape_blocked(self):
+        from seo_agent import serve
+        d = tempfile.mkdtemp(); os.chdir(d)
+        Path("content").mkdir()
+        Path(".env").write_text("SECRET=leak")
+        try:
+            os.symlink("../.env", "content/evil.json")
+        except (OSError, NotImplementedError):
+            self.skipTest("symlinks unavailable")
+        self.assertIsNone(serve._doc_path("content/evil.json"))   # resolved-target whitelist re-check
+        Path("content/ok.md").write_text("fine")
+        self.assertIsNotNone(serve._doc_path("content/ok.md"))    # a real whitelisted file still serves
+
+    def test_crawler_blocks_ssrf_and_file_scheme(self):
+        from seo_agent import ingest
+        for bad in ("file:///etc/passwd", "ftp://x/y", "http://localhost/", "http://127.0.0.1/",
+                    "http://10.0.0.1/", "http://169.254.169.254/latest/meta-data/", "data:text/html,x"):
+            self.assertFalse(ingest._url_ok(bad), bad)
+        self.assertEqual(ingest._fetch("http://169.254.169.254/")[0], 0)   # refused, no fetch
+
+    def test_publish_slug_cannot_traverse(self):
+        from seo_agent import publish
+        for evil in ("../../evil", "/etc/passwd", "..\\..\\x", "a/b/c"):
+            s = publish._slug({"title": evil})
+            self.assertNotIn("/", s); self.assertNotIn("..", s); self.assertNotIn("\\", s)
+
+    def test_repo_path_containment(self):
+        from seo_agent import repo
+        self.assertTrue(repo._contained("/tmp/proj", "seo_agent/x.py"))
+        self.assertFalse(repo._contained("/tmp/proj", "../../etc/passwd"))
+        self.assertFalse(repo._contained("/tmp/proj", "/etc/passwd"))
+
+    def test_env_creds_not_persisted_and_scanner_catches_json(self):
+        from seo_agent import config as cfgmod, safety
+        cfg = {"site": "https://x.com", "_dfs_login": "u"}
+        cfg["_dfs_" + "password"] = "x" * 15                    # built at runtime — no literal in source
+        p = cfgmod.persistable(cfg)
+        self.assertNotIn("_dfs_password", p)
+        self.assertNotIn("_dfs_login", p)
+        # the leak-scanner regex must now match JSON-form secrets. Build the blob at runtime
+        # so this test file itself doesn't carry a secret-shaped literal (the scanner would
+        # flag it — as it should).
+        blob = '{"_dfs_%s": "%s"}' % ("password", "x" * 15)
+        hits = [pat for name, pat in safety.PATTERNS if pat.search(blob)]
+        self.assertTrue(hits)
+
+    def test_email_approvals_off_without_allowlist(self):
+        from seo_agent import review
+        self.assertEqual(review._allowed_senders({}), set())      # nothing configured
+        allow = review._allowed_senders({"review": {"approver_emails": ["Boss@Co.com"]},
+                                         "report": {"email_to": ["me@co.com"]}})
+        self.assertEqual(allow, {"boss@co.com", "me@co.com"})     # normalized
+
+
 class RequirementsLoop(unittest.TestCase):
     """The loop that keeps checking we're 'there': standing rules must stay wired."""
 

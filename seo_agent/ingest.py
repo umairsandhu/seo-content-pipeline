@@ -19,6 +19,34 @@ from urllib.parse import urlparse
 from . import render
 
 UA = "Mozilla/5.0 (compatible; seo-content-pipeline/1.0; +https://claude.com/claude-code)"
+_MAX_BYTES = 8 * 1024 * 1024   # SEC-M3: cap response size (parser/memory DoS on hostile sites)
+
+
+def _url_ok(url):
+    """SEC-M3: only fetch http(s) to public hosts. Blocks file://, ftp://, data:, and
+    SSRF to loopback / private / link-local (cloud-metadata) / internal addresses fed via
+    a malicious sitemap or spider-discovered link."""
+    import ipaddress
+    import socket
+    try:
+        pu = urlparse(url)
+    except ValueError:
+        return False
+    if pu.scheme not in ("http", "https"):
+        return False
+    host = pu.hostname or ""
+    if not host or host.lower() == "localhost":
+        return False
+    try:  # resolve; reject if ANY resolved address is non-public
+        for fam, _t, _p, _c, sa in socket.getaddrinfo(host, None):
+            ip = ipaddress.ip_address(sa[0])
+            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast:
+                return False
+    except Exception:
+        return False
+    return True
+
+
 TAG = re.compile(r"<[^>]+>")
 WS = re.compile(r"\s+")
 SCRIPT = re.compile(r"<(script|style|noscript|svg)[^>]*>.*?</\1>", re.S | re.I)
@@ -29,17 +57,24 @@ HREF = re.compile(r'<a\b[^>]*\bhref=["\'](.*?)["\']', re.I)
 
 
 def _get(url, timeout=30):
+    if not _url_ok(url):
+        raise ValueError(f"blocked non-public/non-http URL: {url}")
     req = urllib.request.Request(url, headers={"User-Agent": UA})
     with urllib.request.urlopen(req, timeout=timeout) as r:
-        return r.read().decode("utf-8", "ignore")
+        return r.read(_MAX_BYTES).decode("utf-8", "ignore")
 
 
 def _fetch(url, timeout=30):
     """(status, final_url, html) — captures redirects + HTTP errors for the audit."""
+    if not _url_ok(url):
+        return 0, url, ""   # SEC-M3: refuse file://, loopback, private/link-local, etc.
     req = urllib.request.Request(url, headers={"User-Agent": UA})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
-            return r.getcode(), r.geturl(), r.read().decode("utf-8", "ignore")
+            final = r.geturl()
+            if final != url and not _url_ok(final):   # a redirect can't smuggle us to an internal host
+                return 0, url, ""
+            return r.getcode(), final, r.read(_MAX_BYTES).decode("utf-8", "ignore")
     except urllib.error.HTTPError as e:
         return e.code, url, ""
 

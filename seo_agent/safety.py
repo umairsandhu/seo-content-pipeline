@@ -39,7 +39,8 @@ PATTERNS = [
     ("Google service-account private key", re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----")),
     ("AWS access key", re.compile(r"\bAKIA[0-9A-Z]{16}\b")),
     ("Google API key", re.compile(r"\bAIza[0-9A-Za-z_-]{35}\b")),
-    ("Assigned secret", re.compile(r"(?i)(api[_-]?key|password|secret|token)\s*[:=]\s*['\"][^'\"\s]{12,}['\"]")),
+    # allow an optional closing quote before the separator so JSON ("password": "…") is caught too (SEC-M6)
+    ("Assigned secret", re.compile(r"(?i)(api[_-]?key|password|secret|token)['\"]?\s*[:=]\s*['\"][^'\"\s]{12,}['\"]")),
 ]
 _SKIP = re.compile(r"(__pycache__|\.git/|node_modules/|\.venv/|\.png$|\.jpg$|\.pdf$|\.ico$)")
 

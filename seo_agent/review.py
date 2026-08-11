@@ -73,12 +73,35 @@ def poll(cfg):
     return {"processed": applied, "count": len(applied)}
 
 
+def _allowed_senders(cfg):
+    """SEC-H2: an email can only approve live-site changes if it comes from an allowlisted
+    address. Sources: review.approver_emails (config), APPROVER_EMAILS (env, comma-sep), and
+    report.email_to (the people you already deliver to). Empty allowlist = email approvals OFF."""
+    out = set()
+    for e in (cfg.get("review", {}) or {}).get("approver_emails", []) or []:
+        out.add(e.strip().lower())
+    for e in os.environ.get("APPROVER_EMAILS", "").split(","):
+        if e.strip():
+            out.add(e.strip().lower())
+    for e in (cfg.get("report", {}) or {}).get("email_to", []) or []:
+        out.add(e.strip().lower())
+    return out
+
+
+def _sender(msg):
+    import email.utils
+    return (email.utils.parseaddr(msg.get("From", ""))[1] or "").lower()
+
+
 def _poll_email(cfg):
     host = os.environ.get("IMAP_HOST")
     if not host:
         return []
     import imaplib
     import email as emaillib
+    allow = _allowed_senders(cfg)
+    if not allow:  # no allowlist configured → do NOT trust the inbox to approve anything
+        return []
     done = []
     try:
         M = imaplib.IMAP4_SSL(host, int(os.environ.get("IMAP_PORT", 993)))
@@ -87,7 +110,10 @@ def _poll_email(cfg):
         _typ, data = M.search(None, "UNSEEN")
         for num in data[0].split():
             _t, msgdata = M.fetch(num, "(RFC822)")
-            body = _text(emaillib.message_from_bytes(msgdata[0][1]))
+            msg = emaillib.message_from_bytes(msgdata[0][1])
+            if _sender(msg) not in allow:   # unrecognized sender → ignore entirely
+                continue
+            body = _text(msg)
             for m in _APPROVE.finditer(body):
                 respond(cfg, m.group(1), "approve"); done.append(int(m.group(1)))
             for m in _CHANGES.finditer(body):

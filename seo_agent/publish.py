@@ -14,6 +14,7 @@ Secrets come from env, never config. A post is
 import base64
 import hashlib
 import hmac
+import re
 import json
 import os
 import time
@@ -58,7 +59,10 @@ def _gate(cfg, post):
 
 
 def _slug(post):
-    return post.get("slug") or "-".join((post.get("title", "post")).lower().split())[:80]
+    raw = post.get("slug") or "-".join((post.get("title", "post")).lower().split())
+    # SEC-M4: strip path separators + traversal so a slug/title can't escape the content dir
+    s = re.sub(r"[^a-z0-9\-]+", "-", raw.lower()).strip("-")[:80]
+    return s or "post"
 
 
 def _post_json(url, payload, headers, timeout=60):

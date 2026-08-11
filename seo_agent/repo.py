@@ -44,9 +44,19 @@ def diff_edit(path, edits):
     return after, diff
 
 
+def _contained(root, rel):
+    """SEC-M4: the edited file must resolve INSIDE the repo root — no absolute or ../ paths."""
+    root = Path(root).resolve()
+    p = (root / rel).resolve()
+    return root == p or root in p.parents
+
+
 def open_pr(cfg, title, file_edits, branch=None, url=""):
     """file_edits: [{file, edits:[{find,replace}], desc, url?}]. Returns a result dict."""
     root = _root(cfg)
+    bad = [fe["file"] for fe in file_edits if not _contained(root, fe["file"])]
+    if bad:
+        return {"status": "blocked", "reason": f"path escapes the repo root: {bad[0]}"}
     dec = autonomy.authorize(cfg, f"PR: {title}", kind="update", target=url or title)
     # compute diffs regardless (so manual mode shows the change)
     planned = []

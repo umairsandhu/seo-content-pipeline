@@ -197,7 +197,8 @@ def interactive(cfg, root=".", config_path="config.json"):
         env_todo += todo
         if opt.get("note"):
             notes.append(f"{seam['seam'].split(' (')[0]}: {opt['note']}")
-    Path(config_path).write_text(json.dumps(cfg, indent=2) + "\n")
+    from . import config as _cfgmod
+    Path(config_path).write_text(json.dumps(_cfgmod.persistable(cfg), indent=2) + "\n")  # SEC-M6: no env creds on disk
     if env_todo:
         print("\n── Add to .env (git-ignored — never share these): "
               + " ".join(dict.fromkeys(env_todo)))

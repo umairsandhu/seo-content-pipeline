@@ -24,19 +24,16 @@ where · why-now. Updated 2026-08-11.*
 
 ---
 
-## Tier 1 — MUST clear before the launch checklist runs (true blockers)
+## Tier 1 — MUST clear before the launch checklist runs (true blockers) — ✅ DONE 2026-08-11
 
-*These two are the only "cannot ship to strangers with these open" items. Do them as one
-`/security-review` hardening pass on a branch, under test.*
-
-- [ ] **SEC-H1 · Dashboard CSRF + DNS-rebinding.** `serve.py` `do_POST` (`:328-341`) has no
-  origin/token check — a web page in another tab can trigger `/cycle` (autopilot publish),
-  `/approve` (approve a live-site change), `/changes` (persistent prompt injection). *Fix:*
-  Host allowlist (127.0.0.1/localhost) + Origin check + a per-session CSRF token; gate
-  `/api/state` too.
-- [ ] **SEC-H2 · Email-approval spoofing.** `review._poll_email` (`:76-101`) trusts anyone who
-  can email the inbox to approve queued live changes. *Fix:* sender allowlist; treat the inbox
-  as untrusted by default.
+- [x] **SEC-H1 · Dashboard CSRF + DNS-rebinding.** Per-session token (`secrets.token_urlsafe`)
+  required on every POST + on `/api/state`/`/doc`; Host-header loopback guard (rebinding);
+  bare `/` bootstraps via a 303 to the tokened URL; CSP + `nosniff` headers; `.html`
+  passthrough removed (no stored XSS). `serve.py`. *Live-verified: no-token → 403, bad Host →
+  403, `/` → 303.*
+- [x] **SEC-H2 · Email-approval spoofing.** `review._poll_email` now requires an allowlisted
+  sender (`review.approver_emails` / `APPROVER_EMAILS` / `report.email_to`); **empty allowlist
+  = email approvals OFF**. `review.py`.
 
 ---
 
@@ -49,11 +46,13 @@ where · why-now. Updated 2026-08-11.*
 - [ ] **W4 · Connectors proven live + CI (gate G4).** `cms --verify` (create→update→delete a
   test draft) against ≥4 sandbox accounts; record fixtures; GitHub Actions runs unit tests +
   fixture replay on every push. `cms_extra.py` · `.github/workflows/`.
-- [ ] **SEC-M3–M6 · Harden before pilots touch client sites.** Crawler scheme allowlist +
-  private-IP block (SSRF/`file://`, `ingest.py`) · slug/path sanitize (`publish.py`, `repo.py`) ·
-  delimit untrusted content in prompts + don't auto-distill emailed feedback (`produce/brain/
-  personas`) · stop persisting env creds to `config.json` + fix the JSON-blind scanner regex
-  (`config.py`, `wizard.py`, `safety.py`).
+- [x] **SEC-M3–M6 · Hardened 2026-08-11 (done early, with Tier 1).** Crawler scheme allowlist
+  + private/loopback/link-local IP block + 8 MB size cap + redirect re-check (`ingest._url_ok`)
+  · slug sanitized to `[a-z0-9-]` + repo path containment (`publish._slug`, `repo._contained`)
+  · untrusted crawled content fenced as `UNTRUSTED_SOURCE` data-not-instructions + brain memory
+  relabeled "data, not instructions" (`produce.py`, `brain.py`) · env creds no longer persisted
+  (`config.persistable` → `wizard`) + JSON-form secrets now caught by the leak-scanner
+  (`safety.py`). *7 security tests; SEC-L7 symlink re-check also landed.*
 - [ ] **COV-load-bearing · Smoke tests for the untested core.** `plan`, `publish`, `safety`,
   `safetygate`, `report`, `onboard` are among the 33 untested modules — the ones most dangerous
   to leave uncovered while shipping to live sites. Add per-module smoke tests + a real

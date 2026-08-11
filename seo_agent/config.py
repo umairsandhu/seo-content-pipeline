@@ -144,6 +144,15 @@ def ensure_keys(path="config.json"):
     return added
 
 
+_TRANSIENT = ("_dfs_login", "_dfs_password")   # env-sourced secrets injected by load(); never persist
+
+
+def persistable(cfg):
+    """A copy of cfg safe to write to config.json — strips env-sourced secrets that
+    load() injects, so wizard/scaffold can't leak them to disk (SEC-M6)."""
+    return {k: v for k, v in cfg.items() if k not in _TRANSIENT}
+
+
 def detect_gsc_credentials():
     """Zero-config: a service-account JSON dropped in the workspace is found by name."""
     for name in _CRED_GUESSES:

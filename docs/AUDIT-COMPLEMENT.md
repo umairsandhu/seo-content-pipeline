@@ -188,3 +188,24 @@ retrospective names).
 **H1 and H2 gate any public/agency launch.** The right way to clear them is a dedicated
 hardening pass — run `/security-review` on a branch and fix under test — not another
 document. This file is the map for that pass.
+
+---
+
+## ✅ Status update (2026-08-11): H1, H2, and M3–M6 fixed
+
+The hardening pass landed with the CHANGE-PLAN Tier-1 work — verified by 7 new security tests
+and a live curl smoke of the dashboard (no-token → 403, spoofed Host → 403, `/` → 303
+bootstrap):
+
+- **H1** — per-session token on every mutating POST + `/api/state`/`/doc`, Host-loopback
+  (rebinding) guard, CSP + `nosniff`, raw-`.html` passthrough removed. `serve.py`.
+- **H2** — email approvals require an allowlisted sender; empty allowlist disables them. `review.py`.
+- **M3** — `ingest._url_ok`: http(s)-only, blocks loopback/private/link-local + `file://`, size cap, redirect re-check.
+- **M4** — `publish._slug` sanitized; `repo._contained` blocks `../`/absolute file writes.
+- **M5** — untrusted crawled content fenced as data; brain memory relabeled non-instruction.
+- **M6** — `config.persistable` strips env creds before any config write; leak-scanner regex now matches JSON.
+- **L7** — `/doc` re-checks the *resolved* path against the whitelist (symlink escape closed).
+
+Still open (by-design LOW): L8 subprocess argv flag-confusion (no RCE — no `shell=True`),
+plus the coverage + doc-drift items, which are tracked in
+[CHANGE-PLAN](CHANGE-PLAN.md) Tier 2/3.
