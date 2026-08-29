@@ -1,4 +1,4 @@
-# seo-content-pipeline
+# Open SEO Site Doctor
 
 **The autonomous, closed-loop SEO operating system — runs entirely on your machine.** Point
 it at any domain and it takes you 0→100: fork-safe onboarding, a technical Site Doctor,
