@@ -359,14 +359,46 @@ def hreflang_audit(corpus, F):
                   "msg": f"{len(no_default)} pages set hreflang without an x-default (add one for unmatched locales)"})
 
 
+def _slug(u):
+    """Last path segment, trailing slash ignored ('/chart/SNGP/' → 'SNGP')."""
+    return u.rstrip("/").rsplit("/", 1)[-1] or u
+
+
+def template_family(titles):
+    """True when titles share a template but each names a different thing: after the words
+    common to all are removed, every title keeps a non-numeric word that no other title in
+    the group has ("Sui Northern Gas (SNGP) historical prices" vs "Sui Southern Gas (SSGC)
+    historical prices"; "Textile spinning" and "Textile weaving" may share "textile"). Pages that differ only by a number — "best tents 2024" vs
+    "best tents 2025" — are NOT a family: that is the cannibalization this check exists for."""
+    toks = [set(re.findall(r"[a-z0-9]+", (t or "").lower())) for t in titles]
+    if len(toks) < 2 or not all(toks):
+        return False
+    common = set.intersection(*toks)
+    rest = [{w for w in t - common if not w.isdigit()} for t in toks]
+    if not all(rest):
+        return False
+    return all(rest[i] - set().union(*(rest[:i] + rest[i + 1:])) for i in range(len(rest)))
+
+
 def cannibalization(F, corpus_path):
     try:
-        idx = Index(load_corpus(corpus_path))
+        corpus = load_corpus(corpus_path)
+        idx = Index(corpus)
     except Exception:
         return
-    for g in idx.clusters(0.55, space="title")[:12]:
+    title = {c.get("url"): c.get("title", "") for c in corpus}
+    shown = 0
+    for g in idx.clusters(0.55, space="title"):
+        if shown >= 12:
+            break
+        # A shared title template over different entities (one page per company, per
+        # sector, per index) is site structure, not two pages competing for one query —
+        # superx.pk (2026-10-20): 12 of 12 reported clusters were such families.
+        if template_family([title.get(m, "") for m in g["members"]]):
+            continue
+        shown += 1
         F.append({"cat": "duplicate", "sev": "med", "url": g["members"][0],
-                  "msg": "cannibalization cluster: " + " · ".join(m.rsplit("/", 1)[-1] for m in g["members"])})
+                  "msg": "cannibalization cluster: " + " · ".join(_slug(m) for m in g["members"])})
 
 
 def structured(corpus, F):
