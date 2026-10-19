@@ -50,6 +50,21 @@ def _url_ok(url):
 TAG = re.compile(r"<[^>]+>")
 WS = re.compile(r"\s+")
 SCRIPT = re.compile(r"<(script|style|noscript|svg)[^>]*>.*?</\1>", re.S | re.I)
+# `main_text` (LEARNINGS #30): the page's own content with its paragraph breaks kept. `text`
+# is one line that starts with the header and nav, so a check for an answer-first passage
+# could never pass on any site (superx.pk 2026-10-19: "missing on 1762/1762 pages").
+MAIN = re.compile(r"<main\b[^>]*>(.*?)</main>", re.S | re.I)
+CHROME = re.compile(r"<(header|nav|footer|aside)\b[^>]*>.*?</\1>", re.S | re.I)
+BLOCK = re.compile(r"</?(?:p|div|section|article|li|ul|ol|table|tr|h[1-6]|br|blockquote|dd|dt|"
+                   r"figure|figcaption|header|footer|main|aside|details|summary)\b[^>]*>", re.I)
+
+
+def _main_text(body):
+    m = MAIN.search(body)
+    part = m.group(1) if m else CHROME.sub(" ", body)
+    part = html.unescape(TAG.sub(" ", BLOCK.sub("\n\n", part)))
+    paras = (WS.sub(" ", x).strip() for x in re.split(r"\n\s*\n", part))
+    return "\n\n".join(x for x in paras if x)
 LOC = re.compile(r"<loc>\s*([^<\s]+)\s*</loc>", re.I)
 LASTMOD = re.compile(r"<lastmod>\s*([^<\s]+)\s*</lastmod>", re.I)
 URLBLOCK = re.compile(r"<url>(.*?)</url>", re.S | re.I)
@@ -204,6 +219,11 @@ def extract(url, doc):
     h1 = [html.unescape(TAG.sub("", h)).strip()
           for h in re.findall(r"<h1[^>]*>(.*?)</h1>", body, re.S | re.I)]
     h1 = [h for h in h1 if h]
+    # H3s, kept apart from `headings` (H1/H2) so nothing that reads that field changes:
+    # FAQ questions are usually H3, and question-form headings are what AI answers lift.
+    subheadings = [html.unescape(TAG.sub("", h)).strip()
+                   for h in re.findall(r"<h3[^>]*>(.*?)</h3>", body, re.S | re.I)]
+    subheadings = [h for h in subheadings if h][:40]
     text = WS.sub(" ", html.unescape(TAG.sub(" ", body))).strip()
     canonical = ""
     m = re.search(r'<link[^>]+rel=["\']canonical["\'][^>]*>', doc, re.I)
@@ -252,7 +272,8 @@ def extract(url, doc):
             "csr": csr, "lang": lang, "img_total": len(imgs), "img_alt": img_alt,
             "ext_links": ext_links, "author": author, "published": published,
             "modified": modified, "heading_levels": heading_levels,
-            "lists": lists, "tables": tables, "text": text[:12000]}
+            "lists": lists, "tables": tables, "text": text[:12000],
+            "main_text": _main_text(body)[:12000], "subheadings": subheadings}
 
 
 def robots_sitemaps(site):

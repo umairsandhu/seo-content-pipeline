@@ -1574,6 +1574,29 @@ class UrlStructure(unittest.TestCase):
         self.assertIn("url", audit.CATS)
         self.assertIn("url", audit.HINTS)
 
+class CitableText(unittest.TestCase):
+    """LEARNINGS #30: `text` is one line led by the nav, so answer-first could never pass."""
+    DOC = ("<html><head><title>OGDC share price</title></head><body>"
+           "<header><nav><a href='/'>Home</a> Markets Stocks Learn</nav></header><main>"
+           "<p>Home / Stocks</p><h1>OGDC share price</h1>"
+           "<p>As of 19 Oct 2026, the Oil &amp; Gas Development Company (OGDC) share price is Rs 299.47, "
+           "up 0.12% on the day. Over the last year it moved 31%, against 22% for the KSE-100 index. The "
+           "company pays a dividend each quarter, and four payouts fell in the last twelve months, worth "
+           "Rs 15.25 a share.</p><h2>What is the OGDC share price today?</h2><h3>Does OGDC pay a dividend?</h3>"
+           "</main><footer>Not investment advice. 2026</footer></body></html>")
+
+    def test_main_text_keeps_paragraphs_and_drops_chrome(self):
+        c = ingest.extract("https://x.com/stocks/OGDC/", self.DOC)
+        self.assertIn("\n\n", c["main_text"])
+        self.assertNotIn("Markets Stocks Learn", c["main_text"])
+        self.assertEqual(c["subheadings"], ["Does OGDC pay a dividend?"])
+        self.assertTrue(c["text"].startswith("OGDC share price"))  # `text` is unchanged
+
+    def test_answer_first_and_h3_questions_count(self):
+        sig = citability.score_page(ingest.extract("https://x.com/stocks/OGDC/", self.DOC))["signals"]
+        self.assertTrue(sig["answer_first"])
+        self.assertTrue(sig["qa_headings"])  # one H2 question + one H3 question
+
 
 if __name__ == "__main__":
     unittest.main()
