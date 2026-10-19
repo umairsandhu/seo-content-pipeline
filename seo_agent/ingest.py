@@ -55,13 +55,17 @@ SCRIPT = re.compile(r"<(script|style|noscript|svg)[^>]*>.*?</\1>", re.S | re.I)
 # could never pass on any site (superx.pk 2026-10-19: "missing on 1762/1762 pages").
 MAIN = re.compile(r"<main\b[^>]*>(.*?)</main>", re.S | re.I)
 CHROME = re.compile(r"<(header|nav|footer|aside)\b[^>]*>.*?</\1>", re.S | re.I)
+INNER_CHROME = re.compile(r"<(nav|aside)\b[^>]*>.*?</\1>", re.S | re.I)
 BLOCK = re.compile(r"</?(?:p|div|section|article|li|ul|ol|table|tr|h[1-6]|br|blockquote|dd|dt|"
                    r"figure|figcaption|header|footer|main|aside|details|summary)\b[^>]*>", re.I)
 
 
 def _main_text(body):
     m = MAIN.search(body)
-    part = m.group(1) if m else CHROME.sub(" ", body)
+    # Inside <main> too, an <aside> (a notice, a promo, a related list) or a <nav> (a
+    # breadcrumb, a pager) is not the page's passage — reader modes and answer engines drop
+    # them. <header>/<footer> inside main stay: an article's header holds its H1.
+    part = INNER_CHROME.sub(" ", m.group(1)) if m else CHROME.sub(" ", body)
     part = html.unescape(TAG.sub(" ", BLOCK.sub("\n\n", part)))
     paras = (WS.sub(" ", x).strip() for x in re.split(r"\n\s*\n", part))
     return "\n\n".join(x for x in paras if x)

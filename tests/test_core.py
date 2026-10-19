@@ -1597,6 +1597,15 @@ class CitableText(unittest.TestCase):
         self.assertTrue(sig["answer_first"])
         self.assertTrue(sig["qa_headings"])  # one H2 question + one H3 question
 
+    def test_an_aside_inside_main_is_not_the_passage(self):
+        doc = self.DOC.replace("<p>Home / Stocks</p>",
+                               "<aside><p>The app has not opened yet. This article describes how it works, so "
+                               "you know what you are joining, and the market data on this site is live today "
+                               "and free, and the app follows soon after that for everyone.</p></aside>")
+        c = ingest.extract("https://x.com/help/a/", doc)
+        self.assertNotIn("has not opened yet", c["main_text"])
+        self.assertTrue(c["main_text"].split("\n\n")[1].startswith("As of 19 Oct 2026"))
+
 
 if __name__ == "__main__":
     unittest.main()
