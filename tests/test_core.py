@@ -12,7 +12,7 @@ from pathlib import Path
 
 from seo_agent import (authority_flow, autonomy, citability, consult, crew, ctr_curves, entity,
                        gsc_csv, ingest, intl, jobs, journey, local, notify, personas, publish,
-                       safetygate, site_control, store, wizard)
+                       safetygate, site_control, store, urls, wizard)
 
 CORPUS = [
     {"url": "https://x.com/", "title": "Home", "description": "d", "headings": ["Home"],
@@ -1538,6 +1538,41 @@ class RequirementsLoop(unittest.TestCase):
         names = [t[0] for t in mcp_server.TOOLS]
         for n in ("brain", "cms", "deliver", "feedback", "learn"):
             self.assertIn(n, names)
+
+class UrlStructure(unittest.TestCase):
+    """The miss of 2026-10-19: /sectors/0801/ passed a full audit while its title said
+    "Automobile Assembler". Probing is off: no network in tests."""
+
+    def page(self, url, title, **kw):
+        return {"url": url, "title": title, "h1": [title], "status": 200, "robots": "", **kw}
+
+    def test_opaque_number_is_one_finding_per_template(self):
+        c = [self.page("https://x.com/sectors/0801/", "Automobile Assembler stocks"),
+             self.page("https://x.com/sectors/0804/", "Cement stocks")]
+        f = [x for x in urls.check({}, c, probe=False) if x["sev"] == "med"]
+        self.assertEqual(len(f), 1)
+        self.assertIn("2 page(s) at /sectors/{id}/", f[0]["msg"])
+        self.assertIn("automobile-assembler", f[0]["msg"])
+
+    def test_a_number_the_title_carries_is_a_name(self):
+        c = [self.page("https://x.com/stocks/786/", "786 Investments share price")]
+        self.assertFalse([x for x in urls.check({}, c, probe=False) if "number" in x["msg"]])
+
+    def test_capitals_year_and_clean_slugs(self):
+        c = [self.page("https://x.com/stocks/OGDC/", "OGDC share price"),
+             self.page("https://x.com/blog/best-yield-stocks-2026/", "Best yield stocks"),
+             self.page("https://x.com/blog/how-ipos-work/", "How an IPO works"),
+             self.page("https://x.com/blog/old-thing/", "Noindex page", robots="noindex")]
+        msgs = [x["msg"] for x in urls.check({}, c, probe=False)]
+        self.assertTrue(any("capitals" in m for m in msgs))
+        self.assertTrue(any("year the title does not" in m for m in msgs))
+        self.assertFalse(any("shares no word" in m for m in msgs))  # ipos ~ ipo
+        self.assertEqual(len(msgs), 2)  # the noindex page is not judged
+
+    def test_the_audit_runs_it(self):
+        from seo_agent import audit
+        self.assertIn("url", audit.CATS)
+        self.assertIn("url", audit.HINTS)
 
 
 if __name__ == "__main__":

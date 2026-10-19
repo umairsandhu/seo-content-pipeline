@@ -23,7 +23,7 @@ DEF = {"title_min": 30, "title_max": 60, "meta_min": 70, "meta_max": 160,
        "thin_words": 300, "min_inbound": 3, "max_depth": 4}
 ISO = re.compile(r"^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}.*)?$")
 CATS = ["sitemap", "crawl", "index", "indexability", "meta", "freshness", "mobile",
-        "headings", "canonical", "duplicate", "content", "links", "structured", "a11y"]
+        "headings", "canonical", "url", "duplicate", "content", "links", "structured", "a11y"]
 
 # Sitebulb-style hints: per category, WHY it matters + HOW to fix — so every finding
 # in the report teaches, not just flags.
@@ -48,6 +48,10 @@ HINTS = {
                  "one H1, logical H2/H3 nesting, question-form headings where they match PAA"),
     "canonical": ("wrong canonicals silently deindex the pages you care about",
                   "self-canonical by default; cross-canonicals only for true duplicates"),
+    "url": ("the address is read by the searcher in the result and the share, and by engines as a "
+            "relevance hint; a number names nothing, and a variant that 404s loses the visit",
+            "slug from the page's name (lowercase, hyphens), 301 every old or variant form in ONE hop "
+            "to the slashed URL, both slash forms where the host matches paths exactly (`urls.py`)"),
     "duplicate": ("near-duplicates split ranking signals across URLs (cannibalization)",
                   "`consolidate` — merge + 301 the weaker page into the stronger"),
     "content": ("thin pages drag sitewide quality scores (Google's scaled-content policies)",
@@ -444,6 +448,11 @@ def report(cfg, corpus_path="corpus.json"):
     except Exception:
         pass
     canonicals(corpus, F)
+    try:  # URL structure: opaque numeric slugs, case and slash variants (bounded live probe)
+        from . import urls
+        F.extend(urls.check(cfg, corpus))
+    except Exception:
+        pass
     content_depth(corpus, F, t)
     redirects_broken(corpus, F)
     hreflang_audit(corpus, F)
