@@ -1607,5 +1607,24 @@ class CitableText(unittest.TestCase):
         self.assertTrue(c["main_text"].split("\n\n")[1].startswith("As of 19 Oct 2026"))
 
 
+class TemplateFamily(unittest.TestCase):
+    def test_one_page_per_company_is_a_family(self):
+        from seo_agent import audit
+        self.assertTrue(audit.template_family([
+            "Sui Northern Gas Pipelines (SNGP) historical prices & returns · SuperX",
+            "Sui Southern Gas Company (SSGC) historical prices & returns · SuperX"]))
+        self.assertTrue(audit.template_family([
+            "Textile spinning stocks on PSX", "Textile weaving stocks on PSX", "Cement stocks on PSX"]))
+
+    def test_a_year_variant_is_still_cannibalization(self):
+        from seo_agent import audit
+        self.assertFalse(audit.template_family(["Best tents 2024", "Best tents 2025"]))
+        self.assertFalse(audit.template_family(["How to pick a tent", "How to pick a tent"]))
+
+    def test_slug_ignores_the_trailing_slash(self):
+        from seo_agent import audit
+        self.assertEqual(audit._slug("https://x.com/chart/SNGP/"), "SNGP")
+
+
 if __name__ == "__main__":
     unittest.main()
