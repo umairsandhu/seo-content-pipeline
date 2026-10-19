@@ -210,6 +210,16 @@ finding) and feeds `plan`/`autopilot` automatically. General rule: whenever a pe
 grows a diagnostic, ask "should the audit sweep this?" — and when a human catches a miss,
 encode the check the same day.
 
+**30. Score the passage a model would read, not the page dump.** `ingest` stored `text` as one
+whitespace-collapsed line that begins with the header and nav, and kept only H1/H2 headings. So
+`citability`'s answer-first check could never pass (superx.pk, 2026-10-19: "missing on 1762/1762",
+which an earlier run had written off as a false positive instead of fixing), and FAQ questions in H3
+never counted. Encoded: `main_text` (the `<main>` element, or the body without header/nav/footer/
+aside, with block boundaries kept as paragraph breaks) and `subheadings` (H3); `citability` reads
+them and judges the first three passages of 20+ words. `text` and `headings` are unchanged, so the
+30 modules that read them are unaffected. Rule: a check that fails on 100% of pages is a parser bug
+until a live page proves otherwise — fix the tool, don't footnote it.
+
 **29. The address is content too — audit the path, not only the page.** On superx.pk
 (2026-10-19) a 1,762-page audit came back with 0 high findings while 38 sector pages lived at
 `/sectors/0801/`, a PSX code, under titles like "Automobile Assembler". Nothing read the path. The

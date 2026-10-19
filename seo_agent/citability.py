@@ -26,12 +26,14 @@ def _passages(text, lo=40, hi=170):
 
 
 def score_page(c):
-    text = c.get("text", "") or ""
-    heads = c.get("headings", []) or []
+    text = c.get("main_text") or c.get("text", "") or ""   # main_text keeps paragraphs (#30)
+    heads = (c.get("headings", []) or []) + (c.get("subheadings", []) or [])
     words = c.get("words") or len(_WORD.findall(text))
     sig = {}
     # answer-first: an early passage sits in the 40–170-word band
-    early = _passages(text)[:3]
+    # the first three passages of prose: a breadcrumb, an eyebrow label or the H1 is not a
+    # passage, and with paragraph breaks kept they come first (#30)
+    early = [p for p in _passages(text) if p[1] >= 20][:3]
     sig["answer_first"] = any(40 <= n <= 190 for _, n in early) if early else False
     # question headings mapped to content
     qh = sum(1 for h in heads if _Q.match(h) or h.strip().endswith("?"))
