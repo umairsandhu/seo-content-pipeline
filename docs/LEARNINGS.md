@@ -210,6 +210,18 @@ finding) and feeds `plan`/`autopilot` automatically. General rule: whenever a pe
 grows a diagnostic, ask "should the audit sweep this?" — and when a human catches a miss,
 encode the check the same day.
 
+**29. The address is content too — audit the path, not only the page.** On superx.pk
+(2026-10-19) a 1,762-page audit came back with 0 high findings while 38 sector pages lived at
+`/sectors/0801/`, a PSX code, under titles like "Automobile Assembler". Nothing read the path. The
+operator found it by looking. The same day a manual check found the rest of the class: every
+lowercase ticker (`/stocks/ogdc/`) a 404 while `/stocks/OGDC/` ranked, and a host (Cloudflare
+Pages) whose `_redirects` matched `/a` but not `/a/`, so a rename rule fired for one form and the
+other 404ed. Encoded: `urls.py`, a `url` category in `audit`, grouped by template, with a bounded
+live probe of the lowercase and other-slash forms. Rules: a number is opaque only when the page's
+own name does not carry it (ticker 786 IS the name); move to a slug from the name with ONE 301 to
+the slashed URL; write each redirect source in both slash forms; keep slugs committed, not derived
+from live data, or a renamed record silently moves its page.
+
 **22. One CMS registry, every surface.** `cms_extra.REQUIREMENTS` is the single source of
 truth for every CMS's env vars + config keys; integrations, `.env.example`, `preflight`
 Stage D, and the wizard all generate from it. When a client's CMS has no public write API

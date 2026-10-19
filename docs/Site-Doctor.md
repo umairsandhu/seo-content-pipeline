@@ -25,6 +25,12 @@ speed/DataForSEO layer in when configured. Fixes are **proposed, not applied**.
 - **Metadata** — title/meta presence, length (title >60, meta >160), and **duplicates**.
 - **H1** — presence, uniqueness, one-per-page; duplicate H1 across pages.
 - **Canonical** — present, self vs cross (cross-canonical may de-index the page).
+- **URL structure** (`urls.py`) — does the address name the page? Opaque numeric segments the title
+  does not carry (`/sectors/0801/` for "Automobile Assembler"), capitals in the path (the lowercase
+  form is probed: a 404 is medium), the other trailing-slash form (probed: some hosts match redirect
+  rules exactly), a year in the slug the title lacks, underscores, over-long slugs, query strings, and
+  slugs that share no word with the title. Grouped by URL template. `url_audit.probe: false` turns the
+  live probes off.
 - **Content depth** — thin pages (< configurable word thresholds).
 - **Cannibalization** — title-space TF-IDF clusters (also see `consolidate` for keep/redirect).
 - **Structured data** — JSON-LD coverage across indexable pages (generate with `schema`).
