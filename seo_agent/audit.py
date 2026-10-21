@@ -146,8 +146,15 @@ def _root_disallowers(txt):
     return blocked
 
 
+def _origin(cfg):
+    """scheme://host of the site. robots.txt and llms.txt live at the host root, even
+    when the audited site is a sub-path such as https://example.com/terminal."""
+    u = urlparse((cfg.get("site") or "").strip())
+    return f"{u.scheme}://{u.netloc}" if u.scheme and u.netloc else (cfg.get("site") or "").rstrip("/")
+
+
 def robots_txt(cfg, F):
-    site = (cfg.get("site") or "").rstrip("/")
+    site = _origin(cfg)
     try:
         txt = ingest._get(site + "/robots.txt")
     except Exception:
@@ -180,7 +187,7 @@ def js_render(corpus, F):
 
 
 def llms_txt(cfg, F):
-    site = (cfg.get("site") or "").rstrip("/")
+    site = _origin(cfg)
     try:
         ingest._get(site + "/llms.txt")
         return {"exists": True}
