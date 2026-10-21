@@ -242,3 +242,9 @@ honest "paste this in" beats a connector that silently can't ship.
 
 _Every new site teaches the tool something. When a run surprises you, encode the fix in code
 **and** add the rule here. The learning loop above makes that automatic for outcomes._
+
+**31. robots.txt and llms.txt belong to the host, not to the audited path.** On 2026-10-21 the
+superx-charts workspace (site `https://superx.pk/terminal`) reported a HIGH "robots.txt not
+reachable": the tool fetched `/terminal/robots.txt` (404) while `https://superx.pk/robots.txt` was
+200. A sub-path site also got a false "no llms.txt". Encoded: `audit._origin()` returns
+scheme://host and both checks use it. Rule: a root-level file is fetched from the origin.

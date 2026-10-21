@@ -1625,6 +1625,21 @@ class TemplateFamily(unittest.TestCase):
         from seo_agent import audit
         self.assertEqual(audit._slug("https://x.com/chart/SNGP/"), "SNGP")
 
+    def test_robots_and_llms_are_fetched_from_the_host_root(self):
+        from seo_agent import audit, ingest
+        seen = []
+        orig = ingest._get
+        ingest._get = lambda u, *a, **k: seen.append(u) or "Sitemap: x"
+        try:
+            F = []
+            cfg = {"site": "https://superx.pk/terminal"}
+            audit.robots_txt(cfg, F)
+            audit.llms_txt(cfg, F)
+        finally:
+            ingest._get = orig
+        self.assertEqual(seen, ["https://superx.pk/robots.txt", "https://superx.pk/llms.txt"])
+        self.assertEqual(audit._origin({"site": "https://x.com/"}), "https://x.com")
+
 
 if __name__ == "__main__":
     unittest.main()
