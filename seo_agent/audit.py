@@ -239,11 +239,16 @@ def freshness(corpus, F, year=None):
     import datetime
     year = year or datetime.date.today().year
     pat = re.compile(r"\b(20[123]\d)\b")
+    # A year that dates a fact ("last traded Sept 2024", "delisted 2023", "since 2019") is
+    # true and stays true; only a year that dates the page itself is stale (LEARNINGS #32).
+    fact = re.compile(r"\b(?:last\s+trad(?:ed|e)|delisted|suspended|merged|founded|established|since)"
+                      r"\b[^|·:–—]{0,20}?\b20[123]\d\b", re.I)
     stale_body = []
     for c in corpus:
         if not _indexable(c):
             continue
         head = (c.get("title") or "") + " " + " ".join(c.get("h1") or [])
+        head = fact.sub(" ", head)
         yrs = [int(y) for y in pat.findall(head)]
         if yrs and max(yrs) < year:
             F.append({"cat": "freshness", "sev": "med", "url": c["url"],

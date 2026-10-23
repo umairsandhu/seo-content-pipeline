@@ -248,3 +248,9 @@ superx-charts workspace (site `https://superx.pk/terminal`) reported a HIGH "rob
 reachable": the tool fetched `/terminal/robots.txt` (404) while `https://superx.pk/robots.txt` was
 200. A sub-path site also got a false "no llms.txt". Encoded: `audit._origin()` returns
 scheme://host and both checks use it. Rule: a root-level file is fetched from the origin.
+
+**32. A year that dates a fact is not a stale year.** On 2026-10-23 the superx audit rose from 4 to
+164 mediums: 160 stock pages with titles like "last traded Sept 2024", which superx.pk wrote on
+purpose (Phase 641) and which stay true. Encoded: `audit.freshness` removes "last traded / delisted /
+suspended / merged / founded / established / since" plus a year before it looks for stale years.
+A title like "Best of 2024" is still flagged.

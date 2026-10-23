@@ -626,6 +626,19 @@ class Freshness(unittest.TestCase):
     """LEARNINGS #23: stale year mentions must surface in the SITEWIDE audit, not
     only in the per-page refresh packet."""
 
+    def test_dated_fact_year_not_flagged(self):
+        from seo_agent import audit
+        corpus = [
+            {"url": "https://d.com/a", "status": 200, "title": "Agro Allianz (AAL): last traded Sept 2024 · SuperX",
+             "h1": ["Agro Allianz"], "text": "x"},
+            {"url": "https://d.com/b", "status": 200, "title": "Top 10 Dialers: since 2019 and best of 2024",
+             "h1": [], "text": "x"},
+        ]
+        F = []
+        audit.freshness(corpus, F, year=2026)
+        urls = [f["url"] for f in F if f["sev"] == "med"]
+        self.assertEqual(urls, ["https://d.com/b"])               # /a dates a fact; /b still has 2024
+
     def test_stale_title_year_flagged(self):
         from seo_agent import audit
         corpus = [
