@@ -254,3 +254,9 @@ scheme://host and both checks use it. Rule: a root-level file is fetched from th
 purpose (Phase 641) and which stay true. Encoded: `audit.freshness` removes "last traded / delisted /
 suspended / merged / founded / established / since" plus a year before it looks for stale years.
 A title like "Best of 2024" is still flagged.
+
+**33. A trailing slash must not empty a page's name.** On 2026-11-01 the superx `citability` report listed
+its 15 lowest pages with blank names: every URL ends with `/`, and `url.rsplit('/',1)[-1]` is then `""`.
+`plan` and `sitediff` used the same expression. Encoded: `citability` prints the URL path (the last
+segment alone would also hide that `/stocks/OGDC/` and `/dividends/OGDC/` differ); `plan` and `sitediff`
+strip the slash first. Rule: take the last segment of `url.rstrip("/")`.

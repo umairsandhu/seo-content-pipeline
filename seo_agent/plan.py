@@ -183,11 +183,11 @@ def render_md(cfg, actions):
         return "\n".join(L + ["_No actions — run `ingest` + `audit` first, and wire GSC/DataForSEO._"])
     L += ["## This week (top 10)", "| # | do | target | why | effort | cmd |", "|--:|---|---|---|:--:|---|"]
     for i, x in enumerate(actions[:10], 1):
-        tgt = x["target"].rsplit("/", 1)[-1] or x["target"]
+        tgt = x["target"].rstrip("/").rsplit("/", 1)[-1] or x["target"]
         L.append(f"| {i} | **{x['kind']}** | {tgt[:40]} | {x['why'][:60]} | {x['effort']} | `{x['cmd']}` |")
     rest = actions[10:40]
     if rest:
         L += ["", f"## Backlog ({len(actions)-10} more)"]
         for x in rest:
-            L.append(f"- {x['kind']} — {x['target'].rsplit('/',1)[-1] or x['target']} ({x['why'][:50]})")
+            L.append(f"- {x['kind']} — {x['target'].rstrip('/').rsplit('/', 1)[-1] or x['target']} ({x['why'][:50]})")
     return "\n".join(L)

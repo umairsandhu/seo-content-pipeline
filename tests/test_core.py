@@ -89,6 +89,13 @@ class Citability(unittest.TestCase):
         self.assertTrue(0 <= r["avg"] <= 100)
         self.assertEqual(r["pages"], 3)
 
+    def test_lowest_pages_are_named_when_url_ends_with_slash(self):
+        r = {"pages": 1, "avg": 40, "missing": {"answer_first": 1},
+             "lowest": [{"url": "https://x.com/stocks/OGDC/", "score": 40,
+                         "signals": {"answer_first": False}}]}
+        md = citability.render_md(CFG, r)
+        self.assertIn("/stocks/OGDC/", md)
+
 
 class CtrCurves(unittest.TestCase):
     def test_generic_fallback(self):
