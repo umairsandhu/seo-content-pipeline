@@ -260,3 +260,28 @@ its 15 lowest pages with blank names: every URL ends with `/`, and `url.rsplit('
 `plan` and `sitediff` used the same expression. Encoded: `citability` prints the URL path (the last
 segment alone would also hide that `/stocks/OGDC/` and `/dividends/OGDC/` differ); `plan` and `sitediff`
 strip the slash first. Rule: take the last segment of `url.rstrip("/")`.
+
+**34. A cliff lives in the daily numbers — compare days, not two 28-day aggregates.** On 2026-11-03 the
+Search Console daily impressions for superx.pk read 711 (27 Oct), then 52, 23, 11, 4 (31 Oct): a 97-99%
+fall in every path section on one day. `diagnose` printed "Clicks +0% (23 → 23)" and one decaying query,
+because it compared the last two `gsc_queries` snapshots, which are 28-day sums taken after the fall had
+already filled both windows. The operator saw the cliff in the Search Console chart. Encoded: `cliff.py`
+reads the DAILY series (`fetch`: at most 8 API calls — totals by `date`, the page list for its top-level
+sections, one `date` query per top section — stored in `history/gsc_daily/`, read back when the API is
+unreachable). `detect` scans every split day and keeps the one where the median of the next 3-5 days falls
+furthest below the median of the 7 days before it, but only when every day after the split is below
+every day before it, then pins the first day it happened. A fall of 50% or more is high confidence and
+goes to position 1; 30-50% is medium. `sections_split` runs the same step per section: all material
+sections fell is site-wide, some held is template-specific (look at that template's deploys, noindex,
+canonical, redirects). A listed Google update starting up to 16 days before the step is named; with none,
+the next step is the site-level list (Manual actions, Pages/indexing, Crawl stats, large page additions,
+YMYL/E-E-A-T). Rules: (1) a window aggregate cannot show a step, so every "why did it drop" check starts
+from the daily series; (2) Search Console omits days with no data, and its latest 2-3 days are missing,
+so the series ends at the last day returned and a missing day inside it counts as zero; (3) a false
+alarm is as costly as a miss, so the detector is tested against flat noise with weekend dips and a
+gradual slide (a 3000-series fuzz run gave 0 false alarms at 10% daily noise and 11 of 698 at 40%);
+(4) `diagnose` with no GSC says plainly that it cannot see a cliff. `algo.UPDATES` was also 77+ days stale
+that day: the Search Status feed lists 6 updates the tool did not know (to the September 2026 spam update,
+2026-09-24 → 10-08). `radar` flags that; run it, and append what the feed lists. A longer list also widens the ledger's
+"confounded" windows (±5 days of an update): the `demo` workspace now slides its history clear of them,
+and two test fixtures moved to 2026-02-16.

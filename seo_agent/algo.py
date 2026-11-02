@@ -17,9 +17,14 @@ UPDATES = [
     ("2024-12-19", "December 2024 Spam Update"),
     ("2025-03-13", "March 2025 Core Update"),
     ("2025-06-30", "June 2025 Core Update"),
-    ("2026-03-27", "March 2026 Core Update"),
+    ("2025-12-11", "December 2025 Core Update"),    # completed 2025-12-29
+    ("2026-02-05", "February 2026 Discover Update"),  # completed 2026-02-27 (Discover only)
+    ("2026-03-24", "March 2026 Spam Update"),       # completed 2026-03-25
+    ("2026-03-27", "March 2026 Core Update"),       # completed 2026-04-08
     ("2026-05-21", "May 2026 Core Update"),        # completed 2026-06-02
-    ("2026-06-01", "June 2026 Spam Update"),        # verify exact date on review
+    ("2026-06-24", "June 2026 Spam Update"),        # completed 2026-06-26; Search Status dashboard 2026-11-03 (was a 06-01 placeholder)
+    ("2026-08-18", "August 2026 Spam Update"),      # completed 2026-08-21
+    ("2026-09-24", "September 2026 Spam Update"),   # completed 2026-10-08
     # Append new confirmed updates here each monthly run.
     # Authoritative feed: https://status.search.google.com/summary — `radar` flags staleness.
 ]

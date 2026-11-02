@@ -72,7 +72,7 @@ python -m seo_agent sitediff                # what changed on YOUR site between 
 python -m seo_agent zeroclick               # zero-click KPIs: impressions-vs-clicks alligator, branded-demand trend, shipped-vs-moved correlation
 python -m seo_agent repurpose <url>         # one article → no-link LinkedIn post + X thread + newsletter section + quotable stat (voice-aware)
 python -m seo_agent tip                     # today's sourced SEO tidbit (auto-appears once/day after commands + on the dashboard; "tips": false to disable)
-python -m seo_agent diagnose                # "why is traffic down?" — ranked differential: self-inflicted / Google update / zero-click erosion / decay / anomalies
+python -m seo_agent diagnose                # "why is traffic down?" — ranked differential: a daily-series CLIFF first, then self-inflicted / Google update / zero-click erosion / decay / anomalies
 python -m seo_agent agent [--background|--install|--status|--stop]  # ALWAYS-ON mode: heartbeat + instant alerts + daily cycle + weekly report (+ weekly SF pull if agent.sf_crawl). --background detaches; --install = launchd, survives reboots
 python -m seo_agent profile [--apply]       # auto-understand the site: platform fingerprint, CSR detection (auto-enables JS rendering), scale, robots — fixes the crawler's capabilities
 python -m seo_agent interview               # 6-question business interview → CLIENT.md + brain seeds (strategist/writer know the business day one)
