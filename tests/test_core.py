@@ -64,6 +64,48 @@ class MetaParsing(unittest.TestCase):
         self.assertEqual(m["published"], "2026-01-02")
         self.assertEqual(m["author"], "Jane Doe")
 
+    @staticmethod
+    def _ld(*nodes):
+        import json as _json
+        return '<script type="application/ld+json">' + _json.dumps({"@graph": list(nodes)}) + "</script>"
+
+    def test_webpage_and_dataset_dates_count(self):
+        """superx.pk data pages: WebPage (+ Dataset on chart pages), no Article node."""
+        m = ingest._jsonld_meta(self._ld({"@type": "WebPage", "dateModified": "2026-11-02"}))
+        self.assertEqual(m["modified"], "2026-11-02")
+        m = ingest._jsonld_meta(self._ld({"@type": ["Dataset"], "datePublished": "2026-10-01"}))
+        self.assertEqual(m["published"], "2026-10-01")
+        c = ingest.extract("https://x.com/chart/OGDC/", "<html><head>" + self._ld(
+            {"@type": "WebPage", "dateModified": "2026-11-02"}) + "</head></html>")
+        self.assertEqual(c["modified"], "2026-11-02")
+
+    def test_author_and_publisher_given_as_id_reference_count(self):
+        org = {"@type": "Organization", "@id": "https://x.com/#organization", "name": "SuperX"}
+        page = {"@type": "WebPage", "dateModified": "2026-11-02",
+                "author": {"@id": "https://x.com/#organization"},
+                "publisher": {"@id": "https://x.com/#organization"}}
+        m = ingest._jsonld_meta(self._ld(org, page))
+        self.assertEqual((m["author"], m["publisher"]), ("SuperX", "SuperX"))
+        # the referenced node is not on the page: the reference itself is still an attribution
+        m = ingest._jsonld_meta(self._ld(page))
+        self.assertEqual(m["author"], "https://x.com/#organization")
+        # an inline Organization counts too
+        m = ingest._jsonld_meta(self._ld({"@type": "WebPage", "author": {"@type": "Organization", "name": "Acme"}}))
+        self.assertEqual(m["author"], "Acme")
+
+    def test_article_wins_over_webpage_and_stays_strict_when_nothing_is_there(self):
+        m = ingest._jsonld_meta(self._ld(
+            {"@type": "WebPage", "dateModified": "2026-01-01", "author": {"@id": "#o"}},
+            {"@type": "BlogPosting", "dateModified": "2026-11-02", "author": {"name": "Jane"}}))
+        self.assertEqual((m["modified"], m["author"]), ("2026-11-02", "Jane"))
+        empty = ingest._jsonld_meta(self._ld(
+            {"@type": "WebPage", "name": "No date, no author"},
+            {"@type": "Organization", "name": "SuperX", "dateModified": "2026-11-02"},
+            {"@type": "BreadcrumbList"}))
+        self.assertEqual(empty, {"published": "", "modified": "", "author": "", "publisher": ""})
+        none = ingest.extract("https://x.com/a/", "<html><head><title>t</title></head></html>")
+        self.assertFalse(none["author"] or none["published"] or none["modified"])
+
 
 class SafetyGate(unittest.TestCase):
     def test_thin_blocked(self):
@@ -1594,6 +1636,20 @@ class UrlStructure(unittest.TestCase):
         self.assertTrue(any("year the title does not" in m for m in msgs))
         self.assertFalse(any("shares no word" in m for m in msgs))  # ipos ~ ipo
         self.assertEqual(len(msgs), 2)  # the noindex page is not judged
+
+    def test_an_urdu_title_is_not_compared_with_a_romanised_slug(self):
+        ur = "شیئر مارکیٹ کیا ہے؟ پاکستان میں شیئرز کا آسان تعارف"
+        c = [self.page("https://x.com/blog/share-market-kya-hai/", ur + " · SuperX", lang="ur-pk"),
+             # no lang stored: the script of the title decides
+             self.page("https://x.com/blog/share-market-kya-hai/", ur)]
+        self.assertFalse([x for x in urls.check({}, c, probe=False) if "shares no word" in x["msg"]])
+
+    def test_an_english_page_with_a_mismatched_slug_is_still_flagged(self):
+        c = [self.page("https://x.com/blog/old-budget-notes/", "How dividends are taxed in Pakistan",
+                       lang="en-pk"),
+             self.page("https://x.com/blog/old-budget-notes/", "How dividends are taxed in Pakistan")]
+        msgs = [x["msg"] for x in urls.check({}, c, probe=False)]
+        self.assertTrue(any("2 page(s): slug shares no word" in m for m in msgs), msgs)
 
     def test_the_audit_runs_it(self):
         from seo_agent import audit
