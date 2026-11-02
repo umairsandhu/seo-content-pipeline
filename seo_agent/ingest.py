@@ -154,8 +154,12 @@ def _meta_content(doc, *keys, attrs=("name", "property")):
     many Wix/Squarespace themes) that emit `content=...` BEFORE `name=...`."""
     want = {k.lower() for k in keys}
     for tag in re.findall(r'<meta\b[^>]*>', doc, re.I):
-        kv = {m.group(1).lower(): m.group(2)
-              for m in re.finditer(r'([A-Za-z][\w:-]*)\s*=\s*["\'](.*?)["\']', tag)}
+        # The value ends at the SAME quote it opened with. `["'](.*?)["']` closed a
+        # double-quoted value at its first apostrophe: content="Today's nisab…"
+        # read as "Today", so two pages whose descriptions both began "Today's"
+        # were reported as one duplicate description (superx.pk, 3 Nov 2026).
+        kv = {m.group(1).lower(): m.group(3)
+              for m in re.finditer(r'([A-Za-z][\w:-]*)\s*=\s*(["\'])(.*?)\2', tag)}
         key = next((kv[a] for a in attrs if a in kv), None)
         if key and key.lower() in want and kv.get("content"):
             return html.unescape(kv["content"]).strip()

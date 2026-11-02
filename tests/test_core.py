@@ -50,6 +50,12 @@ class MetaParsing(unittest.TestCase):
         html2 = '<meta name="description" content="second">'
         self.assertEqual(ingest._meta_content(html2, "description"), "second")
 
+    def test_apostrophe_inside_double_quotes(self):
+        html = '<meta name="description" content="Today\'s nisab is Rs 268,361.">'
+        self.assertEqual(ingest._meta_content(html, "description"), "Today's nisab is Rs 268,361.")
+        html2 = "<meta name='description' content='He said \"hi\" twice'>"
+        self.assertEqual(ingest._meta_content(html2, "description"), 'He said "hi" twice')
+
     def test_jsonld_dates_author(self):
         doc = ('<script type="application/ld+json">'
                '{"@graph":[{"@type":"BlogPosting","datePublished":"2026-01-02",'
