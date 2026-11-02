@@ -113,9 +113,9 @@ def render_md(cfg, d=None):
     else:
         L.append("_No on-page changes between the two crawls._")
     if d["added"]:
-        L += ["", "**New pages:** " + ", ".join(u.rsplit("/", 1)[-1] for u in d["added"][:10])]
+        L += ["", "**New pages:** " + ", ".join((u.rstrip("/").rsplit("/", 1)[-1] or u) for u in d["added"][:10])]
     if d["removed"]:
-        L += ["", "**Removed pages:** " + ", ".join(u.rsplit("/", 1)[-1] for u in d["removed"][:10])]
+        L += ["", "**Removed pages:** " + ", ".join((u.rstrip("/").rsplit("/", 1)[-1] or u) for u in d["removed"][:10])]
     L += ["", "_Runs from the crawl history (`ingest` keeps the previous corpus). Daily cron + "
           "`anomaly --alert` = 24/7 site monitoring, locally. Run after every deploy._"]
     return "\n".join(L)

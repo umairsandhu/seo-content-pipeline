@@ -12,6 +12,7 @@ that make a passage quotable:
   · self-contained sentences (not too long, low pronoun-anaphora)
 Site-agnostic; no brand or vertical assumptions."""
 import re
+from urllib.parse import urlparse
 
 from .index import load_corpus
 
@@ -78,7 +79,8 @@ def render_md(cfg, r):
     L += ["", "## Lowest-citability pages"]
     for p in r["lowest"][:15]:
         miss = ", ".join(k for k, v in p["signals"].items() if not v)
-        L.append(f"- {p['score']}/100 — {p['url'].rsplit('/',1)[-1]}  (fix: {miss})")
+        # the path, not the last segment: a trailing slash left the name empty (LEARNINGS #33)
+        L.append(f"- {p['score']}/100 — {urlparse(p['url'] or '').path or p['url']}  (fix: {miss})")
     L.append("\n_AI answers cite 40–170-word answer-first passages, not whole pages. "
              "Front-load a direct answer, use question headings, add a list/table, cite a number._")
     return "\n".join(L)
