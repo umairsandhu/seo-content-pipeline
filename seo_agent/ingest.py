@@ -188,31 +188,66 @@ def _jsonld_nodes(doc):
 
 
 _ARTICLE_TYPES = {"article", "blogposting", "newsarticle", "techarticle", "liveblogposting"}
+# Other schema.org CreativeWork types that describe the page itself. Data sites (superx.pk,
+# 3 Nov 2026) carry WebPage + Dataset nodes with dateModified and an author/publisher given
+# as an {"@id": ...} reference, and no Article node: reading Article only reported ~1,700
+# dated, attributed pages as having no date and no author.
+_PAGE_TYPES = {"webpage", "aboutpage", "collectionpage", "itempage", "profilepage", "faqpage",
+               "qapage", "contactpage", "searchresultspage", "medicalwebpage", "dataset",
+               "datacatalog", "creativework", "report", "howto", "course"}
+
+
+def _ld_types(n):
+    t = n.get("@type", "")
+    return {x.lower() for x in (t if isinstance(t, list) else [t]) if isinstance(x, str)}
+
+
+def _ld_agent(val, by_id, _depth=0):
+    """Name of an author/publisher value: a string, a Person/Organization object, a list of
+    them, or an {"@id": ...} reference (resolved to its node's name when the page carries
+    that node, else the @id itself - a reference to an entity IS an attribution)."""
+    if isinstance(val, list):
+        for v in val:
+            r = _ld_agent(v, by_id, _depth)
+            if r:
+                return r
+        return ""
+    if isinstance(val, str):
+        return val.strip()
+    if not isinstance(val, dict):
+        return ""
+    name = val.get("name")
+    if isinstance(name, str) and name.strip():
+        return name.strip()
+    ref = val.get("@id")
+    if isinstance(ref, str) and ref.strip():
+        node = by_id.get(ref.strip())
+        if node is not None and node is not val and _depth < 3:
+            r = _ld_agent(node, by_id, _depth + 1)
+            if r:
+                return r
+        return ref.strip()
+    return ""
 
 
 def _jsonld_meta(doc):
-    """Dates + author from Article/BlogPosting JSON-LD — where Webflow, Ghost and many
-    CMSs put them instead of OG meta. Without this the E-E-A-T / GEO checks under-count
-    dated + authored pages. Returns {published, modified, author} (blank if absent)."""
-    out = {"published": "", "modified": "", "author": ""}
-    for n in _jsonld_nodes(doc):
-        t = n.get("@type", "")
-        types = {x.lower() for x in (t if isinstance(t, list) else [t]) if isinstance(x, str)}
-        if not types & _ARTICLE_TYPES:
-            continue
-        au = n.get("author")
-        name = ""
-        if isinstance(au, dict):
-            name = au.get("name") or ""
-        elif isinstance(au, list) and au:
-            name = (au[0].get("name") if isinstance(au[0], dict) else str(au[0])) or ""
-        elif isinstance(au, str):
-            name = au
+    """Dates + author + publisher from the page's own JSON-LD node - Article/BlogPosting
+    first, then WebPage/Dataset/other CreativeWork types - where Webflow, Ghost, Astro and
+    many CMSs put them instead of OG meta. Without this the E-E-A-T / GEO checks under-count
+    dated + authored pages. An author/publisher given as an @id reference counts.
+    Returns {published, modified, author, publisher} (blank if absent)."""
+    out = {"published": "", "modified": "", "author": "", "publisher": ""}
+    nodes = list(_jsonld_nodes(doc))
+    by_id = {n["@id"].strip(): n for n in nodes if isinstance(n.get("@id"), str)}
+    arts = [n for n in nodes if _ld_types(n) & _ARTICLE_TYPES]
+    pages = [n for n in nodes if _ld_types(n) & _PAGE_TYPES and n not in arts]
+    for n in arts + pages:
         pub, mod = n.get("datePublished") or n.get("dateCreated") or "", n.get("dateModified") or ""
         out["published"] = out["published"] or (pub if isinstance(pub, str) else "")
         out["modified"] = out["modified"] or (mod if isinstance(mod, str) else "")
-        out["author"] = out["author"] or (name.strip() if isinstance(name, str) else "")
-        if out["published"] and out["author"]:
+        out["author"] = out["author"] or _ld_agent(n.get("author"), by_id)
+        out["publisher"] = out["publisher"] or _ld_agent(n.get("publisher"), by_id)
+        if all(out.values()):
             break
     return out
 
@@ -257,6 +292,7 @@ def extract(url, doc):
     imgs = re.findall(r'<img\b[^>]*>', doc, re.I)
     img_alt = sum(1 for tg in imgs if re.search(r'\balt=["\'][^"\']+["\']', tg, re.I))
     author = _meta_content(doc, "author", "article:author")
+    publisher = ""
     published = _meta_content(doc, "article:published_time")
     modified = _meta_content(doc, "article:modified_time")
     if not (author and published and modified):  # fall back to Article/BlogPosting JSON-LD
@@ -264,6 +300,7 @@ def extract(url, doc):
         published = published or _ld["published"]
         modified = modified or _ld["modified"]
         author = author or _ld["author"]
+        publisher = _ld["publisher"]
     heading_levels = [int(x) for x in re.findall(r'<h([1-6])[^>]*>', body, re.I)]
     lists = len(re.findall(r'<(?:ul|ol)\b', body, re.I))
     tables = len(re.findall(r'<table\b', body, re.I))
@@ -278,7 +315,7 @@ def extract(url, doc):
             "links": links, "hreflang": hreflang, "words": words, "jsonld": jsonld,
             "jsonld_types": jsonld_types, "viewport": viewport,
             "csr": csr, "lang": lang, "img_total": len(imgs), "img_alt": img_alt,
-            "ext_links": ext_links, "author": author, "published": published,
+            "ext_links": ext_links, "author": author, "publisher": publisher, "published": published,
             "modified": modified, "heading_levels": heading_levels,
             "lists": lists, "tables": tables, "text": text[:12000],
             "main_text": _main_text(body)[:12000], "subheadings": subheadings}

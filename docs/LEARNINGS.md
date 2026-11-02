@@ -285,3 +285,15 @@ that day: the Search Status feed lists 6 updates the tool did not know (to the S
 2026-09-24 → 10-08). `radar` flags that; run it, and append what the feed lists. A longer list also widens the ledger's
 "confounded" windows (±5 days of an update): the `demo` workspace now slides its history clear of them,
 and two test fixtures moved to 2026-02-16.
+
+**35. Read a page's own JSON-LD node, not only Article, and do not compare scripts that cannot match.**
+On 2026-11-03 `eeat` and `geo` reported 1,685 of 1,743 superx.pk pages with no author and no date, though the
+~1,700 data pages carry a schema.org `WebPage` (chart pages also `Dataset`) with `dateModified`, and an
+`author`/`publisher` given as `{"@id": ".../#organization"}`. `ingest._jsonld_meta` read Article/BlogPosting
+only and an author only when it had a `name`. It now reads Article first, then WebPage, Dataset and the other
+page-describing CreativeWork types; an `@id` reference resolves to its node's name on the page, else the `@id`
+itself counts. Nodes with no date or author still report none (`Organization`, `BreadcrumbList`), and the
+corpus gains a `publisher` field. Existing corpora need a re-ingest to pick this up. The `url` check "slug
+shares no word with the title or H1" also fired on Urdu pages (Urdu-script title, romanised slug
+`/blog/share-market-kya-hai/`); it now skips a page whose `lang` is not English or whose title is mostly
+non-Latin letters. English pages are still compared.

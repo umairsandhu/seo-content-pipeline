@@ -19,7 +19,8 @@ What it reports, grouped by URL TEMPLATE so 721 ticker pages are one finding, no
     keeps current. low.
   - underscores, slugs over 75 characters or 10 words, query strings on indexable URLs. low.
   - a multi-word slug that shares no word with the title or H1 (the address was written for
-    another page, or the page was rewritten and the address kept). low.
+    another page, or the page was rewritten and the address kept). low. Skipped for pages whose
+    title is not in Latin script (Urdu), whose romanised slug cannot share a word with it.
 
 Probing is bounded (at most 2 requests per template, 6 templates) and can be switched off with
 config `url_audit.probe: false`; tests run it off. Nothing here is fatal to the audit.
@@ -75,6 +76,19 @@ def _name_of(c):
     return (h1 or c.get("title") or "").strip()
 
 
+def _latin_page(c, name):
+    """True when the title/H1 is written in Latin script, so a slug can be compared with it.
+    An Urdu page has an Urdu-script title and a romanised slug (/blog/share-market-kya-hai/):
+    they can never share a word, and that is not a defect. Uses the page's lang when the
+    corpus stores one, and the script of the title itself either way."""
+    lang = (c.get("lang") or "").lower()
+    if lang and not lang.startswith("en"):
+        return False
+    latin = sum(1 for ch in name if ch.isalpha() and ch.isascii())
+    other = sum(1 for ch in name if ch.isalpha() and not ch.isascii())
+    return latin > other
+
+
 def check(cfg, corpus, probe=None, timeout=10):
     opt = cfg.get("url_audit", {}) if isinstance(cfg, dict) else {}
     probe = opt.get("probe", True) if probe is None else probe
@@ -114,7 +128,8 @@ def check(cfg, corpus, probe=None, timeout=10):
         if years and not any(y in name for y in years):
             year_only.append(url)
         stem = lambda w: w[:-1] if len(w) > 3 and w.endswith("s") else w  # ipo ~ ipos
-        if len(words) >= 2 and name and not {stem(w) for w in words} & {stem(w) for w in named}:
+        if (len(words) >= 2 and name and _latin_page(c, name)
+                and not {stem(w) for w in words} & {stem(w) for w in named}):
             no_overlap.append(url)
 
     probed = 0
