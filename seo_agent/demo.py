@@ -81,7 +81,13 @@ def build(dirname="seo-demo"):
     root.mkdir(parents=True, exist_ok=True)
     (root / _MARKER).write_text("generated demo workspace — safe to delete\n")
     today = datetime.date.today()
-    D = lambda days_ago: (today - datetime.timedelta(days=days_ago)).isoformat()
+    # the demo's changes must ship >5 days from any listed Google update, or the ledger marks them
+    # confounded (ledger._confounded) and no lesson qualifies — slide the whole history back until clear
+    from . import algo
+    ups = [datetime.date.fromisoformat(d) for d, _ in algo.UPDATES]
+    shift = next(k for k in range(0, 400) if all(
+        abs((today - datetime.timedelta(days=35 + k) - u).days) > 6 for u in ups))
+    D = lambda days_ago: (today - datetime.timedelta(days=days_ago + shift)).isoformat()
 
     # cfg with absolute paths for seeding; the written config.json uses defaults (relative)
     cfg = {"site": SITE, "history_dir": str(root / "history"), "store_path": str(root / "seo.db"),

@@ -1248,10 +1248,10 @@ class AttributionHardening(unittest.TestCase):
     def test_consistent_wins_qualify_and_make_playbooks(self):
         from seo_agent import brain, ledger, learn
         cfg = self._cfg()
-        self._snap(cfg, "2026-02-02", [40, 35, 30], 50)     # dates avoid algo.UPDATES windows
-        self._snap(cfg, "2026-03-06", [80, 72, 68], 52)     # consistent ~+35-38 real lift
+        self._snap(cfg, "2026-02-16", [40, 35, 30], 50)     # dates avoid algo.UPDATES windows (±5 days of a start)
+        self._snap(cfg, "2026-03-16", [80, 72, 68], 52)     # consistent ~+35-38 real lift
         for i in range(3):
-            ledger.record(cfg, f"https://demo.com/c{i}", "retitle", "x", date="2026-02-02")
+            ledger.record(cfg, f"https://demo.com/c{i}", "retitle", "x", date="2026-02-16")
         ledger.follow_up(cfg)
         v = learn.local_lessons(cfg)["retitle"][28]
         self.assertEqual(v["n"], 3)
@@ -1265,10 +1265,10 @@ class AttributionHardening(unittest.TestCase):
     def test_noisy_mean_positive_does_not_qualify(self):
         from seo_agent import brain, ledger, learn
         cfg = self._cfg()
-        self._snap(cfg, "2026-02-02", [40, 35, 30], 50)
-        self._snap(cfg, "2026-03-06", [95, 20, 33], 52)      # +55, -15, +3 → mean>0, CI spans 0
+        self._snap(cfg, "2026-02-16", [40, 35, 30], 50)
+        self._snap(cfg, "2026-03-16", [95, 20, 33], 52)      # +55, -15, +3 → mean>0, CI spans 0
         for i in range(3):
-            ledger.record(cfg, f"https://demo.com/c{i}", "retitle", "x", date="2026-02-02")
+            ledger.record(cfg, f"https://demo.com/c{i}", "retitle", "x", date="2026-02-16")
         ledger.follow_up(cfg)
         v = learn.local_lessons(cfg)["retitle"][28]
         self.assertGreater(v["mean_lift"], 0)
@@ -1279,10 +1279,10 @@ class AttributionHardening(unittest.TestCase):
     def test_seasonal_surge_yields_null_lift(self):
         from seo_agent import ledger, learn
         cfg = self._cfg()
-        self._snap(cfg, "2026-02-02", [40, 35, 30], 50)
-        self._snap(cfg, "2026-03-06", [60, 53, 45], 75)      # EVERYTHING +50% (season) — holdout too
+        self._snap(cfg, "2026-02-16", [40, 35, 30], 50)
+        self._snap(cfg, "2026-03-16", [60, 53, 45], 75)      # EVERYTHING +50% (season) — holdout too
         for i in range(3):
-            ledger.record(cfg, f"https://demo.com/c{i}", "retitle", "x", date="2026-02-02")
+            ledger.record(cfg, f"https://demo.com/c{i}", "retitle", "x", date="2026-02-16")
         ledger.follow_up(cfg)
         v = learn.local_lessons(cfg)["retitle"][28]
         self.assertLess(abs(v["mean_lift"]), 8)              # diff-in-diff absorbs the season
@@ -1429,11 +1429,11 @@ class Rollback(unittest.TestCase):
                     for i in range(3)]
             rows += [{"page": f"https://demo.com/h{i}", "clicks": hold, "position": 10.0} for i in range(10)]
             history.snapshot(cfg, "gsc_pages", rows, date=date)
-        snap("2026-02-02", [50, 55, 52], 50)
-        snap("2026-03-06", [25, 28, 24], 55)                         # all 3 fell hard while holdout rose
+        snap("2026-02-16", [50, 55, 52], 50)
+        snap("2026-03-16", [25, 28, 24], 55)                         # all 3 fell hard while holdout rose
         for i in range(3):
             ledger.record(cfg, f"https://demo.com/r{i}", "refresh", "content refresh",
-                          date="2026-02-02", before={"title": f"t{i}"})
+                          date="2026-02-16", before={"title": f"t{i}"})
         ledger.follow_up(cfg)
         props = rollback.proposals(cfg)
         self.assertTrue(props)
@@ -1447,9 +1447,9 @@ class Rollback(unittest.TestCase):
             rows = [{"page": f"https://demo.com/r{i}", "clicks": clicks[i], "position": 9.0} for i in range(3)]
             rows += [{"page": f"https://demo.com/h{i}", "clicks": hold, "position": 10.0} for i in range(10)]
             history.snapshot(cfg, "gsc_pages", rows, date=date)
-        snap("2026-02-02", [50, 55, 52], 50); snap("2026-03-06", [25, 28, 24], 55)
+        snap("2026-02-16", [50, 55, 52], 50); snap("2026-03-16", [25, 28, 24], 55)
         for i in range(3):
-            ledger.record(cfg, f"https://demo.com/r{i}", "refresh", "x", date="2026-02-02",
+            ledger.record(cfg, f"https://demo.com/r{i}", "refresh", "x", date="2026-02-16",
                           before={"title": f"t{i}"})
         ledger.follow_up(cfg)
         rbs = autopilot._rollback_phase(cfg)
@@ -1659,6 +1659,145 @@ class TemplateFamily(unittest.TestCase):
             ingest._get = orig
         self.assertEqual(seen, ["https://superx.pk/robots.txt", "https://superx.pk/llms.txt"])
         self.assertEqual(audit._origin({"site": "https://x.com/"}), "https://x.com")
+
+
+class TrafficCliff(unittest.TestCase):
+    """LEARNINGS 34: a step change lives in the DAILY series. Synthetic series, no network."""
+
+    @staticmethod
+    def _series(values, start="2026-09-28"):
+        import datetime
+        d0 = datetime.date.fromisoformat(start)
+        return {(d0 + datetime.timedelta(days=i)).isoformat(): [round(v / 20), v]
+                for i, v in enumerate(values)}
+
+    @staticmethod
+    def _noise(n, base, seed):
+        import random
+        r = random.Random(seed)
+        return [base * r.uniform(0.75, 1.25) for _ in range(n)]
+
+    def test_cliff_is_found_with_its_first_day(self):
+        from seo_agent import cliff
+        # the superx.pk shape: ~700 a day, 711 on 27 Oct, then 52 · 23 · 11 · 4
+        vals = self._noise(29, 700, 1) + [711, 52, 23, 11, 4]
+        total = self._series(vals)                         # 28 Sep .. 31 Oct (the lag hides 1-3 Nov)
+        c = cliff.detect(total)
+        self.assertEqual(c["confidence"], "high")
+        self.assertEqual(c["onset"], "2026-10-28")         # 711 is the last good day
+        self.assertGreaterEqual(c["drop_pct"], 95)
+        self.assertGreater(c["before"], 400)
+        self.assertLess(c["after"], 60)
+        self.assertFalse(c["recovered"])
+
+    def test_gradual_decline_and_flat_noise_raise_no_cliff(self):
+        from seo_agent import cliff
+        slide = [1000 - 20 * i for i in range(35)]          # -70% over 35 days, no single step
+        self.assertIsNone(cliff.detect(self._series(slide)))
+        for seed in range(25):                              # flat noise, weekends at half volume
+            vals = self._noise(35, 300, seed)
+            vals = [v * (0.5 if (i % 7) in (5, 6) else 1) for i, v in enumerate(vals)]
+            self.assertIsNone(cliff.detect(self._series(vals)), f"false alarm, seed {seed}")
+
+    def test_small_numbers_and_short_series_are_not_judged(self):
+        from seo_agent import cliff
+        self.assertIsNone(cliff.detect(self._series([6, 5, 7, 6, 5, 6, 7, 1, 0, 1, 0, 1, 0, 0, 1, 0, 0])))
+        self.assertIsNone(cliff.detect(self._series([500] * 8 + [10] * 3)))
+        self.assertIsNone(cliff.detect({}))
+
+    def test_moderate_fall_is_med_and_recovery_is_flagged(self):
+        from seo_agent import cliff
+        med = cliff.detect(self._series([1000] * 20 + [600] * 12))
+        self.assertEqual(med["confidence"], "med")
+        back = cliff.detect(self._series([1000] * 15 + [100] * 6 + [1000] * 14))
+        self.assertTrue(back["recovered"])
+        self.assertEqual(back["onset"], "2026-10-13")
+
+    def test_sections_tell_site_wide_from_template_specific(self):
+        from seo_agent import cliff
+        flat, down = [400] * 20 + [8] * 12, [400] * 32
+        stocks, blog, root = self._series(flat), self._series(flat), self._series(flat)
+        total = self._series([a * 3 for a in flat])
+        c = cliff.detect(total)
+        wide = cliff.sections_split(c, total, {"/stocks/": stocks, "/blog/": blog, "(root)": root})
+        self.assertEqual(wide["verdict"], "site-wide")
+        mixed = cliff.sections_split(c, total, {"/stocks/": stocks, "/blog/": self._series(down),
+                                                "(root)": self._series(down)})
+        self.assertEqual(mixed["verdict"], "template")
+        self.assertEqual(mixed["fell"], ["/stocks/"])
+        self.assertEqual(sorted(mixed["held"]), ["(root)", "/blog/"])
+
+    def test_section_and_update_helpers(self):
+        from seo_agent import cliff
+        self.assertEqual(cliff.section_of("https://superx.pk/stocks/OGDC/"), "/stocks/")
+        self.assertEqual(cliff.section_of("https://superx.pk/"), "(root)")
+        self.assertEqual(cliff.section_of("https://superx.pk/about"), "(root)")
+        ups = [("2026-09-24", "September 2026 spam update")]
+        self.assertEqual(cliff.overlapping_update("2026-10-05", ups)[1], "September 2026 spam update")
+        self.assertIsNone(cliff.overlapping_update("2026-10-28", ups))
+
+    def test_diagnose_ranks_the_cliff_first_and_names_site_level_checks(self):
+        from seo_agent import cliff, diagnose, history
+        d = tempfile.mkdtemp(); os.chdir(d)
+        cfg = {"history_dir": os.path.join(d, "hist"), "state_dir": "state", "site": "https://d.com",
+               "store_path": os.path.join(d, "seo.db")}
+        # two 28-day snapshots that look flat, as on 3 Nov: the cliff sits only in the daily series
+        for day in ("2026-11-01", "2026-11-02"):
+            history.snapshot(cfg, "gsc_queries", [{"query": "q", "clicks": 23, "impressions": 900}], date=day)
+        flat = [700] * 30 + [52, 23, 11, 4]
+        total = self._series(flat)
+        sec = {s: self._series([v // 3 for v in flat]) for s in ("/stocks/", "/blog/", "(root)")}
+        history.snapshot(cfg, "gsc_daily", {"total": total, "sections": sec, "through": max(total)})
+        r = diagnose.run(cfg)
+        first = r["causes"][0]
+        self.assertEqual(first["confidence"], "high")
+        self.assertIn("2026-10-28", first["cause"])
+        self.assertIn("site-wide", first["cause"])
+        self.assertIn("/stocks/", first["evidence"])
+        self.assertIn("Manual actions", first["next"])
+        self.assertIn("YMYL/E-E-A-T", first["next"])
+        md = diagnose.render_md(cfg, r)
+        self.assertIn("Traffic cliff on 2026-10-28", md)
+
+    def test_update_list_is_chronological_and_current(self):
+        from seo_agent import algo
+        dates = [d for d, _ in algo.UPDATES]
+        self.assertEqual(dates, sorted(dates))
+        self.assertEqual(len(dates), len(set(dates)))
+        self.assertIn(("2026-09-24", "September 2026 Spam Update"), algo.UPDATES)
+
+    def test_diagnose_without_gsc_says_so(self):
+        from seo_agent import diagnose
+        d = tempfile.mkdtemp(); os.chdir(d)
+        cfg = {"history_dir": os.path.join(d, "hist"), "state_dir": "state", "site": "https://d.com",
+               "store_path": os.path.join(d, "seo.db")}
+        r = diagnose.run(cfg)
+        self.assertIsNone(r["daily"])
+        self.assertIn("No daily series", diagnose.render_md(cfg, r))
+
+    def test_fetch_uses_few_calls_and_stores_the_series(self):
+        from seo_agent import cliff, history, providers
+        d = tempfile.mkdtemp(); os.chdir(d)
+        cfg = {"history_dir": os.path.join(d, "hist"), "gsc_property": "sc-domain:d.com",
+               "gsc_credentials": "x.json"}
+        calls = []
+
+        def fake_query(svc, prop, a, b, dims=("query",), row_limit=5000, page_regex=None):
+            calls.append((dims, page_regex))
+            if dims == ("page",):
+                return [{"page": "https://d.com/stocks/A/", "impressions": 90, "clicks": 1},
+                        {"page": "https://d.com/blog/x/", "impressions": 10, "clicks": 0}]
+            return [{"date": "2026-10-01", "clicks": 1, "impressions": 100}]
+        old = (providers.gsc_service, providers.gsc_query)
+        providers.gsc_service, providers.gsc_query = (lambda cred: object()), fake_query
+        try:
+            s = cliff.fetch(cfg)
+        finally:
+            providers.gsc_service, providers.gsc_query = old
+        self.assertEqual(s["source"], "live")
+        self.assertEqual(len(calls), 4)                      # totals + pages + 2 sections
+        self.assertEqual(sorted(s["sections"]), ["/blog/", "/stocks/"])
+        self.assertTrue(history.latest(cfg, "gsc_daily"))    # kept for the next offline run
 
 
 if __name__ == "__main__":

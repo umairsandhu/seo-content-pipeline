@@ -197,11 +197,14 @@ def gsc_service(credentials_path):
     return build("searchconsole", "v1", credentials=creds, cache_discovery=False)
 
 
-def gsc_query(service, prop, start, end, dimensions=("query",), row_limit=5000):
+def gsc_query(service, prop, start, end, dimensions=("query",), row_limit=5000, page_regex=None):
     if not service:
         return []
     body = {"startDate": start, "endDate": end, "dimensions": list(dimensions),
             "rowLimit": row_limit}
+    if page_regex:      # RE2 on the full URL — one section of the site (cliff.py)
+        body["dimensionFilterGroups"] = [{"filters": [
+            {"dimension": "page", "operator": "includingRegex", "expression": page_regex}]}]
     resp = service.searchanalytics().query(siteUrl=prop, body=body).execute()
     rows = []
     for r in resp.get("rows", []):
