@@ -13,6 +13,7 @@ a live capability matrix** (`integrations`). Nothing is hardcoded elsewhere.
 | recommended | PageSpeed / CrUX | `PAGESPEED_API_KEY` (one Google Cloud key) | Core Web Vitals (lab + field) + accessibility | WebPageTest · CrUX BigQuery |
 | recommended | Server access logs | `logs.path` (a file) | crawl budget/waste + AI-crawler coverage | Cloudflare/Fastly export · OnCrawl/JetOctopus |
 | recommended | JavaScript rendering | `render.enabled` + `pip install playwright` | accurate audit of SPA/CSR sites | DataForSEO on-page render · a prerender service |
+| optional | Bing Webmaster Tools | `BING_WEBMASTER_API_KEY` | `bing`: Bing impressions, queries, crawl/index counts, sitemap check | GSC is the primary engine |
 | optional | Anthropic (Claude) | `ANTHROPIC_API_KEY` (+ `llm.provider: anthropic`) | headless drafting | OpenAI · **agent-written (default, no key)** |
 | optional | OpenAI | `OPENAI_API_KEY` (+ `llm.provider: openai`) | headless drafting | Anthropic · agent-written |
 | optional | WordPress / Webflow / Ghost | `WP_USER`+`WP_APP_PASSWORD` / `WEBFLOW_TOKEN` / `GHOST_ADMIN_KEY` | publishing | git-PR file (default) |

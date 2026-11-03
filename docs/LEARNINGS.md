@@ -319,3 +319,20 @@ template. `ingest.extract` now stores `snippet_markup`, `snippet_markup_n`, `foo
 corpus needs a re-ingest. Rules: (a) check the result Google shows, not only the page; (b) `data-nosnippet` is
 valid on div, span and section; put it on the element that holds the embed box or footer legal block; (c) a
 `<textarea>` holds text, so tags inside it count as visible text.
+
+**37. Read Bing as well as Google, and check the sitemaps Bing holds.** On 2026-11-03, on superx.pk, Bing grew
+while Google fell (see the GSC collapse of 28 Oct). Bing Webmaster `InIndex` went from 62 on 22 Oct to 405 on
+31 Oct; impressions went from 16 a day on 21 Oct to 46 on 1 Nov; the query "superx charts" had 39 impressions,
+10 clicks and average position 3. No command read Bing, so none of this showed. Bing also still held the emptied
+`/terminal/sitemap-moves.xml` at its old count of 1,054 URLs until it was removed with `RemoveFeed` on 3 Nov: a
+registered feed keeps its old `UrlCount` after the file changes. Encoded: `bing` (`seo_agent/bing.py`) calls
+`GetRankAndTrafficStats`, `GetQueryStats`, `GetPageStats`, `GetCrawlStats`, `GetFeeds`, `GetCrawlIssues` and
+`GetUrlSubmissionQuota` on `https://ssl.bing.com/webmaster/api.svc/json/<Method>?apikey=KEY&siteUrl=<site>/`,
+reads the answer under `d`, turns `/Date(ms)/` into an ISO date, and writes `history/bing_traffic`,
+`bing_queries`, `bing_pages`, `bing_crawl` and `bing_feeds` in the gsc envelope. The summary compares the last 7
+days with the 7 before, shows the InIndex trend, the top queries and the crawl errors, and fetches each
+registered feed's live sitemap (following an index) to flag a feed that returns 404, is empty, or has a
+different `<loc>` count from Bing's `UrlCount`. Rules: (a) the key is in the query string, so every error text
+is scrubbed and no URL is printed; (b) a failed method is an error, never an empty snapshot; (c) after you
+change or empty a sitemap, run `bing` and remove the stale feed with `RemoveFeed`; (d) a second engine can rise
+while the first falls, so a Google-only reading of "traffic is down" is incomplete.
