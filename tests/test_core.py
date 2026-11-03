@@ -1862,5 +1862,161 @@ class TrafficCliff(unittest.TestCase):
         self.assertTrue(history.latest(cfg, "gsc_daily"))    # kept for the next offline run
 
 
+EMBED = """<html lang="en"><head><title>FECM share price</title><style>.a{}</style>
+<script>var s = '<a href="x">no</a>';</script></head><body><header><nav><a href="/">Home</a></nav></header>
+<main><h1>FECM share price</h1><p>FECM trades at 12.5 rupees.</p>
+%s</main><footer><div>LEGAL. Privacy Policy. Terms of Use</div></footer></body></html>"""
+BOX = ('<textarea readonly><a href="https://superx.pk/stocks/FECM/">FECM share price</a> on SuperX</p>'
+       '</textarea>')
+
+
+class SnippetCheck(unittest.TestCase):
+    """LEARNINGS #36: what a snippet can quote. HTML fixtures, no network."""
+
+    def test_embed_box_is_flagged_and_nosnippet_clears_it(self):
+        bad = ingest.extract("https://x.com/stocks/FECM/", EMBED % BOX)
+        self.assertEqual(bad["snippet_markup_n"], 1)
+        self.assertIn('href="https://superx.pk/stocks/FECM/"', bad["snippet_markup"][0])
+        ok = ingest.extract("https://x.com/stocks/FECM/", EMBED % f"<div data-nosnippet>{BOX}</div>")
+        self.assertEqual(ok["snippet_markup"], [])
+        self.assertEqual(ok["nosnippet_n"], 1)
+        esc = ingest.extract("https://x.com/a/b/", EMBED % "<p>&lt;iframe src=&quot;z&quot;&gt;</p>")
+        self.assertEqual(esc["snippet_markup_n"], 1)
+        # a script's string and real tags are not visible text
+        self.assertEqual(ingest.extract("https://x.com/a/b/", EMBED % "")["snippet_markup"], [])
+
+    def test_nosnippet_on_a_span_with_nested_elements(self):
+        d = EMBED % '<span data-nosnippet><b>x</b>&lt;/a&gt;</span><p>after &lt;/a&gt;</p>'
+        self.assertEqual(ingest.extract("https://x.com/a/b/", d)["snippet_markup_n"], 1)  # only "after"
+
+    def test_footer_text_visible_unless_nosnippet(self):
+        vis = ingest.extract("https://x.com/a/b/", EMBED % "")
+        self.assertIn("Privacy Policy", vis["footer_text"])
+        hid = ingest.extract("https://x.com/a/b/", (EMBED % "").replace("<div>LEGAL", "<div data-nosnippet>LEGAL"))
+        self.assertEqual(hid["footer_text"], "")
+
+    def test_check_groups_by_template(self):
+        from seo_agent import snippet
+        pages = []
+        for sym in ("AAA", "BBB", "CCC"):      # a template with the embed box
+            r = ingest.extract(f"https://x.com/stocks/{sym}/", EMBED % BOX)
+            r["title"], r["main_text"] = f"{sym} share price", "word " * 200
+            pages.append(r)
+        r = ingest.extract("https://x.com/blog/p/", EMBED % f"<div data-nosnippet>{BOX}</div>")
+        r["main_text"] = "word " * 400
+        pages.append(r)
+        short = ingest.extract("https://x.com/tools/t/", EMBED % "")     # short text + visible footer
+        short["main_text"] = "FECM trades at 12.5 rupees."
+        pages.append(short)
+        F = []
+        info = snippet.check(pages, F)
+        by = {(f["kind"], f["template"]): f for f in F}
+        self.assertEqual(by[("markup", "/stocks/")]["count"], 3)
+        self.assertEqual(by[("markup", "/stocks/")]["sev"], "med")
+        self.assertIn("data-nosnippet", by[("markup", "/stocks/")]["msg"])
+        self.assertNotIn(("markup", "/blog/"), by)                        # protected by data-nosnippet
+        self.assertEqual(by[("boilerplate", "/tools/")]["sev"], "low")
+        self.assertNotIn(("boilerplate", "/stocks/"), by)                 # long own text
+        self.assertEqual(info["stale"], 0)
+
+    def test_old_corpus_asks_for_reingest_and_audit_carries_the_category(self):
+        from seo_agent import audit, snippet
+        F = []
+        snippet.check([{"url": "https://x.com/a/b/", "title": "t", "status": 200}], F)
+        self.assertIn("ingest", F[0]["msg"])
+        self.assertIn("snippet", audit.CATS)
+        self.assertIn("snippet", audit.HINTS)
+
+
+def _org(rank, domain, **kw):
+    return {"type": "organic", "rank_group": rank, "domain": domain, "url": f"https://{domain}/",
+            "title": domain, "description": kw.pop("description", "A description."), **kw}
+
+
+class BrandCheck(unittest.TestCase):
+    """LEARNINGS #36: the brand SERP via DataForSEO, response mocked."""
+    CFG = {"site": "https://superx.pk", "brand": {"name": "SuperX"},
+           "dataforseo": {"location_name": "Pakistan", "language_name": "English"}}
+
+    def _post(self, per_term, seen=None):
+        def post(path, payload, timeout=60):
+            if seen is not None:
+                seen.append((path, payload))
+            return {"cost": 0.006, "tasks": [
+                {"status_code": 20000, "data": {"keyword": t["keyword"]},
+                 "result": [{"items": per_term[t["keyword"]]}]} for t in payload]}
+        return post
+
+    def test_terms_default_and_override(self):
+        from seo_agent import brand
+        self.assertEqual(brand.terms(self.CFG), ["superx", "superx.pk", "superx pakistan"])
+        cfg = {**self.CFG, "brand": {"name": "SuperX", "serp_terms": ["superx app", "superx"]}}
+        self.assertEqual(brand.terms(cfg), ["superx app", "superx"])
+        us = {"site": "https://a.com", "brand": {"name": "Acme"}}
+        self.assertEqual(brand.terms(us), ["acme", "a.com"])           # no market word in the default market
+
+    def test_not_in_top_10_and_sitelinks_present(self):
+        from seo_agent import brand
+        seen = []
+        sl = [{"type": "link_element", "title": "Stocks", "url": "https://superx.pk/stocks/"},
+              {"type": "link_element", "title": "Charts", "url": "https://superx.pk/terminal/"}]
+        per = {"superx": [_org(i + 1, d) for i, d in enumerate(
+                   ["superxai.com", "chrome.google.com", "band.example", "x.com"])],
+               "superx.pk": [_org(1, "superx.pk", links=sl)],
+               "superx pakistan": [_org(1, "superx.pk", links=None), _org(2, "dawn.com")]}
+        r = brand.check(self.CFG, post=self._post(per, seen))
+        self.assertEqual(len(seen), 1)                                 # ONE request, three tasks
+        self.assertEqual(seen[0][0], "serp/google/organic/live/advanced")
+        self.assertEqual([t["keyword"] for t in seen[0][1]], ["superx", "superx.pk", "superx pakistan"])
+        self.assertEqual(seen[0][1][0]["location_name"], "Pakistan")
+        rows = {x["term"]: x for x in r["rows"]}
+        self.assertIsNone(rows["superx"]["rank"])
+        self.assertEqual(rows["superx"]["top3"], ["superxai.com", "chrome.google.com", "band.example"])
+        self.assertEqual(rows["superx.pk"]["rank"], 1)
+        self.assertEqual(rows["superx.pk"]["sitelinks"], ["Stocks", "Charts"])
+        self.assertEqual(rows["superx pakistan"]["sitelinks"], [])
+        msgs = {f["term"]: f for f in r["findings"] if f["cat"] == "brand"}
+        self.assertEqual(msgs["superx"]["sev"], "high")
+        self.assertIn("not in the top 10", msgs["superx"]["msg"])
+        self.assertNotIn("superx.pk", msgs)                            # #1 with sitelinks: clean
+        self.assertEqual(msgs["superx pakistan"]["sev"], "med")        # #1, no sitelinks
+        self.assertIn("Google's choice", msgs["superx pakistan"]["msg"])
+        self.assertEqual(r["cost"], 0.006)
+
+    def test_separate_sitelink_item_type_is_read(self):
+        from seo_agent import brand
+        items = [_org(1, "superx.pk"),
+                 {"type": "site_links", "rank_group": 1, "items": [{"title": "Stocks",
+                  "url": "https://superx.pk/stocks/"}]}]
+        self.assertEqual(brand.analyse("superx.pk", items, "superx.pk")["sitelinks"], ["Stocks"])
+
+    def test_snippet_markup_and_boilerplate_are_findings(self):
+        from seo_agent import brand
+        bad = 'superx.pk/stocks/FECM/">FECM share price</a> on SuperX</p'
+        foot = "LEGAL. Privacy Policy. Terms of Use"
+        for snippet in (bad, foot):
+            rows = [brand.analyse("superx", [_org(1, "superx.pk", description=snippet,
+                                                  links=[{"title": "a"}])], "superx.pk")]
+            F = brand.findings("superx.pk", rows)
+            self.assertEqual(len(F), 1)
+            self.assertIn("snippet", F[0]["msg"])
+        ok = brand.analyse("superx", [_org(1, "superx.pk", links=[{"title": "a"}])], "superx.pk")
+        self.assertEqual(brand.findings("superx.pk", [ok]), [])
+
+    def test_spend_cap_refuses_before_any_call(self):
+        from seo_agent import brand
+        called = []
+        cfg = {**self.CFG, "dataforseo": {**self.CFG["dataforseo"], "max_cost": 0.004}}
+        r = brand.check(cfg, post=lambda *a, **k: called.append(1))
+        self.assertIn("refused", r["error"])
+        self.assertEqual(called, [])
+        self.assertEqual(brand.estimate(self.CFG, 3), 0.006)
+
+    def test_no_credentials_is_an_error_not_a_crash(self):
+        from seo_agent import brand
+        r = brand.check(self.CFG, post=lambda *a, **k: None)
+        self.assertIn("error", r)
+
+
 if __name__ == "__main__":
     unittest.main()

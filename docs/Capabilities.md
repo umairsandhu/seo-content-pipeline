@@ -46,6 +46,8 @@ Run `plan` (tactical next actions) or `consult` (full strategy) at **any** point
 | `audit` | **Site Doctor** — sitemap health, robots, llms.txt, meta/titles, H1, canonical, dedup/cannibalization, internal links (orphans/click-depth), CWV, structured data, a11y | corpus | `audit.md` |
 | `sitemap` | Sitemap doctor only (limits, lastmod, coverage, orphans) | — | findings |
 | `speed` | Core Web Vitals — Lighthouse lab + CrUX field (LCP/INP/CLS) | `PAGESPEED_API_KEY` for field | verdicts |
+| `snippet` | what a Google snippet can quote: escaped markup (embed/share boxes) and footer text outside `data-nosnippet`, grouped by template (offline; also in `audit`) | a corpus from `ingest` | findings per template |
+| `brand` | Google's top 10 for the brand terms: our rank, sitelinks, who holds the top 3, our snippet. Opt-in, paid (about USD 0.002 per term); `--dry-run` prints terms and cost; `dataforseo.max_cost` caps it | `DATAFORSEO_LOGIN/PASSWORD` | `brand.md`, `history/brand/` |
 | `logs <access.log>` | Real crawler behavior: crawl waste + **AI-crawler coverage** (GPTBot/ClaudeBot/PerplexityBot/…) | a log file | coverage report |
 | `schema [<url>]` | Generate JSON-LD (Organization/BlogPosting/Breadcrumb/FAQ) **+ validate** required fields | corpus | paste-ready `<script>` |
 | `llmstxt` | Generate an `llms.txt` from the corpus | corpus | `llms.txt` |

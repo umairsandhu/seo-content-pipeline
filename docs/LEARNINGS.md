@@ -297,3 +297,23 @@ corpus gains a `publisher` field. Existing corpora need a re-ingest to pick this
 shares no word with the title or H1" also fired on Urdu pages (Urdu-script title, romanised slug
 `/blog/share-market-kya-hai/`); it now skips a page whose `lang` is not English or whose title is mostly
 non-Latin letters. English pages are still compared.
+
+**36. Audit the brand result and the snippet, not only the pages.** On 2026-11-03 the founder searched Google for
+superx.pk and saw no sitelinks, "More results from superx.pk", a snippet that quoted raw embed code
+(`superx.pk/stocks/FECM/">FECM share price</a> on SuperX</p`) and one that quoted the footer ("LEGAL. Privacy
+Policy"). No audit looked at the result for the brand. Measured the same day with DataForSEO
+(`serp/google/organic/live/advanced`, Pakistan, English, desktop): for "superx", superx.pk is not in the top 10;
+SuperX AI Technology (a US stock), a Chrome extension and a band are. Encoded: (1) `brand` (network, paid, opt-in)
+reads Google's top 10 for the brand name, the bare domain and brand + market in ONE request (one task per term,
+about USD 0.002 each, refused when the estimate is over `dataforseo.max_cost`, default USD 0.05) and reports our
+best rank, sitelinks, the top 3 domains and our snippet. Sitelinks sit in the organic item's `links` array
+(entries of type `link_element`), not in a separate item type; the code reads both. Findings: brand not #1 (high);
+#1 with no sitelinks (medium; levers: one clear primary nav in the server HTML, distinct titles for the main
+sections, WebSite name/alternateName schema, consistent internal anchor text, time and authority; sitelinks are
+Google's choice); a snippet with markup or boilerplate (medium). (2) `snippet` (offline, also run by `audit`)
+flags pages whose visible text, outside `data-nosnippet` and outside script/style, holds escaped markup
+(`</a>`, `<iframe`, `href="`), and pages with a visible footer and under 80 words of own text, grouped by
+template. `ingest.extract` now stores `snippet_markup`, `snippet_markup_n`, `footer_text` and `nosnippet_n`, so a
+corpus needs a re-ingest. Rules: (a) check the result Google shows, not only the page; (b) `data-nosnippet` is
+valid on div, span and section; put it on the element that holds the embed box or footer legal block; (c) a
+`<textarea>` holds text, so tags inside it count as visible text.

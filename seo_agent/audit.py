@@ -23,7 +23,7 @@ DEF = {"title_min": 30, "title_max": 60, "meta_min": 70, "meta_max": 160,
        "thin_words": 300, "min_inbound": 3, "max_depth": 4}
 ISO = re.compile(r"^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}.*)?$")
 CATS = ["sitemap", "crawl", "index", "indexability", "meta", "freshness", "mobile",
-        "headings", "canonical", "url", "duplicate", "content", "links", "structured", "a11y"]
+        "headings", "canonical", "url", "duplicate", "content", "links", "structured", "a11y", "snippet"]
 
 # Sitebulb-style hints: per category, WHY it matters + HOW to fix — so every finding
 # in the report teaches, not just flags.
@@ -60,6 +60,10 @@ HINTS = {
               "`autolink` + `pagerank` — link every page from ≥3 relevant pages, pillars from many"),
     "structured": ("schema unlocks rich results and feeds AI answer extraction",
                    "`schema <url>` generates ready-to-paste JSON-LD; `schema` shows sitewide coverage"),
+    "snippet": ("the result's snippet is built from visible page text; an embed box or a footer in it "
+                "reads as code or legal boilerplate, and it is the first thing a searcher sees",
+                "`data-nosnippet` on the div/section/span that holds the embed code or footer legal block "
+                "(per template — one layout fix); `brand` shows the live snippet for the brand terms"),
     "a11y": ("alt text + lang + heading order are ranking-adjacent AND legally prudent",
              "batch-fix alt text, set <html lang>, repair skipped heading levels"),
 }
@@ -504,6 +508,11 @@ def report(cfg, corpus_path="corpus.json"):
     link_stats = internal_links(corpus, cfg, F, t)
     structured(corpus, F)
     accessibility(corpus, F)
+    try:  # what a snippet can quote: escaped markup, footer boilerplate (offline, from the corpus)
+        from . import snippet
+        snippet.check(corpus, F, t)
+    except Exception:
+        pass
     counts = {s: sum(1 for f in F if f["sev"] == s) for s in ("high", "med", "low")}
     return {"pages": len(corpus), "sitemap": sm, "links": link_stats,
             "findings": F, "counts": counts}

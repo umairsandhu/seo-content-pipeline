@@ -13,6 +13,7 @@ import time
 import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -69,6 +70,102 @@ def _main_text(body):
     part = html.unescape(TAG.sub(" ", BLOCK.sub("\n\n", part)))
     paras = (WS.sub(" ", x).strip() for x in re.split(r"\n\s*\n", part))
     return "\n\n".join(x for x in paras if x)
+
+# ── what a search snippet can quote (LEARNINGS #36) ─────────────────────────
+# Google builds a snippet from the page's visible text, except elements marked
+# `data-nosnippet` (valid on div, span and section). `snippet_view` walks the HTML once and returns
+# that visible text, so the `snippet` check can see an embed box or a footer that a snippet may quote.
+_VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param",
+         "source", "track", "wbr"}
+_HIDDEN = {"script", "style", "noscript", "svg", "template", "head"}
+# Escaped markup that reads as code in a snippet: a tag that survived as TEXT (the page escaped it,
+# or put it in a textarea), or an attribute written out.
+MARKUP = re.compile(r"</?(?:a|iframe|script|div|p|span|img|embed|blockquote|ul|li|table|h[1-6])\b"
+                    r"|\b(?:href|src)\s*=\s*[\"']", re.I)
+
+
+class _Visible(HTMLParser):
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.stack = []          # (tag, is_nosnippet, is_hidden)
+        self.ns = self.hid = self.foot = self.area = 0
+        self.nosnippet_n = 0
+        self.chunks, self.footer = [], []
+
+    def _push(self, tag, attrs):
+        ns = any(k == "data-nosnippet" for k, _ in attrs)
+        self.stack.append((tag, ns, tag in _HIDDEN))
+        self.ns += ns
+        self.nosnippet_n += ns
+        self.hid += tag in _HIDDEN
+        self.foot += tag == "footer"
+        self.area += tag == "textarea"
+
+    def _pop_to(self, tag):
+        idx = next((i for i in range(len(self.stack) - 1, -1, -1) if self.stack[i][0] == tag), None)
+        if idx is None:
+            return
+        for t, ns, hid in reversed(self.stack[idx:]):
+            self.ns -= ns
+            self.hid -= hid
+            self.foot -= t == "footer"
+            self.area -= t == "textarea"
+        del self.stack[idx:]
+
+    def _text(self, s):
+        if self.hid or self.ns or not s.strip():
+            return
+        self.chunks.append(s)
+        if self.foot:
+            self.footer.append(s)
+
+    def handle_starttag(self, tag, attrs):
+        if self.area and tag != "textarea":     # a textarea's content is text, tags included
+            self._text(self.get_starttag_text())
+            return
+        if tag not in _VOID:
+            self._push(tag, attrs)
+
+    def handle_endtag(self, tag):
+        if self.area and tag != "textarea":
+            self._text(f"</{tag}>")
+            return
+        self._pop_to(tag)
+
+    def handle_startendtag(self, tag, attrs):
+        if self.area:
+            self._text(self.get_starttag_text())
+
+    def handle_data(self, data):
+        self._text(data)
+
+
+def snippet_view(doc):
+    """(visible_text, footer_text, nosnippet_elements): the text a snippet can quote — outside
+    <script>/<style> and outside any element with `data-nosnippet` — and the part of it inside <footer>."""
+    v = _Visible()
+    try:
+        v.feed(doc)
+        v.close()
+    except Exception:
+        pass
+    return (WS.sub(" ", " ".join(v.chunks)).strip(), WS.sub(" ", " ".join(v.footer)).strip(),
+            v.nosnippet_n)
+
+
+def snippet_signals(doc):
+    """The three fields `extract` stores for the `snippet` audit: up to 3 excerpts of escaped markup
+    in the snippet-visible text, how many matches there are, and the visible footer text."""
+    vis, footer, n_ns = snippet_view(doc)
+    hits, last = [], -999
+    for m in MARKUP.finditer(vis):      # one excerpt per run of markup, not one per tag
+        if m.start() > last + 100:
+            hits.append(vis[max(0, m.start() - 40):m.end() + 60])
+        last = m.end()
+    return {"snippet_markup": hits[:3], "snippet_markup_n": len(hits),
+            "footer_text": footer[:600], "nosnippet_n": n_ns}
+
+
 LOC = re.compile(r"<loc>\s*([^<\s]+)\s*</loc>", re.I)
 LASTMOD = re.compile(r"<lastmod>\s*([^<\s]+)\s*</lastmod>", re.I)
 URLBLOCK = re.compile(r"<url>(.*?)</url>", re.S | re.I)
@@ -318,7 +415,8 @@ def extract(url, doc):
             "ext_links": ext_links, "author": author, "publisher": publisher, "published": published,
             "modified": modified, "heading_levels": heading_levels,
             "lists": lists, "tables": tables, "text": text[:12000],
-            "main_text": _main_text(body)[:12000], "subheadings": subheadings}
+            "main_text": _main_text(body)[:12000], "subheadings": subheadings,
+            **snippet_signals(doc)}
 
 
 def robots_sitemaps(site):
