@@ -80,6 +80,8 @@ python -m seo_agent interview               # 6-question business interview → 
 # AGENTS.md (operating instructions) · CLIENT.md (business model) · MEMORY.md (auto-curated) · memory/ (daily journal)
 python -m seo_agent sf [--csv <export>] [--crawl]  # OPTIONAL Screaming Frog bridge (import/cross-check) — the native crawler needs nothing: sitemap or spider mode, own crawl_depth + inlinks
 python -m seo_agent speed                   # Core Web Vitals (PageSpeed lab + CrUX field)
+python -m seo_agent snippet                 # what a Google snippet can quote: embed code, footer text (offline; add data-nosnippet)
+python -m seo_agent brand [--dry-run]       # Google's top 10 for the brand terms: rank, sitelinks, top 3, snippet (DataForSEO, paid ~USD 0.002/term, capped by dataforseo.max_cost)
 python -m seo_agent logs access.log[.gz]    # log-file analysis: crawl waste + AI-crawler coverage
 python -m seo_agent aio                      # re-rank striking-distance by AI-Overview-adjusted CTR
 python -m seo_agent llmstxt                  # generate an llms.txt from the corpus

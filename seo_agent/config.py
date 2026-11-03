@@ -105,8 +105,10 @@ HINTS = {
     "review": 'extra approval channels, e.g. ["slack"] (SLACK_WEBHOOK_URL in .env) — CLI/dashboard always work',
     "rank": "keywords to track daily/weekly, e.g. {\"keywords\": [\"best crm\"], \"max\": 50}",
     "logs": "path to a server access log (crawl-budget + AI-crawler analysis)",
-    "brand": "name used in reports; secrets NEVER go here — they live in .env",
-    "dataforseo": "market for volumes/SERPs (login/password go in .env, not here)",
+    "brand": "name used in reports; `brand` check: optional serp_terms [..] replaces the searched terms, "
+             "market adds brand+market; secrets NEVER go here — they live in .env",
+    "dataforseo": "market for volumes/SERPs (login/password go in .env, not here); max_cost = spend cap in "
+                  "USD per `brand` run (default 0.05)",
     "_more": "any key in seo_agent/config.py DEFAULTS can also be overridden here",
 }
 

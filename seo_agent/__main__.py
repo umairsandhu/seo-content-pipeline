@@ -1,7 +1,7 @@
 """CLI: python -m seo_agent <cmd> --config config.json
 
 Onboard   init · safety · integrations · onboard   bootstrap → fork-safe → baseline
-Doctor    audit · geo · sitemap · speed · logs · schema · eeat · authority · report · llmstxt
+Doctor    audit · snippet · brand · geo · sitemap · speed · logs · schema · eeat · authority · report · llmstxt
 Observe   ingest · gsc · rank · trends · backlinks · toxicity
 Decide    research · discover · gap · aio · consolidate · inlinks · autolink · decay · algo · radar
 Produce   analyze · brief · draft · score · retitle
@@ -21,6 +21,7 @@ from . import (aio, aivis, algo, analyze, anomaly, audit, authority, authority_f
                integrations, internal, intl, jobs, journey, learn, local, logs, mcp_server, notify, onboard,
                orchestrate, plan, produce, projects, prospect, publish, review, serve as serve_mod,
                explain as explain_mod, ledger, radar, rank, refresh, remediate, render, repo, report,
+               brand as brand_mod, snippet as snippet_mod,
                safety, safetygate, schema, site_control, speed, trends, webagent, wizard)
 from . import config as cfgmod
 from .index import Index, load_corpus
@@ -39,6 +40,9 @@ def main():
     sub.add_parser("backlinks")
     sub.add_parser("audit").add_argument("--fix", action="store_true", help="also emit the remediation plan (PR-ready)")
     sub.add_parser("speed")
+    sub.add_parser("snippet")      # what a Google snippet can quote: embed code, footer text (offline)
+    pb = sub.add_parser("brand")   # Google's top 10 for the brand terms (DataForSEO, paid, opt-in)
+    pb.add_argument("--dry-run", action="store_true", help="print the terms and the estimated cost, call nothing")
     sub.add_parser("sitemap")
     sub.add_parser("gap")
     sub.add_parser("aio")
@@ -224,6 +228,23 @@ def main():
             print("\n---\n" + remediate.render_md(cfg, remediate.plan(cfg))
                   + "\n\n_Ship each fix with `pr <edits.json>` or `control <change.json>` — "
                     "queued items go through `review` → `apply --approved`._")
+    elif a.cmd == "snippet":
+        F = []; info = snippet_mod.check(load_corpus(), F)
+        print(f"{info['scanned']}/{info['pages']} indexable pages scanned"
+              + (f" ({info['stale']} lack snippet fields: run `ingest` again)" if info["stale"] else ""))
+        for f in F:
+            print(f"- {f['sev'].upper()}: {f['msg']}  e.g. {f['url']}")
+        if not F:
+            print("No snippet findings.")
+    elif a.cmd == "brand":
+        ts = brand_mod.terms(cfg)
+        print(f"terms: {ts} · estimate USD {brand_mod.estimate(cfg, len(ts))}")
+        if not a.dry_run:
+            r = brand_mod.check(cfg)
+            md = brand_mod.render_md(cfg, r)
+            if not r.get("error"):
+                Path("brand.md").write_text(md); brand_mod.save(cfg, r)
+            print(md)
     elif a.cmd == "sitemap":
         f = []; info = audit.sitemap_health(cfg, load_corpus(), f)
         dump({"summary": info, "findings": f})
