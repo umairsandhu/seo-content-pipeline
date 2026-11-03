@@ -1942,9 +1942,12 @@ class BrandCheck(unittest.TestCase):
         def post(path, payload, timeout=60):
             if seen is not None:
                 seen.append((path, payload))
-            return {"cost": 0.006, "tasks": [
-                {"status_code": 20000, "data": {"keyword": t["keyword"]},
-                 "result": [{"items": per_term[t["keyword"]]}]} for t in payload]}
+            if len(payload) != 1:       # what the Live endpoint really does (3 Nov 2026)
+                return {"cost": 0.002, "tasks": [{"status_code": 40000,
+                        "status_message": "You can set only one task at a time."}] * len(payload)}
+            k = payload[0]["keyword"]
+            return {"cost": 0.002, "tasks": [{"status_code": 20000, "data": {"keyword": k},
+                                              "result": [{"items": per_term[k]}]}]}
         return post
 
     def test_terms_default_and_override(self):
@@ -1965,9 +1968,9 @@ class BrandCheck(unittest.TestCase):
                "superx.pk": [_org(1, "superx.pk", links=sl)],
                "superx pakistan": [_org(1, "superx.pk", links=None), _org(2, "dawn.com")]}
         r = brand.check(self.CFG, post=self._post(per, seen))
-        self.assertEqual(len(seen), 1)                                 # ONE request, three tasks
-        self.assertEqual(seen[0][0], "serp/google/organic/live/advanced")
-        self.assertEqual([t["keyword"] for t in seen[0][1]], ["superx", "superx.pk", "superx pakistan"])
+        self.assertEqual(len(seen), 3)                                 # Live: ONE task per request
+        self.assertEqual({p for p, _ in seen}, {"serp/google/organic/live/advanced"})
+        self.assertEqual([pl[0]["keyword"] for _, pl in seen], ["superx", "superx.pk", "superx pakistan"])
         self.assertEqual(seen[0][1][0]["location_name"], "Pakistan")
         rows = {x["term"]: x for x in r["rows"]}
         self.assertIsNone(rows["superx"]["rank"])
@@ -1982,6 +1985,24 @@ class BrandCheck(unittest.TestCase):
         self.assertEqual(msgs["superx pakistan"]["sev"], "med")        # #1, no sitelinks
         self.assertIn("Google's choice", msgs["superx pakistan"]["msg"])
         self.assertEqual(r["cost"], 0.006)
+
+    def test_a_failed_task_is_not_reported_as_not_in_top_10(self):
+        from seo_agent import brand
+        calls = []
+
+        def post(path, payload, timeout=60):
+            calls.append(1)
+            if len(calls) == 2:
+                return {"cost": 0, "tasks": [{"status_code": 40000, "status_message": "x"}]}
+            return {"cost": 0.002, "tasks": [{"status_code": 20000, "result": [
+                {"items": [_org(1, "superx.pk", links=[{"title": "a"}])]}]}]}
+        r = brand.check(self.CFG, post=post)
+        rows = {x["term"]: x for x in r["rows"]}
+        self.assertTrue(rows["superx.pk"]["failed"])
+        self.assertEqual(rows["superx"]["rank"], 1)
+        f = [f for f in r["findings"] if f["term"] == "superx.pk"][0]
+        self.assertIn("no claim about rank", f["msg"])
+        self.assertIn("request failed", brand.render_md(self.CFG, r))
 
     def test_separate_sitelink_item_type_is_read(self):
         from seo_agent import brand

@@ -8,12 +8,13 @@ per term: our best rank, whether our result carries sitelinks, who holds the top
 
 Terms (config `brand.serp_terms` replaces the list): the brand name, the bare domain, and
 brand + market word (`brand.market`, else `dataforseo.location_name` when it is not the default
-"United States"). One DataForSEO request, one task per term, depth 10 (one billing unit each).
+"United States"). One DataForSEO live request per term (the Live endpoint takes one task per request), depth 10 (one billing unit each).
 The estimate is checked against `dataforseo.max_cost` (default USD 0.05) BEFORE the call; the
 cost the API reports is printed after. Reuses providers._dfs_post (DATAFORSEO_LOGIN/PASSWORD)."""
 import datetime
 import json
 import re
+import time
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -101,6 +102,10 @@ def findings(host, rows):
     F = []
     for r in rows:
         t, u = r["term"], f"https://{host}/"
+        if r.get("failed"):
+            F.append({"cat": "brand", "sev": "low", "url": u, "term": t,
+                      "msg": f"search \"{t}\": no result ({r['failed']}); no claim about rank"})
+            continue
         if r["rank"] != 1:
             where = "is not in the top 10" if r["rank"] is None else f"ranks #{r['rank']}"
             F.append({"cat": "brand", "sev": "high", "url": u, "term": t,
@@ -131,25 +136,36 @@ def check(cfg, post=None):
         return {"error": f"refused: {len(ts)} terms cost about USD {est:.3f}, over the cap "
                          f"USD {cap:.3f} (`dataforseo.max_cost` in config)", "estimate": est}
     d = cfg.get("dataforseo") or {}
-    tasks = [{"keyword": k, "location_name": d.get("location_name", "United States"),
-              "language_name": d.get("language_name", "English"), "device": d.get("device", "desktop"),
-              "depth": 10} for k in ts]
-    res = (post or providers._dfs_post)("serp/google/organic/live/advanced", tasks, 120)
-    if not res:
-        return {"error": "no DataForSEO creds, or the call failed (see the message above)",
-                "estimate": est}
-    got = {}
-    for n, tk in enumerate(res.get("tasks") or []):
-        kw = ((tk.get("data") or {}).get("keyword")) or (ts[n] if n < len(ts) else None)
-        if tk.get("status_code", 20000) == 20000 and kw:
-            got[kw] = ((tk.get("result") or [{}])[0] or {}).get("items") or []
-    rows = [analyse(k, got[k], host) for k in ts if k in got]
+    got, failed, cost = {}, {}, 0.0
+    for n, k in enumerate(ts):
+        # The Live endpoint takes ONE task per request ("You can set only one task at a time",
+        # status 40000, 3 Nov 2026), so each term is its own request; the cost is the same.
+        task = {"keyword": k, "location_name": d.get("location_name", "United States"),
+                "language_name": d.get("language_name", "English"), "device": d.get("device", "desktop"),
+                "depth": 10}
+        res = (post or providers._dfs_post)("serp/google/organic/live/advanced", [task], 120)
+        if not res:
+            failed[k] = "no DataForSEO creds, or the call failed"
+            if n == 0:
+                return {"error": failed[k] + " (see the message above)", "estimate": est}
+            continue
+        cost += res.get("cost") or 0
+        tk = (res.get("tasks") or [{}])[0]
+        if tk.get("status_code", 20000) == 20000:
+            got[k] = ((tk.get("result") or [{}])[0] or {}).get("items") or []
+        else:
+            failed[k] = f"{tk.get('status_code')} {tk.get('status_message')}"
+        if post is None and n < len(ts) - 1:
+            time.sleep(0.3)
+    rows = []
     for k in ts:
-        if k not in got:
+        if k in got:
+            rows.append(analyse(k, got[k], host))
+        else:
             rows.append({"term": k, "rank": None, "url": None, "title": None, "sitelinks": [],
-                         "top3": [], "snippet": "", "results": 0, "failed": True})
+                         "top3": [], "snippet": "", "results": 0, "failed": failed.get(k, "no result")})
     return {"host": host, "terms": ts, "rows": rows, "findings": findings(host, rows),
-            "cost": res.get("cost"), "estimate": est}
+            "cost": round(cost, 4), "estimate": est}
 
 
 def render_md(cfg, r):
@@ -161,7 +177,7 @@ def render_md(cfg, r):
          f"(estimate {r['estimate']})", "",
          "| term | our rank | sitelinks | top 3 |", "|---|--:|--:|---|"]
     for x in r["rows"]:
-        L.append(f"| {x['term']} | {x['rank'] or 'not in top 10'} | {len(x['sitelinks'])} | "
+        L.append(f"| {x['term']} | {'request failed' if x.get('failed') else (x['rank'] or 'not in top 10')} | {len(x['sitelinks'])} | "
                  f"{', '.join(x['top3']) or '—'} |")
     L.append("")
     for x in r["rows"]:

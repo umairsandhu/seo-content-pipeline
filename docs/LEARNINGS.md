@@ -304,8 +304,10 @@ superx.pk and saw no sitelinks, "More results from superx.pk", a snippet that qu
 Policy"). No audit looked at the result for the brand. Measured the same day with DataForSEO
 (`serp/google/organic/live/advanced`, Pakistan, English, desktop): for "superx", superx.pk is not in the top 10;
 SuperX AI Technology (a US stock), a Chrome extension and a band are. Encoded: (1) `brand` (network, paid, opt-in)
-reads Google's top 10 for the brand name, the bare domain and brand + market in ONE request (one task per term,
-about USD 0.002 each, refused when the estimate is over `dataforseo.max_cost`, default USD 0.05) and reports our
+reads Google's top 10 for the brand name, the bare domain and brand + market in one live request per term (the Live
+endpoint takes ONE task per request: a 3-task POST returned status 40000 "You can set only one task at a time"
+for tasks 2 and 3, billed USD 0.002, and the first version read the two empty answers as "not in the top 10";
+a failed task now reads as failed, never as a rank), about USD 0.002 each, refused when the estimate is over `dataforseo.max_cost` (default USD 0.05); it reports our
 best rank, sitelinks, the top 3 domains and our snippet. Sitelinks sit in the organic item's `links` array
 (entries of type `link_element`), not in a separate item type; the code reads both. Findings: brand not #1 (high);
 #1 with no sitelinks (medium; levers: one clear primary nav in the server HTML, distinct titles for the main
