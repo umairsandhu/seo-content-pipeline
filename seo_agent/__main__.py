@@ -2,7 +2,7 @@
 
 Onboard   init · safety · integrations · onboard   bootstrap → fork-safe → baseline
 Doctor    audit · snippet · brand · geo · sitemap · speed · logs · schema · eeat · authority · report · llmstxt
-Observe   ingest · gsc · rank · trends · backlinks · toxicity
+Observe   ingest · gsc · bing · rank · trends · backlinks · toxicity
 Decide    research · discover · gap · aio · consolidate · inlinks · autolink · decay · algo · radar
 Produce   analyze · brief · draft · score · retitle
 Plan      plan                          ranked "what to do next" (the co-pilot)
@@ -21,7 +21,7 @@ from . import (aio, aivis, algo, analyze, anomaly, audit, authority, authority_f
                integrations, internal, intl, jobs, journey, learn, local, logs, mcp_server, notify, onboard,
                orchestrate, plan, produce, projects, prospect, publish, review, serve as serve_mod,
                explain as explain_mod, ledger, radar, rank, refresh, remediate, render, repo, report,
-               brand as brand_mod, snippet as snippet_mod,
+               bing as bing_mod, brand as brand_mod, snippet as snippet_mod,
                safety, safetygate, schema, site_control, speed, trends, webagent, wizard)
 from . import config as cfgmod
 from .index import Index, load_corpus
@@ -34,6 +34,7 @@ def main():
     sub.add_parser("ingest")
     pg = sub.add_parser("gsc"); pg.add_argument("--csv", nargs="+", metavar="PATH",
         help="import GSC CSV export(s) instead of the API (Queries.csv, Pages.csv, a dir, or a .zip)")
+    sub.add_parser("bing")         # Bing Webmaster Tools -> history/bing_*; skips cleanly without BING_WEBMASTER_API_KEY
     sub.add_parser("decay")
     sub.add_parser("algo")
     sub.add_parser("radar")
@@ -184,6 +185,11 @@ def main():
             history.snapshot(cfg, "gsc_queries", raw["queries"])
             history.snapshot(cfg, "gsc_pages", raw["pages"])
         dump(analyze.opportunities_from(raw))
+    elif a.cmd == "bing":
+        lines, ok = bing_mod.run(cfg)
+        print("\n".join(lines))
+        if not ok:
+            sys.exit(1)
     elif a.cmd == "decay":
         dump(decay.detect(cfg))
     elif a.cmd == "algo":

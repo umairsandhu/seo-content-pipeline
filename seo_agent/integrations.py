@@ -88,9 +88,11 @@ INTEGRATIONS = [
      "options": ["MATTERMOST_WEBHOOK_URL", "WHATSAPP_TOKEN+WHATSAPP_PHONE_ID", "IMAP_* for email reply polling"],
      "docs": "https://api.slack.com/messaging/webhooks"},
     {"key": "bing", "name": "Bing Webmaster Tools", "tier": "optional", "kind": "api-key",
-     "purpose": "Secondary search engine — rank/impressions on Bing (and ChatGPT search, which uses Bing)",
+     "implemented": True,
+     "purpose": "Secondary search engine — daily impressions/clicks, queries, pages, crawl and index counts, "
+                "and the registered sitemaps, on Bing (and ChatGPT search, which uses Bing)",
      "env": ["BING_WEBMASTER_API_KEY"], "config": [],
-     "unlocks": ["bing performance (secondary engine)"],
+     "unlocks": ["bing (history/bing_traffic, bing_queries, bing_pages, bing_crawl, bing_feeds)"],
      "options": ["GSC is the primary engine"],
      "docs": "https://learn.microsoft.com/en-us/bingwebmaster/getting-access"},
     {"key": "email", "name": "Email delivery", "tier": "recommended", "kind": "smtp-or-api",

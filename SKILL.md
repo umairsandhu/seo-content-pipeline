@@ -34,7 +34,7 @@ AI-search). At any point, **`python -m seo_agent plan`** fuses every signal into
 |---|---|---|
 | 0 · Onboard | fork-safety + **gated readiness journey** (blocks until the right accesses are wired in) → first-run baseline | `safety` `preflight` `onboard` |
 | 0 · Doctor | technical/on-page audit: sitemap·robots·llms.txt·meta·H1·canonical·dedup·links·speed | `audit` `sitemap` `speed` `llmstxt` |
-| 1 · Observe | ingest site; track GSC/backlinks/trends over time (`history/`) | `ingest` `gsc` `backlinks` `trends` |
+| 1 · Observe | ingest site; track GSC/Bing/backlinks/trends over time (`history/`) | `ingest` `gsc` `bing` `backlinks` `trends` |
 | 2 · Decide | cannibalization, gaps, striking-distance, decay, algo attribution | `research` `discover` `decay` `algo` |
 | 3 · Produce | SERP-grounded briefs, full drafts, title/meta rewrites | `analyze` `brief` `draft` `retitle` |
 | 4 · Publish | one interface → WordPress / Webflow / Ghost / git-PR; MCP server | `publish` `mcp` |
@@ -105,6 +105,7 @@ python -m seo_agent inlinks <url>            # existing pages that should link t
 python -m seo_agent toxicity                 # backlink toxicity review (conservative — see note)
 python -m seo_agent gsc                     # striking-distance + low-CTR; snapshots history
 python -m seo_agent gsc --csv <path|dir|zip> # import a GSC CSV / Sheet export when API access isn't possible
+python -m seo_agent bing                    # Bing Webmaster Tools → history/bing_*; 7d vs 7d, InIndex, top queries, crawl errors, sitemap vs Bing's count (BING_WEBMASTER_API_KEY; skips cleanly without)
 python -m seo_agent decay                   # queries losing rank + pages losing clicks (needs ≥2 gsc runs)
 python -m seo_agent trends "your seed"      # emerging / rising keywords
 python -m seo_agent backlinks               # backlink profile / competitor link-gap

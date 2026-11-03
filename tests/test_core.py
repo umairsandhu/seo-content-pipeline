@@ -2039,5 +2039,148 @@ class BrandCheck(unittest.TestCase):
         self.assertIn("error", r)
 
 
+BING_KEY = "k-secret-123"
+
+
+def _bing_answers(**over):
+    d = lambda ms: f"/Date({ms})/"
+    day = 86400000
+    t0 = 1792454400000          # 2026-10-20
+    traffic = [{"__type": "RankAndTrafficStats:#x", "Clicks": 1 if i >= 7 else 0,
+                "Date": d(t0 + i * day), "Impressions": 20 if i >= 7 else 10} for i in range(14)]
+    crawl = [{"Date": d(t0 + 2 * day), "InIndex": 62, "CrawledPages": 90, "CrawlErrors": 1, "Code4xx": 1, "Code5xx": 0},
+             {"Date": d(t0 + 11 * day), "InIndex": 405, "CrawledPages": 120, "CrawlErrors": 0, "Code4xx": 0, "Code5xx": 0}]
+    queries = [{"Query": "superx charts", "Impressions": 30, "Clicks": 8, "AvgImpressionPosition": 3, "Date": d(t0)},
+               {"Query": "superx charts", "Impressions": 9, "Clicks": 2, "AvgImpressionPosition": 3, "Date": d(t0 + 7 * day)},
+               {"Query": "superpax", "Impressions": 8, "Clicks": 0, "AvgImpressionPosition": 4, "Date": d(t0)}]
+    feeds = [{"Url": "https://x.com/sitemap.xml", "UrlCount": 2, "Status": "Success", "LastCrawled": d(t0), "Submitted": d(t0)},
+             {"Url": "https://x.com/old.xml", "UrlCount": 1054, "Status": "Success", "LastCrawled": d(t0), "Submitted": d(t0)},
+             {"Url": "https://x.com/gone.xml", "UrlCount": 7, "Status": "Success", "LastCrawled": d(t0), "Submitted": d(t0)}]
+    ans = {"GetRankAndTrafficStats": traffic, "GetQueryStats": queries, "GetPageStats": queries[:1],
+           "GetCrawlStats": crawl, "GetFeeds": feeds, "GetCrawlIssues": [],
+           "GetUrlSubmissionQuota": {"DailyQuota": 100, "MonthlyQuota": 2800}}
+    ans.update(over)
+    return ans
+
+
+def _bing_get(ans, seen=None):
+    def get(url):
+        if seen is not None:
+            seen.append(url)
+        method = url.split("/json/")[1].split("?")[0]
+        v = ans[method]
+        if isinstance(v, Exception):
+            raise v
+        return {"d": v}
+    return get
+
+
+def _bing_fetch(url):
+    xml = lambda n: "<urlset>" + "".join(f"<url><loc>https://x.com/p{i}</loc></url>" for i in range(n)) + "</urlset>"
+    return {"https://x.com/sitemap.xml": (200, url, xml(3)),
+            "https://x.com/old.xml": (200, url, "<urlset></urlset>"),
+            "https://x.com/gone.xml": (404, url, "")}[url]
+
+
+class BingWebmaster(unittest.TestCase):
+    """LEARNINGS #37: Bing Webmaster Tools, every response mocked, no network."""
+
+    def setUp(self):
+        self.old = os.environ.get("BING_WEBMASTER_API_KEY")
+        os.environ["BING_WEBMASTER_API_KEY"] = BING_KEY
+        self.cfg = {"site": "https://x.com", "history_dir": tempfile.mkdtemp()}
+
+    def tearDown(self):
+        if self.old is None:
+            os.environ.pop("BING_WEBMASTER_API_KEY", None)
+        else:
+            os.environ["BING_WEBMASTER_API_KEY"] = self.old
+
+    def test_no_key_is_a_one_line_skip(self):
+        from seo_agent import bing
+        os.environ.pop("BING_WEBMASTER_API_KEY")
+        seen = []
+        lines, ok = bing.run(self.cfg, get=_bing_get(_bing_answers(), seen))
+        self.assertTrue(ok)
+        self.assertEqual(len(lines), 1)
+        self.assertIn("BING_WEBMASTER_API_KEY", lines[0])
+        self.assertEqual(seen, [])
+        self.assertFalse((Path(self.cfg["history_dir"]) / "bing_traffic").exists())
+
+    def test_dates_and_envelope(self):
+        from seo_agent import bing, history
+        self.assertEqual(bing.iso("/Date(1792454400000)/"), "2026-10-20")
+        self.assertEqual(bing.iso("/Date(1792454400000+0000)/"), "2026-10-20")
+        seen = []
+        bing.pull(self.cfg, get=_bing_get(_bing_answers(), seen), today="2026-11-03")
+        self.assertEqual(len(seen), 7)
+        self.assertTrue(all("apikey=" + BING_KEY in u and "siteUrl=https%3A%2F%2Fx.com%2F" in u for u in seen))
+        for kind in ("bing_traffic", "bing_queries", "bing_pages", "bing_crawl", "bing_feeds"):
+            snap = history.latest(self.cfg, kind)
+            self.assertEqual((snap["date"], snap["kind"]), ("2026-11-03", kind))
+        self.assertEqual(history.latest(self.cfg, "bing_traffic")["data"][0],
+                         {"Clicks": 0, "Date": "2026-10-20", "Impressions": 10})
+        self.assertEqual(history.latest(self.cfg, "bing_feeds")["data"][0]["LastCrawled"], "2026-10-20")
+
+    def test_summary_numbers(self):
+        from seo_agent import bing
+        lines, ok = bing.run(self.cfg, get=_bing_get(_bing_answers()), fetch=_bing_fetch)
+        text = "\n".join(lines)
+        self.assertTrue(ok)
+        self.assertIn("impressions 140 vs 70 (+100%)", text)     # 7 x 20 vs 7 x 10
+        self.assertIn("clicks 7 vs 0 (new)", text)
+        self.assertIn("InIndex: 62 on 2026-10-22 -> 405 on 2026-10-31", text)
+        self.assertIn("superx charts (39 imp, 10 clicks, pos 3)", text)
+        self.assertIn("crawl errors: 0 on 2026-10-31; 1 over 2 days (4xx 1, 5xx 0)", text)
+        self.assertIn("quota: 100 a day", text)
+        self.assertEqual(bing.top_queries(_bing_answers()["GetQueryStats"])[0]["query"], "superx charts")
+
+    def test_feed_flags_count_difference_empty_and_404(self):
+        from seo_agent import bing
+        lines, _ = bing.run(self.cfg, get=_bing_get(_bing_answers()), fetch=_bing_fetch)
+        text = "\n".join(lines)
+        self.assertIn("3 registered, 3 differ", text)
+        self.assertIn("Bing holds 2 URLs, the live sitemap lists 3 (+1)", text)
+        self.assertIn("old.xml: registered feed is now empty; Bing still holds 1054 URLs", text)
+        self.assertIn("gone.xml: registered feed now answers HTTP 404; Bing still holds 7 URLs", text)
+        ok = bing.feed_checks([{"Url": "https://x.com/sitemap.xml", "UrlCount": 3}], _bing_fetch)
+        self.assertNotIn("problem", ok[0])
+
+    def test_sitemap_index_is_followed(self):
+        from seo_agent import bing
+
+        def fetch(url):
+            if url.endswith("index.xml"):
+                return 200, url, "<sitemapindex><sitemap><loc>https://x.com/a.xml</loc></sitemap><sitemap><loc>https://x.com/b.xml</loc></sitemap></sitemapindex>"
+            return 200, url, "<urlset><url><loc>https://x.com/1</loc></url><url><loc>https://x.com/2</loc></url></urlset>"
+        self.assertEqual(bing.sitemap_count("https://x.com/index.xml", fetch), (200, 4))
+
+    def test_a_failed_method_is_an_error_not_an_empty_snapshot_and_the_key_never_leaks(self):
+        from seo_agent import bing, history
+        err = OSError(f"boom https://ssl.bing.com/x?apikey={BING_KEY}")
+        ans = _bing_answers(GetPageStats=err)
+        res = bing.pull(self.cfg, get=_bing_get(ans))
+        self.assertIn("GetPageStats", res["errors"])
+        self.assertIsNone(history.latest(self.cfg, "bing_pages"))
+        self.assertIsNotNone(history.latest(self.cfg, "bing_queries"))
+        lines, ok = bing.run(self.cfg, get=_bing_get(ans), fetch=_bing_fetch)
+        self.assertTrue(ok)
+        self.assertNotIn(BING_KEY, "\n".join(lines))
+        self.assertIn("GetPageStats", "\n".join(lines))
+
+    def test_every_method_failing_is_not_ok_and_the_key_never_leaks(self):
+        from seo_agent import bing
+        boom = lambda url: (_ for _ in ()).throw(OSError(f"down {url}"))
+        lines, ok = bing.run(self.cfg, get=boom)
+        self.assertFalse(ok)
+        self.assertNotIn(BING_KEY, "\n".join(lines))
+
+    def test_integration_is_marked_implemented(self):
+        from seo_agent import integrations
+        it = next(i for i in integrations.INTEGRATIONS if i["key"] == "bing")
+        self.assertTrue(it["implemented"])
+        self.assertEqual(it["env"], ["BING_WEBMASTER_API_KEY"])
+
+
 if __name__ == "__main__":
     unittest.main()

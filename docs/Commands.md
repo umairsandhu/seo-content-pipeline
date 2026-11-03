@@ -37,6 +37,7 @@ none.
 | Command | Needs | Does |
 |---|---|---|
 | `gsc` | GSC | Striking-distance + low-CTR opportunities; snapshots to `history/`. |
+| `bing` | `BING_WEBMASTER_API_KEY` | Bing Webmaster Tools: impressions/clicks (7 days vs the 7 before), InIndex trend, top queries, crawl errors, and any registered sitemap whose URL count differs from the live one. Snapshots `bing_traffic`, `bing_queries`, `bing_pages`, `bing_crawl`, `bing_feeds` to `history/`. Without the key it prints one line and exits 0. |
 | `rank` | DFS | Track position + SERP features (AIO/snippet/PAA/video/shopping/…) over time + movement. |
 | `trends <seed…>` | DFS | Emerging / rising keywords (new-since-last-run + rising interest). |
 | `backlinks` | DFS | Backlink profile, or competitor link-gap (outreach targets). |

@@ -60,6 +60,7 @@ Run `plan` (tactical next actions) or `consult` (full strategy) at **any** point
 | `ingest` | Crawl the sitemap → `corpus.json` (title/meta/headings/text/links/JSON-LD dates+authors) | — | corpus |
 | `gsc` | Striking-distance + low-CTR; snapshots to `history/` | GSC service account | opportunities |
 | `gsc --csv <path\|dir\|zip>` | Import a GSC CSV / Google-Sheet export when API access isn't possible | a GSC export | same, no API |
+| `bing` | Bing Webmaster Tools: impressions/clicks 7 days vs the 7 before, InIndex trend, top queries, crawl errors, registered sitemaps vs the live ones; snapshots `bing_*` to `history/` | `BING_WEBMASTER_API_KEY` (skips with one line without it) | summary |
 | `rank` | Track positions + SERP features (incl. **AI-Overview** flag) over time | DataForSEO | movement |
 | `trends "<seed>"` | Emerging / rising keywords | DataForSEO | rising list |
 | `backlinks` | Backlink profile / competitor link-gap | DataForSEO | link gap |
