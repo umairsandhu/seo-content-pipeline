@@ -245,7 +245,7 @@ def freshness(corpus, F, year=None):
     pat = re.compile(r"\b(20[123]\d)\b")
     # A year that dates a fact ("last traded Sept 2024", "delisted 2023", "since 2019") is
     # true and stays true; only a year that dates the page itself is stale (LEARNINGS #32).
-    fact = re.compile(r"\b(?:last\s+trad(?:ed|e)|delisted|suspended|merged|founded|established|since)"
+    fact = re.compile(r"\b(?:last\s+trad(?:ed|e)|(?:last\s+|next\s+)?ex-?dates?|delisted|suspended|merged|founded|established|since)"
                       r"\b[^|·:–—]{0,20}?\b20[123]\d\b", re.I)
     stale_body = []
     for c in corpus:
