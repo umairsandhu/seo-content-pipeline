@@ -336,3 +336,8 @@ different `<loc>` count from Bing's `UrlCount`. Rules: (a) the key is in the que
 is scrubbed and no URL is printed; (b) a failed method is an error, never an empty snapshot; (c) after you
 change or empty a sitemap, run `bing` and remove the stale feed with `RemoveFeed`; (d) a second engine can rise
 while the first falls, so a Google-only reading of "traffic is down" is incomplete.
+
+34. **A year in "last ex-date 31 Oct 2025" dates a payout, not the page (5 Nov 2026).** The `freshness` audit flagged 26 SuperX
+`/dividends/{SYM}/` titles as "says 2025" although the year is the last ex-date shown, a true fact that stays true. Encoded: the
+fact pattern in `audit.freshness` also covers `ex-date`, `last ex-date` and `next ex-date` (LEARNINGS #32 had the same rule for
+"last traded", "delisted", "since"). Test: `test_ex_date_year_is_a_fact_not_a_stale_title`.

@@ -711,6 +711,18 @@ class Freshness(unittest.TestCase):
         self.assertEqual(len(agg), 1)                             # /c body-stale, aggregated
         self.assertIn("1 pages", agg[0]["msg"])
 
+    def test_ex_date_year_is_a_fact_not_a_stale_title(self):
+        from seo_agent import audit
+        corpus = [
+            {"url": "https://d.com/a", "status": 200, "h1": ["AIRLINK dividend history"], "text": "x",
+             "title": "AIRLINK dividend history, last ex-date 31 Oct 2025 · SuperX"},
+            {"url": "https://d.com/b", "status": 200, "h1": [], "text": "x", "title": "Best Dialers 2025"},
+        ]
+        F = []
+        audit.freshness(corpus, F, year=2026)
+        urls = [f["url"] for f in F if f["sev"] == "med"]
+        self.assertEqual(urls, ["https://d.com/b"])               # /a's year dates an ex-date, a fact
+
 
 class ConfigScaffold(unittest.TestCase):
     """Hand-holding: every setting has a visible slot (like .env.example), the
