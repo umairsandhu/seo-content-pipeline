@@ -11,7 +11,7 @@ import datetime
 import json
 from urllib.parse import urlparse
 
-from . import history, store
+from . import history, providers, store
 
 
 def _con(cfg):
@@ -97,6 +97,78 @@ def _on_or_after(snaps, target):
     return later[0] if later else None
 
 
+def _daily(cfg, start, end):
+    """Per-day Search Console rows, {norm_url: {date: (clicks, impressions, position)}}, plus the last
+    date that has data. None when no API is connected (CSV sites keep the snapshot comparison)."""
+    prop, cred = cfg.get("gsc_property"), cfg.get("gsc_credentials")
+    svc = providers.gsc_service(cred) if prop and cred else None
+    if not svc:
+        return None
+    rows, offset, size = [], 0, 25000
+    while True:
+        page = providers.gsc_query(svc, prop, start.isoformat(), end.isoformat(), ("page", "date"),
+                                   row_limit=size, start_row=offset)
+        rows += page
+        offset += len(page)
+        if len(page) < size:
+            break
+    pages, last = {}, None
+    for r in rows:
+        day = datetime.date.fromisoformat(r["date"])
+        last = max(last or day, day)
+        days = pages.setdefault(_norm(r["page"]), {})
+        c, i, p = days.get(day, (0, 0, 0))
+        n = r.get("impressions", 0)  # two raw URLs can share one normalised URL
+        days[day] = (c + r.get("clicks", 0), i + n,
+                     (p * i + r.get("position", 0) * n) / (i + n) if i + n else 0)
+    first = min((d for days in pages.values() for d in days), default=None)
+    return {"pages": pages, "first": first, "last": last}
+
+
+def _sum(days, start, length):
+    """(clicks, impressions, impression-weighted position) over `length` days from `start`."""
+    got = [days[d] for d in (start + datetime.timedelta(days=n) for n in range(length)) if d in days]
+    imps = sum(g[1] for g in got)
+    return (sum(g[0] for g in got), imps,
+            sum(g[2] * g[1] for g in got) / imps if imps else 0)
+
+
+def _compare(daily, url, changed, cdate, length):
+    """Equal windows either side of `cdate` (the change day itself is in neither). None when either
+    window is outside the data, or the page was never shown in both: that is no evidence, not zero."""
+    before = cdate - datetime.timedelta(days=length)
+    after = cdate + datetime.timedelta(days=1)
+    if not daily["last"] or before < daily["first"] or after + datetime.timedelta(days=length - 1) > daily["last"]:
+        return None
+    days = daily["pages"].get(url, {})
+    b, a = _sum(days, before, length), _sum(days, after, length)
+    if not (b[1] or a[1]):
+        return None
+    hds = []
+    for u, other in daily["pages"].items():
+        if u in changed:
+            continue
+        ob, oa = _sum(other, before, length), _sum(other, after, length)
+        if ob[1] or oa[1]:
+            hds.append(oa[0] - ob[0])
+    return {"from": before, "to": after + datetime.timedelta(days=length - 1), "before": b, "after": a,
+            "hold": sorted(hds)[len(hds) // 2] if hds else 0, "holdout_n": len(hds),
+            "dpos": a[2] - b[2] if b[1] and a[1] else 0}
+
+
+def _daily_for(cfg, applied, longest):
+    dates = []
+    for c in applied:
+        try:
+            dates.append(datetime.date.fromisoformat(c["date"]))
+        except Exception:
+            pass
+    if not dates:
+        return None
+    today = datetime.date.today()
+    return _daily(cfg, min(dates) - datetime.timedelta(days=longest), today)
+
+
 def _ensure_followups(con):
     """One home for the followups DDL (was declared twice — ARCHITECTURE-V2 §7.6) +
     in-place migration for the W2 statistical columns."""
@@ -126,18 +198,21 @@ def _confounded(cdate, window=5):
 
 def follow_up(cfg, horizons=(7, 28, 90)):
     """Measure each change's impact at day/week/month horizons — the follow-up loop.
-    For a change on date D, compare its URL's clicks/position from the snapshot nearest D
-    to the snapshot nearest D+horizon, minus the MEDIAN DELTA of a holdout of untouched
+    With the Search Console API connected, compare the `horizon` days before the change with the
+    `horizon` days after it (`_compare`) and rebuild `followups`. Without it, compare its URL's
+    clicks/position from the snapshot nearest D to the snapshot nearest D+horizon, minus the MEDIAN DELTA of a holdout of untouched
     pages over the same window (diff-in-diff: seasonality/weekday/algorithm effects common
     to the whole site cancel out). Changes within ±5d of a Google update are flagged
     `confounded` and excluded from learning aggregates. Persists to `followups`."""
-    import datetime
+    ch_all = changes(cfg)
+    applied = [c for c in ch_all if c["status"] == "applied"]
+    if cfg.get("gsc_property") and cfg.get("gsc_credentials"):
+        return _follow_up_daily(cfg, applied, horizons)
     snaps = _snapshots_sorted(cfg)
     if len(snaps) < 2:
         return {"error": "need ≥2 GSC page snapshots over time (run `gsc` on a cadence)", "recorded": 0}
     con = _con(cfg)
     _ensure_followups(con)
-    ch_all = changes(cfg)
     changed_urls = {_norm(c["url"]) for c in ch_all}
     recorded = 0
     with con:
@@ -171,6 +246,37 @@ def follow_up(cfg, horizons=(7, 28, 90)):
     return {"recorded": recorded, "horizons": list(horizons)}
 
 
+def _follow_up_daily(cfg, applied, horizons):
+    try:
+        daily = _daily_for(cfg, applied, max(horizons))
+    except Exception as e:  # never fall back to the rolling snapshots: they measure something else
+        return {"error": f"Search Console daily pull failed: {type(e).__name__}", "recorded": 0}
+    if not daily:
+        return {"error": "no daily Search Console data (nothing applied, or the API client is missing)",
+                "recorded": 0}
+    changed = {_norm(c["url"]) for c in applied}
+    out = []
+    for ch in applied:
+        try:
+            cdate = datetime.date.fromisoformat(ch["date"])
+        except Exception:
+            continue
+        for h in horizons:
+            m = _compare(daily, _norm(ch["url"]), changed, cdate, h)
+            if not m:
+                continue
+            dclicks = m["after"][0] - m["before"][0]
+            out.append((ch["id"], h, m["from"].isoformat(), m["to"].isoformat(), dclicks, m["hold"],
+                        dclicks - m["hold"], round(m["dpos"], 1), _confounded(cdate), m["holdout_n"]))
+    con = _con(cfg)
+    _ensure_followups(con)
+    with con:
+        con.execute("DELETE FROM followups")  # rows from the snapshot comparison are not comparable
+        con.executemany("INSERT OR REPLACE INTO followups VALUES (?,?,?,?,?,?,?,?,?,?)", out)
+    con.close()
+    return {"recorded": len(out), "horizons": list(horizons), "data_through": str(daily["last"])}
+
+
 def followups(cfg):
     """Joined change type + horizon lift rows (for the learning layer), with the W2
     trust columns: confound flag + holdout size."""
@@ -201,6 +307,8 @@ def _two_snapshots(cfg):
 
 def attribution(cfg, window=28):
     """Before→after clicks/position per changed URL vs a holdout of untouched pages."""
+    if cfg.get("gsc_property") and cfg.get("gsc_credentials"):
+        return _attribution_daily(cfg, window)
     prev, curr = _two_snapshots(cfg)
     if not prev:
         return {"error": "need ≥2 GSC page snapshots straddling the change (run `gsc` on a cadence)"}
@@ -227,6 +335,39 @@ def attribution(cfg, window=28):
                      "delta_pos": round(dpos, 1)})
     rows.sort(key=lambda r: -r["holdout_adjusted_lift"])
     return {"window": f"{pdate} → {cdate}", "holdout_median_delta": base,
+            "changed_pages_measured": len(rows), "rows": rows}
+
+
+def _attribution_daily(cfg, window):
+    """`window` days either side of each URL's latest change; URLs without a full window yet are left out."""
+    applied = [c for c in changes(cfg) if c["status"] == "applied"]
+    try:
+        daily = _daily_for(cfg, applied, window)
+    except Exception as e:
+        return {"error": f"Search Console daily pull failed: {type(e).__name__}"}
+    if not daily:
+        return {"error": "no daily Search Console data (nothing applied, or the API client is missing)"}
+    latest = {}
+    for c in applied:
+        u = _norm(c["url"])
+        latest[u] = max(latest.get(u, ""), c["date"])
+    rows = []
+    for u, d in latest.items():
+        try:
+            m = _compare(daily, u, set(latest), datetime.date.fromisoformat(d), window)
+        except ValueError:
+            continue
+        if not m:
+            continue
+        dclicks = m["after"][0] - m["before"][0]
+        rows.append({"url": u, "before_clicks": m["before"][0], "after_clicks": m["after"][0],
+                     "delta_clicks": dclicks, "holdout_adjusted_lift": dclicks - m["hold"],
+                     "before_pos": round(m["before"][2], 1), "after_pos": round(m["after"][2], 1),
+                     "delta_pos": round(m["dpos"], 1), "holdout_median_delta": m["hold"]})
+    rows.sort(key=lambda r: -r["holdout_adjusted_lift"])
+    holds = sorted(r["holdout_median_delta"] for r in rows)
+    return {"window": f"{window} days before vs {window} days after each change (data through {daily['last']})",
+            "holdout_median_delta": holds[len(holds) // 2] if holds else 0,
             "changed_pages_measured": len(rows), "rows": rows}
 
 
