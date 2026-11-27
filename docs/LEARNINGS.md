@@ -341,3 +341,13 @@ while the first falls, so a Google-only reading of "traffic is down" is incomple
 `/dividends/{SYM}/` titles as "says 2025" although the year is the last ex-date shown, a true fact that stays true. Encoded: the
 fact pattern in `audit.freshness` also covers `ex-date`, `last ex-date` and `next ex-date` (LEARNINGS #32 had the same rule for
 "last traded", "delisted", "since"). Test: `test_ex_date_year_is_a_fact_not_a_stale_title`.
+
+35. **A change cannot be measured by subtracting two rolling totals (27 Nov 2026).** `gsc` snapshots are trailing 90-day
+totals, and `ledger.follow_up` subtracted the one at the change date from the one at +7/+28 days. That difference is
+(days that entered the window) minus (days that left it), not the effect of the change; "28 days after" also compared
+snapshots taken days after the change, and 1,720 stored rows fed `learn`, `brain` and the rollback proposals. Encoded:
+with the Search Console API connected, `follow_up` and `attribution` pull (page, date) rows and compare equal windows
+before and after the change, skip a horizon without a full window and a page never shown in either, rebuild
+`followups`, and report an error instead of falling back. CSV-only sites still use the snapshot comparison: read it as
+a change in the export totals only. Test: `test_api_followups_compare_equal_windows_not_rolling_totals`.
+

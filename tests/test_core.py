@@ -484,6 +484,34 @@ class Learn(unittest.TestCase):
         self.assertEqual(loc[90]["mean_lift"], 65.0)
         self.assertEqual(loc[28]["win_rate"], 1.0)
 
+    def test_api_followups_compare_equal_windows_not_rolling_totals(self):
+        """LEARNINGS #35: a rolling 90-day total that falls because old days drop out is not a loss."""
+        from unittest import mock
+        from seo_agent import ledger, providers
+        cfg = self._scenario()
+        cfg.update(gsc_property="sc-domain:demo.com", gsc_credentials="x.json")
+        day = lambda d, u, c: {"page": u, "date": d, "clicks": c, "impressions": 10, "position": 5.0}
+        con = ledger._con(cfg)
+        ledger._ensure_followups(con)
+        with con:  # a stale row from the old comparison
+            con.execute("INSERT INTO followups VALUES (1,90,'a','b',-99,0,-99,0,0,0)")
+        con.close()
+        ledger.record(cfg, "https://demo.com/quiet", "retitle", "never shown", date="2026-01-10")
+        rows = [day("2025-12-01", "https://demo.com/old", 500)]
+        for n in range(1, 25):
+            rows.append(day(f"2026-01-{n:02d}", "https://demo.com/a", 1 if n < 10 else 3))
+        ledger.record(cfg, "https://demo.com/a", "retitle", "y", date="2026-01-10")
+        with mock.patch.object(providers, "gsc_service", return_value=object()), \
+             mock.patch.object(providers, "gsc_query", return_value=rows):
+            r = ledger.follow_up(cfg)
+            att = ledger.attribution(cfg, window=7)
+        got = {(f["horizon"], f["lift"]) for f in ledger.followups(cfg)}
+        self.assertIn((7, 14), got)                       # 7 days x 3 minus 7 days x 1
+        self.assertNotIn(-99, [lift for _, lift in got])  # stale rows replaced
+        self.assertNotIn(90, [h for h, _ in got])         # no full window yet, so no number
+        self.assertEqual(r["data_through"], "2026-01-24")
+        self.assertEqual([x["url"] for x in att["rows"]], ["https://demo.com/a"])
+
     def test_no_global_write_without_consent(self):
         from seo_agent import learn, ledger
         cfg = self._scenario()          # note: NO learning.share_cross_site set
